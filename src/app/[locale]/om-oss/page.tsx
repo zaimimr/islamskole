@@ -43,7 +43,8 @@ export default async function AboutPage({
           <div className="relative">
             <Blob className="-top-8 -left-8 -z-10 h-44 w-44 text-secondary animate-float-slow" />
             <MediaFrame
-              alt=""
+              src="/brand/community.png"
+              alt={t("storyTitle")}
               tone="green"
               className="aspect-[4/3] rounded-[2.2rem] shadow-[0_30px_70px_-40px_rgba(20,60,30,0.5)] ring-1 ring-foreground/10"
               sizes="(min-width: 1024px) 45vw, 100vw"
@@ -76,7 +77,8 @@ export default async function AboutPage({
           <div className="relative lg:order-1">
             <Blob className="-right-8 -bottom-8 -z-10 h-44 w-44 text-accent animate-float" />
             <MediaFrame
-              alt=""
+              src="/brand/hero.png"
+              alt={t("approachTitle")}
               tone="sky"
               className="aspect-[4/3] rounded-[2.2rem] shadow-[0_30px_70px_-40px_rgba(20,60,30,0.5)] ring-1 ring-foreground/10"
               sizes="(min-width: 1024px) 45vw, 100vw"

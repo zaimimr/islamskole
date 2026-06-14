@@ -56,7 +56,8 @@ export async function Hero() {
           <div className="absolute -top-6 -left-6 -z-10 h-full w-full rounded-[2.6rem] bg-primary/15" />
           <div className="absolute -right-5 -bottom-5 -z-10 size-28 rounded-full bg-secondary" />
           <MediaFrame
-            alt=""
+            src="/brand/hero.png"
+            alt={t("title")}
             tone="green"
             priority
             sizes="(min-width: 1024px) 45vw, 100vw"
