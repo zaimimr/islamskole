@@ -79,7 +79,14 @@
     "previewTitle": "Hva skjer hos oss",
     "previewSubtitle": "Samlinger, fester og felles opplevelser gjennom året.",
     "viewAll": "Se alle aktiviteter",
-    "detailsTitle": "Detaljer"
+    "detailsTitle": "Detaljer",
+    "share": {
+      "inviteNote": "Inviter andre til arrangementet",
+      "share": "Del invitasjon",
+      "copy": "Kopier lenke",
+      "copied": "Lenke kopiert",
+      "calendar": "Legg til i kalender"
+    }
   },
   "info": {
     "title": "Nyttig informasjon",

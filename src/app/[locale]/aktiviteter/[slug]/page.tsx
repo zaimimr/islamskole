@@ -5,8 +5,9 @@ import { ArrowLeftIcon, CalendarDaysIcon, ClockIcon, MapPinIcon } from "lucide-r
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { getEventBySlug, getPublishedEvents, localized } from "@/lib/data";
-import { contentMetadata, eventJsonLd } from "@/lib/seo";
+import { contentMetadata, eventJsonLd, siteUrl, localePath } from "@/lib/seo";
 import { MediaFrame } from "@/components/site/MediaFrame";
+import { ShareEvent } from "@/components/site/ShareEvent";
 import { EnrollCta } from "@/components/site/EnrollCta";
 import { Blob } from "@/components/site/decor";
 import { formatEventDate, formatEventTime } from "@/components/site/format";
@@ -50,6 +51,7 @@ export default async function EventDetailPage({
   const title = localized(item, "title", typedLocale);
   const body = localized(item, "body", typedLocale);
   const excerpt = localized(item, "excerpt", typedLocale);
+  const shareUrl = `${siteUrl}${localePath(typedLocale, `/aktiviteter/${item.slug}`)}`;
   const dateLabel = formatEventDate(item.starts_at, typedLocale);
   const startTime = formatEventTime(item.starts_at, typedLocale);
   const endTime = formatEventTime(item.ends_at, typedLocale);
@@ -129,28 +131,40 @@ export default async function EventDetailPage({
           )}
         </div>
 
-        {facts.length > 0 && (
-          <aside className="soft-card flex flex-col gap-1 self-start p-7">
-            <h2 className="mb-2 text-xl font-bold">{t("detailsTitle")}</h2>
-            <ul className="flex flex-col divide-y divide-foreground/8">
-              {facts.map(({ icon: Icon, label, value }) => (
-                <li key={label} className="flex items-start gap-3 py-3.5">
-                  <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-brand-green-dark">
-                    <Icon className="size-5" aria-hidden="true" />
-                  </span>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                      {label}
+        <aside className="flex flex-col gap-6 self-start">
+          {facts.length > 0 && (
+            <div className="soft-card flex flex-col gap-1 p-7">
+              <h2 className="mb-2 text-xl font-bold">{t("detailsTitle")}</h2>
+              <ul className="flex flex-col divide-y divide-foreground/8">
+                {facts.map(({ icon: Icon, label, value }) => (
+                  <li key={label} className="flex items-start gap-3 py-3.5">
+                    <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/12 text-brand-green-dark">
+                      <Icon className="size-5" aria-hidden="true" />
                     </span>
-                    <span className="text-base font-semibold text-foreground">
-                      {value}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </aside>
-        )}
+                    <div className="flex flex-col">
+                      <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                        {label}
+                      </span>
+                      <span className="text-base font-semibold text-foreground">
+                        {value}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="soft-card p-7">
+            <ShareEvent
+              url={shareUrl}
+              title={title}
+              text={excerpt || body}
+              location={item.location}
+              startDate={item.starts_at}
+              endDate={item.ends_at}
+            />
+          </div>
+        </aside>
       </div>
 
       <EnrollCta />

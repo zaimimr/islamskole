@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import type { Locale } from "@/i18n/routing";
 import { deleteEvent } from "@/app/[locale]/admin/actions";
 import { adminBasePath } from "@/components/admin/paths";
+import { siteUrl, localePath } from "@/lib/seo";
 import { PageHeader } from "@/components/admin/page-header";
 import { DeleteButton } from "@/components/admin/delete-button";
+import { CopyLinkButton } from "@/components/admin/copy-link-button";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +22,7 @@ import {
 
 type EventRow = {
   id: string;
+  slug: string | null;
   title_no: string | null;
   starts_at: string | null;
   location: string | null;
@@ -30,7 +34,7 @@ async function getEvents(): Promise<EventRow[]> {
     const supabase = await createClient();
     const { data } = await supabase
       .from("events")
-      .select("id, title_no, starts_at, location, published")
+      .select("id, slug, title_no, starts_at, location, published")
       .order("starts_at", { ascending: false });
     return (data as EventRow[] | null) ?? [];
   } catch {
@@ -96,6 +100,14 @@ export default async function AktiviteterPage({
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
+                        {event.published && event.slug ? (
+                          <CopyLinkButton
+                            url={`${siteUrl}${localePath(
+                              locale as Locale,
+                              `/aktiviteter/${event.slug}`,
+                            )}`}
+                          />
+                        ) : null}
                         <Link
                           href={`${basePath}/aktiviteter/${event.id}`}
                           aria-label="Rediger"

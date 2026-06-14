@@ -79,7 +79,14 @@
     "previewTitle": "What's happening",
     "previewSubtitle": "Gatherings, celebrations and shared experiences through the year.",
     "viewAll": "See all activities",
-    "detailsTitle": "Details"
+    "detailsTitle": "Details",
+    "share": {
+      "inviteNote": "Invite others to this event",
+      "share": "Share invitation",
+      "copy": "Copy link",
+      "copied": "Link copied",
+      "calendar": "Add to calendar"
+    }
   },
   "info": {
     "title": "Useful information",
