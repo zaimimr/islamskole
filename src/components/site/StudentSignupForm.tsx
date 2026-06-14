@@ -110,6 +110,41 @@ export function StudentSignupForm() {
         />
       </div>
 
+      <div className="grid gap-3 rounded-2xl bg-muted/40 p-4">
+        <div>
+          <p className="text-sm font-semibold text-foreground">
+            {t("levelsTitle")}
+          </p>
+          <p className="text-sm text-muted-foreground">{t("levelsHint")}</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {(
+            [
+              ["level_quran", "levelQuran"],
+              ["level_arabic", "levelArabic"],
+              ["level_islam", "levelIslam"],
+            ] as const
+          ).map(([name, label]) => (
+            <div key={name} className="grid gap-2">
+              <Label htmlFor={name}>{t(label)}</Label>
+              <select
+                id={name}
+                name={name}
+                defaultValue=""
+                className="h-10 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              >
+                <option value="">{t("levelPlaceholder")}</option>
+                {(["nybegynner", "litt", "middels", "god"] as const).map((v) => (
+                  <option key={v} value={v}>
+                    {t(`levels.${v}`)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="grid gap-2">
         <Label htmlFor="message">{t("fieldMessage")}</Label>
         <Textarea

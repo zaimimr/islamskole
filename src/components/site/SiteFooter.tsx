@@ -1,9 +1,10 @@
 import { getTranslations } from "next-intl/server";
-import { MailIcon, MapPinIcon, ClockIcon, GlobeIcon, CameraIcon } from "lucide-react";
+import { MailIcon, MapPinIcon, ClockIcon } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { getSiteSettings } from "@/lib/data";
 import { Logo } from "./Logo";
 import { WaveDivider } from "./decor";
+import { FacebookIcon, InstagramIcon } from "./brand-icons";
 
 const exploreLinks = [
   { href: "/klasser", key: "classes" },
@@ -46,7 +47,7 @@ export async function SiteFooter() {
                     aria-label={t("contact.facebook")}
                     className="inline-flex size-10 items-center justify-center rounded-full bg-primary-foreground/12 transition-colors hover:bg-primary-foreground/25 focus-visible:ring-3 focus-visible:ring-primary-foreground/50 outline-none"
                   >
-                    <GlobeIcon className="size-5" aria-hidden="true" />
+                    <FacebookIcon className="size-5" />
                   </a>
                 )}
                 {instagram && (
@@ -57,7 +58,7 @@ export async function SiteFooter() {
                     aria-label={t("contact.instagram")}
                     className="inline-flex size-10 items-center justify-center rounded-full bg-primary-foreground/12 transition-colors hover:bg-primary-foreground/25 focus-visible:ring-3 focus-visible:ring-primary-foreground/50 outline-none"
                   >
-                    <CameraIcon className="size-5" aria-hidden="true" />
+                    <InstagramIcon className="size-5" />
                   </a>
                 )}
               </div>

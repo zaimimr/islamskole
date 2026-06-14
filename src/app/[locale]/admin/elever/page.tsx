@@ -21,10 +21,25 @@ type StudentApplicationRow = {
   email: string | null;
   phone: string | null;
   desired_class: string | null;
+  level_quran: string | null;
+  level_arabic: string | null;
+  level_islam: string | null;
   message: string | null;
   status: string | null;
   created_at: string | null;
 };
+
+const levelLabels: Record<string, string> = {
+  nybegynner: "Nybegynner",
+  litt: "Litt erfaring",
+  middels: "Middels",
+  god: "God",
+};
+
+function levelLabel(value: string | null) {
+  if (!value) return "-";
+  return levelLabels[value] ?? value;
+}
 
 async function getApplications(): Promise<StudentApplicationRow[]> {
   try {
@@ -32,7 +47,7 @@ async function getApplications(): Promise<StudentApplicationRow[]> {
     const { data } = await supabase
       .from("student_applications")
       .select(
-        "id, child_name, child_age, guardian_name, email, phone, desired_class, message, status, created_at",
+        "id, child_name, child_age, guardian_name, email, phone, desired_class, level_quran, level_arabic, level_islam, message, status, created_at",
       )
       .order("created_at", { ascending: false });
     return (data as StudentApplicationRow[] | null) ?? [];
@@ -77,6 +92,7 @@ export default async function EleverPage() {
                   <TableHead>E-post</TableHead>
                   <TableHead>Telefon</TableHead>
                   <TableHead>Ønsket klasse</TableHead>
+                  <TableHead>Nivå (Koran / Arabisk / Islam)</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Dato</TableHead>
                   <TableHead className="text-right">Handlinger</TableHead>
@@ -104,6 +120,11 @@ export default async function EleverPage() {
                     </TableCell>
                     <TableCell>{application.phone ?? "-"}</TableCell>
                     <TableCell>{application.desired_class ?? "-"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {levelLabel(application.level_quran)} /{" "}
+                      {levelLabel(application.level_arabic)} /{" "}
+                      {levelLabel(application.level_islam)}
+                    </TableCell>
                     <TableCell>
                       <StudentStatusSelect
                         id={application.id}

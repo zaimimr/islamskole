@@ -429,6 +429,9 @@ export async function createStudentApplication(
     email,
     phone: readOptionalString(formData, "phone"),
     desired_class: readOptionalString(formData, "desired_class"),
+    level_quran: readOptionalString(formData, "level_quran"),
+    level_arabic: readOptionalString(formData, "level_arabic"),
+    level_islam: readOptionalString(formData, "level_islam"),
     message: readOptionalString(formData, "message"),
   };
 

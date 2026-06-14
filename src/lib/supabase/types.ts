@@ -244,6 +244,9 @@ export type Database = {
           email: string
           guardian_name: string
           id: string
+          level_arabic: string | null
+          level_islam: string | null
+          level_quran: string | null
           message: string | null
           phone: string | null
           status: string
@@ -256,6 +259,9 @@ export type Database = {
           email: string
           guardian_name: string
           id?: string
+          level_arabic?: string | null
+          level_islam?: string | null
+          level_quran?: string | null
           message?: string | null
           phone?: string | null
           status?: string
@@ -268,6 +274,9 @@ export type Database = {
           email?: string
           guardian_name?: string
           id?: string
+          level_arabic?: string | null
+          level_islam?: string | null
+          level_quran?: string | null
           message?: string | null
           phone?: string | null
           status?: string
