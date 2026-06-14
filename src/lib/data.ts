@@ -104,6 +104,30 @@ export async function getPublishedEvents(): Promise<EventItem[]> {
   return (data as EventItem[] | null) ?? [];
 }
 
+export async function getUpcomingEvents(): Promise<EventItem[]> {
+  if (!hasSupabaseEnv()) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("events")
+    .select("*")
+    .eq("published", true)
+    .gte("starts_at", new Date().toISOString())
+    .order("starts_at", { ascending: true });
+  return (data as EventItem[] | null) ?? [];
+}
+
+export async function getPastEvents(): Promise<EventItem[]> {
+  if (!hasSupabaseEnv()) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("events")
+    .select("*")
+    .eq("published", true)
+    .lt("starts_at", new Date().toISOString())
+    .order("starts_at", { ascending: false });
+  return (data as EventItem[] | null) ?? [];
+}
+
 export async function getEventBySlug(slug: string): Promise<EventItem | null> {
   if (!hasSupabaseEnv()) return null;
   const supabase = await createClient();
