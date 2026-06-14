@@ -118,6 +118,14 @@ export async function getPublishedEvents(): Promise<EventItem[]> {
   return (data as EventItem[] | null) ?? [];
 }
 
+const EVENT_ARCHIVE_GRACE_DAYS = 3;
+
+function archiveCutoffIso() {
+  return new Date(
+    Date.now() - EVENT_ARCHIVE_GRACE_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+}
+
 export async function getUpcomingEvents(): Promise<EventItem[]> {
   if (!hasSupabaseEnv()) return [];
   const supabase = getReadClient();
@@ -125,7 +133,7 @@ export async function getUpcomingEvents(): Promise<EventItem[]> {
     .from("events")
     .select("*")
     .eq("published", true)
-    .gte("starts_at", new Date().toISOString())
+    .gte("starts_at", archiveCutoffIso())
     .order("starts_at", { ascending: true });
   return (data as EventItem[] | null) ?? [];
 }
@@ -137,7 +145,7 @@ export async function getPastEvents(): Promise<EventItem[]> {
     .from("events")
     .select("*")
     .eq("published", true)
-    .lt("starts_at", new Date().toISOString())
+    .lt("starts_at", archiveCutoffIso())
     .order("starts_at", { ascending: false });
   return (data as EventItem[] | null) ?? [];
 }

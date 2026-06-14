@@ -33,9 +33,16 @@ export function formatEventTime(
   }).format(date);
 }
 
-export function isUpcoming(iso: string | null | undefined): boolean {
+export const EVENT_ARCHIVE_GRACE_DAYS = 3;
+
+export function isUpcoming(
+  startsAt: string | null | undefined,
+  endsAt?: string | null | undefined,
+): boolean {
+  const iso = endsAt ?? startsAt;
   if (!iso) return true;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return true;
-  return date.getTime() >= Date.now();
+  const graceMs = EVENT_ARCHIVE_GRACE_DAYS * 24 * 60 * 60 * 1000;
+  return date.getTime() >= Date.now() - graceMs;
 }

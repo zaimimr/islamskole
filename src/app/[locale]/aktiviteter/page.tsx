@@ -26,9 +26,9 @@ export default async function EventsPage({
   const t = await getTranslations("events");
   const events = await getPublishedEvents();
 
-  const upcoming = events.filter((e) => isUpcoming(e.starts_at));
+  const upcoming = events.filter((e) => isUpcoming(e.starts_at, e.ends_at));
   const past = events
-    .filter((e) => !isUpcoming(e.starts_at))
+    .filter((e) => !isUpcoming(e.starts_at, e.ends_at))
     .reverse();
 
   return (

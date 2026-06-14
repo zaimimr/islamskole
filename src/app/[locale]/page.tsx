@@ -39,7 +39,9 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   ]);
 
   const previewClasses = classes.slice(0, 3);
-  const previewEvents = events.filter((e) => isUpcoming(e.starts_at)).slice(0, 3);
+  const previewEvents = events
+    .filter((e) => isUpcoming(e.starts_at, e.ends_at))
+    .slice(0, 3);
 
   return (
     <>
