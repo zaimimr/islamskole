@@ -11,6 +11,7 @@ import {
   sendStudentApplicationEmail,
   sendTeacherApplicationEmail,
 } from "@/lib/email";
+import { emailNotifications } from "@/flags";
 
 const levelLabelsNo: Record<string, string> = {
   nybegynner: "Nybegynner",
@@ -345,19 +346,21 @@ export async function createTeacherApplication(
 
   if (error) return { ok: false, error: error.message };
 
-  const settings = await getSiteSettings();
-  await sendTeacherApplicationEmail({
-    to: settings?.contact_email ?? "baerum@islamskole.no",
-    fullName,
-    replyTo: email,
-    rows: [
-      ["Navn", fullName],
-      ["E-post", email],
-      ["Telefon", payload.phone],
-      ["Fag / interesse", payload.subjects],
-      ["Melding", payload.message],
-    ],
-  });
+  if (await emailNotifications()) {
+    const settings = await getSiteSettings();
+    await sendTeacherApplicationEmail({
+      to: settings?.contact_email ?? "baerum@islamskole.no",
+      fullName,
+      replyTo: email,
+      rows: [
+        ["Navn", fullName],
+        ["E-post", email],
+        ["Telefon", payload.phone],
+        ["Fag / interesse", payload.subjects],
+        ["Melding", payload.message],
+      ],
+    });
+  }
 
   return { ok: true };
 }
@@ -448,24 +451,26 @@ export async function createStudentApplication(
 
   if (error) return { ok: false, error: error.message };
 
-  const settings = await getSiteSettings();
-  await sendStudentApplicationEmail({
-    to: settings?.enroll_email ?? "opptak@islamskole.no",
-    childName,
-    replyTo: email,
-    rows: [
-      ["Barnets navn", childName],
-      ["Alder", payload.child_age ? String(payload.child_age) : null],
-      ["Foresatt", guardianName],
-      ["E-post", email],
-      ["Telefon", payload.phone],
-      ["Ønsket klasse", payload.desired_class],
-      ["Nivå - Koran", levelLabel(payload.level_quran)],
-      ["Nivå - Arabisk", levelLabel(payload.level_arabic)],
-      ["Nivå - Islam", levelLabel(payload.level_islam)],
-      ["Melding", payload.message],
-    ],
-  });
+  if (await emailNotifications()) {
+    const settings = await getSiteSettings();
+    await sendStudentApplicationEmail({
+      to: settings?.enroll_email ?? "opptak@islamskole.no",
+      childName,
+      replyTo: email,
+      rows: [
+        ["Barnets navn", childName],
+        ["Alder", payload.child_age ? String(payload.child_age) : null],
+        ["Foresatt", guardianName],
+        ["E-post", email],
+        ["Telefon", payload.phone],
+        ["Ønsket klasse", payload.desired_class],
+        ["Nivå - Koran", levelLabel(payload.level_quran)],
+        ["Nivå - Arabisk", levelLabel(payload.level_arabic)],
+        ["Nivå - Islam", levelLabel(payload.level_islam)],
+        ["Melding", payload.message],
+      ],
+    });
+  }
 
   return { ok: true };
 }
