@@ -121,11 +121,11 @@ export default async function LocaleLayout({
           >
             {t("skipToContent")}
           </a>
-          <SiteHeader isLoggedIn={Boolean(user)} />
+          <SiteHeader />
           <main id="main-content" className="flex flex-1 flex-col">
             {children}
           </main>
-          <SiteFooter />
+          <SiteFooter isLoggedIn={Boolean(user)} />
           <Toaster richColors position="top-center" />
           <Analytics />
         </NextIntlClientProvider>

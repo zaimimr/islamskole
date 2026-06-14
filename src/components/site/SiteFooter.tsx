@@ -1,5 +1,12 @@
 import { getTranslations } from "next-intl/server";
-import { MailIcon, MapPinIcon, ClockIcon } from "lucide-react";
+import {
+  MailIcon,
+  MapPinIcon,
+  ClockIcon,
+  LogInIcon,
+  LayoutDashboardIcon,
+} from "lucide-react";
+import NextLink from "next/link";
 import { Link } from "@/i18n/navigation";
 import { getSiteSettings } from "@/lib/data";
 import { Logo } from "./Logo";
@@ -14,9 +21,17 @@ const exploreLinks = [
   { href: "/kontakt", key: "contact" },
 ] as const;
 
-export async function SiteFooter() {
+export async function SiteFooter({
+  isLoggedIn = false,
+}: {
+  isLoggedIn?: boolean;
+}) {
   const t = await getTranslations();
   const settings = await getSiteSettings();
+
+  const accountHref = isLoggedIn ? "/admin" : "/login";
+  const AccountIcon = isLoggedIn ? LayoutDashboardIcon : LogInIcon;
+  const accountLabel = isLoggedIn ? t("nav.dashboard") : t("nav.admin");
 
   const email = settings?.contact_email ?? "baerum@islamskole.no";
   const enrollEmail = settings?.enroll_email ?? "opptak@islamskole.no";
@@ -124,7 +139,16 @@ export async function SiteFooter() {
               &copy; {new Date().getFullYear()} Islamskole Bærum.{" "}
               {t("footer.rights")}
             </p>
-            <p>Skuiveien 40, 1339 Vøyenenga</p>
+            <div className="flex items-center gap-4">
+              <span>Skuiveien 40, 1339 Vøyenenga</span>
+              <NextLink
+                href={accountHref}
+                className="inline-flex items-center gap-1.5 font-semibold transition-colors hover:text-primary-foreground focus-visible:underline outline-none"
+              >
+                <AccountIcon className="size-4" aria-hidden="true" />
+                {accountLabel}
+              </NextLink>
+            </div>
           </div>
         </div>
       </div>

@@ -49,17 +49,6 @@ export type EventItem = {
   published: boolean;
 };
 
-export type InfoBlock = {
-  id: string;
-  key: string;
-  title_no: string | null;
-  title_en: string | null;
-  body_no: string | null;
-  body_en: string | null;
-  image_url: string | null;
-  sort_order: number;
-};
-
 export type SiteSettings = {
   contact_email: string | null;
   enroll_email: string | null;
@@ -159,16 +148,6 @@ export async function getEventBySlug(slug: string): Promise<EventItem | null> {
     .eq("slug", slug)
     .maybeSingle();
   return (data as EventItem | null) ?? null;
-}
-
-export async function getInfoBlocks(): Promise<InfoBlock[]> {
-  if (!hasSupabaseEnv()) return [];
-  const supabase = getReadClient();
-  const { data } = await supabase
-    .from("info_blocks")
-    .select("*")
-    .order("sort_order", { ascending: true });
-  return (data as InfoBlock[] | null) ?? [];
 }
 
 export async function getSiteSettings(): Promise<SiteSettings | null> {

@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { MenuIcon, LogInIcon, LayoutDashboardIcon } from "lucide-react";
-import NextLink from "next/link";
+import { MenuIcon } from "lucide-react";
 import { Link, usePathname } from "@/i18n/navigation";
 import {
   Sheet,
@@ -32,14 +31,10 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function SiteHeader({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
+export function SiteHeader() {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-
-  const accountHref = isLoggedIn ? "/admin" : "/login";
-  const AccountIcon = isLoggedIn ? LayoutDashboardIcon : LogInIcon;
-  const accountLabel = isLoggedIn ? t("dashboard") : t("admin");
 
   return (
     <header className="sticky top-0 z-50 border-b border-foreground/8 bg-background/85 backdrop-blur-md">
@@ -74,13 +69,6 @@ export function SiteHeader({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
           <div className="hidden sm:block">
             <LocaleSwitcher />
           </div>
-          <NextLink
-            href={accountHref}
-            className="hidden items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold text-foreground/70 transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 sm:inline-flex"
-          >
-            <AccountIcon className="size-4" aria-hidden="true" />
-            {accountLabel}
-          </NextLink>
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger
               render={
@@ -126,21 +114,8 @@ export function SiteHeader({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
                   );
                 })}
               </nav>
-              <div className="mt-auto flex flex-col gap-4 border-t border-foreground/8 p-5">
-                <div className="flex items-center justify-between">
-                  <SheetClose
-                    render={
-                      <NextLink
-                        href={accountHref}
-                        className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground/70 hover:text-foreground"
-                      >
-                        <AccountIcon className="size-4" aria-hidden="true" />
-                        {accountLabel}
-                      </NextLink>
-                    }
-                  />
-                  <LocaleSwitcher />
-                </div>
+              <div className="mt-auto flex items-center border-t border-foreground/8 p-5">
+                <LocaleSwitcher />
               </div>
             </SheetContent>
           </Sheet>

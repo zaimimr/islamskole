@@ -272,33 +272,6 @@ export async function deleteClass(id: string): Promise<ActionResult> {
   return { ok: true, id };
 }
 
-export async function updateInfoBlock(
-  id: string,
-  formData: FormData,
-): Promise<ActionResult> {
-  await requireAdmin();
-
-  const payload = {
-    title_no: readOptionalString(formData, "title_no"),
-    title_en: readOptionalString(formData, "title_en"),
-    body_no: readOptionalString(formData, "body_no"),
-    body_en: readOptionalString(formData, "body_en"),
-    image_url: readOptionalString(formData, "image_url"),
-    sort_order: readNumber(formData, "sort_order") ?? 0,
-  };
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("info_blocks")
-    .update(payload as never)
-    .eq("id", id);
-
-  if (error) return { ok: false, error: error.message };
-
-  revalidateAdminAndSite();
-  return { ok: true, id };
-}
-
 export async function updateSettings(formData: FormData): Promise<ActionResult> {
   await requireAdmin();
 
@@ -404,7 +377,13 @@ const studentApplicationSchema = z.object({
   guardian_name: z.string().min(1, "Foresattes navn er påkrevd"),
   email: z.string().min(1, "E-post er påkrevd").email("Ugyldig e-postadresse"),
 });
-const studentStatusSchema = z.enum(["ny", "kontaktet", "arkivert"]);
+const studentStatusSchema = z.enum([
+  "ny",
+  "kontaktet",
+  "betaling",
+  "akseptert",
+  "arkivert",
+]);
 
 export async function createStudentApplication(
   formData: FormData,

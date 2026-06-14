@@ -3,6 +3,7 @@ import { deleteStudentApplication } from "@/app/[locale]/admin/actions";
 import { PageHeader } from "@/components/admin/page-header";
 import { DeleteButton } from "@/components/admin/delete-button";
 import { StudentStatusSelect } from "@/components/admin/student-status-select";
+import { StudentFilters } from "@/components/admin/student-filters";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -41,15 +42,30 @@ function levelLabel(value: string | null) {
   return levelLabels[value] ?? value;
 }
 
-async function getApplications(): Promise<StudentApplicationRow[]> {
+async function getApplications(
+  q: string,
+  status: string,
+): Promise<StudentApplicationRow[]> {
   try {
     const supabase = await createClient();
-    const { data } = await supabase
+    let query = supabase
       .from("student_applications")
       .select(
         "id, child_name, child_age, guardian_name, email, phone, desired_class, level_quran, level_arabic, level_islam, message, status, created_at",
       )
       .order("created_at", { ascending: false });
+
+    if (status) {
+      query = query.eq("status", status);
+    }
+    const term = q.replace(/[%,()]/g, " ").trim();
+    if (term) {
+      query = query.or(
+        `child_name.ilike.%${term}%,guardian_name.ilike.%${term}%,email.ilike.%${term}%`,
+      );
+    }
+
+    const { data } = await query;
     return (data as StudentApplicationRow[] | null) ?? [];
   } catch {
     return [];
@@ -66,8 +82,14 @@ function formatDate(value: string | null) {
   });
 }
 
-export default async function EleverPage() {
-  const applications = await getApplications();
+export default async function EleverPage({
+  searchParams,
+}: PageProps<"/[locale]/admin/elever">) {
+  const sp = await searchParams;
+  const q = typeof sp.q === "string" ? sp.q : "";
+  const status = typeof sp.status === "string" ? sp.status : "";
+  const applications = await getApplications(q, status);
+  const filtered = Boolean(q || status);
 
   return (
     <div>
@@ -76,11 +98,15 @@ export default async function EleverPage() {
         description="Påmeldinger av elever fra foresatte."
       />
 
+      <StudentFilters />
+
       <Card>
         <CardContent className="p-0">
           {applications.length === 0 ? (
             <p className="p-6 text-sm text-muted-foreground">
-              Ingen påmeldinger ennå.
+              {filtered
+                ? "Ingen påmeldinger samsvarer med søket."
+                : "Ingen påmeldinger ennå."}
             </p>
           ) : (
             <Table>

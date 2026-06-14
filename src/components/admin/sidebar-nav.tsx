@@ -6,7 +6,6 @@ import {
   CalendarDays,
   GraduationCap,
   LayoutDashboard,
-  FileText,
   Settings,
   Users,
   UserPlus,
@@ -34,7 +33,6 @@ export function SidebarNav({ basePath }: { basePath: string }) {
     { href: `${basePath}/klasser`, label: "Klasser", icon: GraduationCap },
     { href: `${basePath}/elever`, label: "Påmeldinger", icon: UserPlus },
     { href: `${basePath}/laerere`, label: "Lærere", icon: Users },
-    { href: `${basePath}/innhold`, label: "Innhold", icon: FileText },
     {
       href: `${basePath}/innstillinger`,
       label: "Innstillinger",
