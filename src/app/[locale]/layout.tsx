@@ -4,10 +4,18 @@ import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { routing } from "@/i18n/routing";
+import { routing, type Locale } from "@/i18n/routing";
 import { Toaster } from "@/components/ui/sonner";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
+import {
+  siteUrl,
+  siteName,
+  keywordsFor,
+  defaultDescription,
+  localePath,
+  organizationJsonLd,
+} from "@/lib/seo";
 import "../globals.css";
 
 const fredoka = Fredoka({
@@ -21,14 +29,64 @@ const nunito = Nunito({
   variable: "--font-sans",
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "Islamskole Bærum",
-    template: "%s · Islamskole Bærum",
-  },
-  description:
-    "Søndagsskole for muslimske barn i Bærum. Islam, Koran og arabisk i et trygt og lekent miljø.",
-};
+export async function generateMetadata({
+  params,
+}: LayoutProps<"/[locale]">): Promise<Metadata> {
+  const { locale } = await params;
+  const typedLocale = (hasLocale(routing.locales, locale)
+    ? locale
+    : routing.defaultLocale) as Locale;
+  const description = defaultDescription(typedLocale);
+  const path = localePath(typedLocale);
+
+  return {
+    metadataBase: new URL(siteUrl),
+    title: {
+      default: `${siteName} - islamsk søndagsskole for barn i Bærum`,
+      template: `%s · ${siteName}`,
+    },
+    description,
+    keywords: keywordsFor(typedLocale),
+    applicationName: siteName,
+    authors: [{ name: siteName }],
+    category: "education",
+    alternates: {
+      canonical: path,
+      languages: {
+        no: localePath("no"),
+        en: localePath("en"),
+        "x-default": localePath("no"),
+      },
+    },
+    openGraph: {
+      type: "website",
+      siteName,
+      locale: typedLocale === "no" ? "nb_NO" : "en_US",
+      url: `${siteUrl}${path}`,
+      title: `${siteName} - islamsk søndagsskole for barn i Bærum`,
+      description,
+      images: [
+        {
+          url: "/brand/hero.png",
+          width: 1408,
+          height: 768,
+          alt: siteName,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: siteName,
+      description,
+      images: ["/brand/hero.png"],
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: { index: true, follow: true, "max-image-preview": "large" },
+    },
+  };
+}
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -50,6 +108,18 @@ export default async function LocaleLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(
+              organizationJsonLd(
+                (hasLocale(routing.locales, locale)
+                  ? locale
+                  : routing.defaultLocale) as Locale,
+              ),
+            ),
+          }}
+        />
         <NextIntlClientProvider>
           <a
             href="#main-content"
