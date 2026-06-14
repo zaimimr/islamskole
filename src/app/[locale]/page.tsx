@@ -12,9 +12,10 @@ import { EnrollCta } from "@/components/site/EnrollCta";
 import { ContactCard } from "@/components/site/ContactCard";
 import { ClassCard } from "@/components/site/ClassCard";
 import { EventCard } from "@/components/site/EventCard";
+import { FeaturedEvent } from "@/components/site/FeaturedEvent";
 import { EmptyState } from "@/components/site/EmptyState";
 import { Section, SectionHeading } from "@/components/site/Section";
-import { isUpcoming } from "@/components/site/format";
+import { isUpcoming, isThisWeek } from "@/components/site/format";
 
 export async function generateMetadata({
   params,
@@ -39,46 +40,61 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   ]);
 
   const previewClasses = classes.slice(0, 3);
-  const previewEvents = events
-    .filter((e) => isUpcoming(e.starts_at, e.ends_at))
+  const upcoming = events.filter((e) => isUpcoming(e.starts_at, e.ends_at));
+  const featured = upcoming.find((e) => isThisWeek(e.starts_at)) ?? null;
+  const hasUpcoming = upcoming.length > 0;
+  const previewEvents = upcoming
+    .filter((e) => e.id !== featured?.id)
     .slice(0, 3);
+  const showEventsTop = hasUpcoming && !featured;
+  const showEventsBottom = featured
+    ? previewEvents.length > 0
+    : !showEventsTop;
+
+  const eventsSection = (
+    <Section className="bg-card" ariaLabelledby="home-events-heading">
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+        <SectionHeading
+          id="home-events-heading"
+          align="left"
+          eyebrow={t("events.title")}
+          title={t("events.previewTitle")}
+          subtitle={t("events.previewSubtitle")}
+        />
+        <Link
+          href="/aktiviteter"
+          className="inline-flex shrink-0 items-center gap-1.5 text-base font-bold text-brand-green-dark outline-none focus-visible:underline"
+        >
+          {t("events.viewAll")}
+          <ArrowRightIcon className="size-4" aria-hidden="true" />
+        </Link>
+      </div>
+      <div className="mt-10">
+        {previewEvents.length > 0 ? (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {previewEvents.map((item) => (
+              <EventCard key={item.id} item={item} locale={typedLocale} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState message={t("events.emptyUpcoming")} />
+        )}
+      </div>
+    </Section>
+  );
 
   return (
     <>
       <Hero />
 
-      <Section className="bg-card" ariaLabelledby="home-events-heading">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-          <SectionHeading
-            id="home-events-heading"
-            align="left"
-            eyebrow={t("events.title")}
-            title={t("events.previewTitle")}
-            subtitle={t("events.previewSubtitle")}
-          />
-          <Link
-            href="/aktiviteter"
-            className="inline-flex shrink-0 items-center gap-1.5 text-base font-bold text-brand-green-dark outline-none focus-visible:underline"
-          >
-            {t("events.viewAll")}
-            <ArrowRightIcon className="size-4" aria-hidden="true" />
-          </Link>
-        </div>
-        <div className="mt-10">
-          {previewEvents.length > 0 ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {previewEvents.map((item) => (
-                <EventCard key={item.id} item={item} locale={typedLocale} />
-              ))}
-            </div>
-          ) : (
-            <EmptyState message={t("events.emptyUpcoming")} />
-          )}
-        </div>
-      </Section>
+      {featured && <FeaturedEvent event={featured} locale={typedLocale} />}
+
+      {showEventsTop && eventsSection}
 
       <VisionPillars />
       <ValuesStrip />
+
+      {showEventsBottom && eventsSection}
 
       <Section ariaLabelledby="home-classes-heading">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">

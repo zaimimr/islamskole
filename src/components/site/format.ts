@@ -35,6 +35,15 @@ export function formatEventTime(
 
 export const EVENT_ARCHIVE_GRACE_DAYS = 3;
 
+export function isThisWeek(startsAt: string | null | undefined): boolean {
+  if (!startsAt) return false;
+  const date = new Date(startsAt);
+  if (Number.isNaN(date.getTime())) return false;
+  const now = Date.now();
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  return date.getTime() >= now && date.getTime() <= now + weekMs;
+}
+
 export function isUpcoming(
   startsAt: string | null | undefined,
   endsAt?: string | null | undefined,
