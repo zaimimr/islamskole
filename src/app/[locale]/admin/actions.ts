@@ -560,6 +560,26 @@ export async function changeOwnPassword(
   return { ok: true };
 }
 
+export async function reorderClasses(ids: string[]): Promise<ActionResult> {
+  await requireAdmin();
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { ok: false, error: "Ingen rekkefølge å lagre" };
+  }
+  const supabase = await createClient();
+  const results = await Promise.all(
+    ids.map((id, index) =>
+      supabase
+        .from("classes")
+        .update({ sort_order: (index + 1) * 10 } as never)
+        .eq("id", id),
+    ),
+  );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) return { ok: false, error: failed.error.message };
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
 export async function signOut(): Promise<void> {
   const supabase = await createClient();
   await supabase.auth.signOut();
