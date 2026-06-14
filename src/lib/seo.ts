@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import type { Locale } from "@/i18n/routing";
 
 export const siteUrl =
@@ -57,6 +58,103 @@ export function localePath(locale: Locale, path = "") {
   const base = locale === "no" ? "" : "/en";
   const full = `${base}${clean === "/" ? "" : clean}`;
   return full === "" ? "/" : full;
+}
+
+export function contentMetadata(opts: {
+  locale: Locale;
+  title: string;
+  description: string;
+  basePath: string;
+  image?: string | null;
+}): Metadata {
+  const { locale, title, description, basePath, image } = opts;
+  const canonical = localePath(locale, basePath);
+  const ogImage = image && image.length > 0 ? image : "/brand/hero.png";
+
+  return {
+    title,
+    description,
+    keywords: keywordsFor(locale),
+    alternates: {
+      canonical,
+      languages: {
+        no: localePath("no", basePath),
+        en: localePath("en", basePath),
+        "x-default": localePath("no", basePath),
+      },
+    },
+    openGraph: {
+      type: "article",
+      url: `${siteUrl}${canonical}`,
+      siteName,
+      locale: locale === "no" ? "nb_NO" : "en_US",
+      title,
+      description,
+      images: [{ url: ogImage }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImage],
+    },
+  };
+}
+
+const schoolAddress = {
+  "@type": "PostalAddress",
+  streetAddress: "Skuiveien 40",
+  postalCode: "1339",
+  addressLocality: "Vøyenenga",
+  addressRegion: "Bærum",
+  addressCountry: "NO",
+};
+
+export function eventJsonLd(opts: {
+  title: string;
+  description: string;
+  basePath: string;
+  image?: string | null;
+  location?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: opts.title,
+    description: opts.description || undefined,
+    url: `${siteUrl}${localePath("no", opts.basePath)}`,
+    image: opts.image ? [opts.image] : [`${siteUrl}/brand/hero.png`],
+    startDate: opts.startDate || undefined,
+    endDate: opts.endDate || undefined,
+    eventStatus: "https://schema.org/EventScheduled",
+    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+    location: {
+      "@type": "Place",
+      name: opts.location || siteName,
+      address: opts.location || schoolAddress,
+    },
+    organizer: { "@type": "Organization", name: siteName, url: siteUrl },
+  };
+}
+
+export function courseJsonLd(opts: {
+  name: string;
+  description: string;
+  basePath: string;
+  image?: string | null;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Course",
+    name: opts.name,
+    description: opts.description || undefined,
+    url: `${siteUrl}${localePath("no", opts.basePath)}`,
+    image: opts.image ? [opts.image] : undefined,
+    inLanguage: "nb-NO",
+    provider: { "@type": "EducationalOrganization", name: siteName, url: siteUrl },
+  };
 }
 
 export function organizationJsonLd(locale: Locale) {

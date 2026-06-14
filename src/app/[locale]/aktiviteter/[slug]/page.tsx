@@ -5,6 +5,7 @@ import { ArrowLeftIcon, CalendarDaysIcon, ClockIcon, MapPinIcon } from "lucide-r
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { getEventBySlug, getPublishedEvents, localized } from "@/lib/data";
+import { contentMetadata, eventJsonLd } from "@/lib/seo";
 import { MediaFrame } from "@/components/site/MediaFrame";
 import { EnrollCta } from "@/components/site/EnrollCta";
 import { Blob } from "@/components/site/decor";
@@ -22,10 +23,16 @@ export async function generateMetadata({
   const item = await getEventBySlug(slug);
   if (!item) return { title: "Islamskole Bærum" };
   const typedLocale = locale as Locale;
-  return {
-    title: localized(item, "title", typedLocale),
-    description: localized(item, "excerpt", typedLocale).slice(0, 160),
-  };
+  const title = localized(item, "title", typedLocale);
+  return contentMetadata({
+    locale: typedLocale,
+    title,
+    description:
+      localized(item, "excerpt", typedLocale).slice(0, 160) ||
+      `${title} - Islamskole Bærum.`,
+    basePath: `/aktiviteter/${item.slug}`,
+    image: item.image_url,
+  });
 }
 
 export default async function EventDetailPage({
@@ -66,6 +73,22 @@ export default async function EventDetailPage({
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            eventJsonLd({
+              title,
+              description: excerpt || body,
+              basePath: `/aktiviteter/${item.slug}`,
+              image: item.image_url,
+              location: item.location,
+              startDate: item.starts_at,
+              endDate: item.ends_at,
+            }),
+          ),
+        }}
+      />
       <section className="relative overflow-hidden bg-gradient-to-b from-secondary/45 via-background to-background">
         <Blob className="-top-20 -left-16 h-64 w-64 text-accent/50 animate-float" />
         <div className="section-shell relative pt-10 pb-14 sm:pt-14">

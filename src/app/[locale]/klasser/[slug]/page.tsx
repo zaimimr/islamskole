@@ -5,6 +5,7 @@ import { ArrowLeftIcon, CakeIcon, UsersIcon, BookOpenIcon } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { getClassBySlug, getPublishedClasses, localized } from "@/lib/data";
+import { contentMetadata, courseJsonLd } from "@/lib/seo";
 import { MediaFrame } from "@/components/site/MediaFrame";
 import { EnrollCta } from "@/components/site/EnrollCta";
 import { Blob } from "@/components/site/decor";
@@ -21,10 +22,16 @@ export async function generateMetadata({
   const item = await getClassBySlug(slug);
   if (!item) return { title: "Islamskole Bærum" };
   const typedLocale = locale as Locale;
-  return {
-    title: localized(item, "name", typedLocale),
-    description: localized(item, "description", typedLocale).slice(0, 160),
-  };
+  const name = localized(item, "name", typedLocale);
+  return contentMetadata({
+    locale: typedLocale,
+    title: name,
+    description:
+      localized(item, "description", typedLocale).slice(0, 160) ||
+      `${name} - islamsk søndagsskole i Bærum.`,
+    basePath: `/klasser/${item.slug}`,
+    image: item.image_url,
+  });
 }
 
 export default async function ClassDetailPage({
@@ -45,6 +52,19 @@ export default async function ClassDetailPage({
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            courseJsonLd({
+              name,
+              description,
+              basePath: `/klasser/${item.slug}`,
+              image: item.image_url,
+            }),
+          ),
+        }}
+      />
       <section className="relative overflow-hidden bg-gradient-to-b from-secondary/45 via-background to-background">
         <Blob className="-top-20 -right-16 h-64 w-64 text-primary/12 animate-float" />
         <div className="section-shell relative pt-10 pb-16 sm:pt-14">
