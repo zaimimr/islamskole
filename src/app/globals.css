@@ -147,4 +147,92 @@
   html {
     @apply font-sans;
   }
+  h1,
+  h2,
+  h3 {
+    @apply font-heading;
+  }
+}
+
+@utility text-balance-pretty {
+  text-wrap: pretty;
+}
+
+@utility btn-pill {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-base font-semibold transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50;
+}
+
+@layer components {
+  .btn-pill-primary {
+    @apply btn-pill bg-primary text-primary-foreground shadow-[0_10px_28px_-12px_var(--brand-green-dark)] hover:-translate-y-0.5 hover:bg-brand-green-dark active:translate-y-0;
+  }
+  .btn-pill-cream {
+    @apply btn-pill bg-brand-cream text-brand-green-dark shadow-[0_10px_28px_-16px_rgba(0,0,0,0.45)] hover:-translate-y-0.5 active:translate-y-0;
+  }
+  .btn-pill-outline {
+    @apply btn-pill border-2 border-primary/30 bg-card text-foreground hover:-translate-y-0.5 hover:border-primary/60 hover:bg-muted active:translate-y-0;
+  }
+  .btn-pill-ghost-light {
+    @apply btn-pill border-2 border-primary-foreground/40 text-primary-foreground hover:-translate-y-0.5 hover:bg-primary-foreground/10 active:translate-y-0;
+  }
+  .soft-card {
+    @apply rounded-3xl bg-card ring-1 ring-foreground/8 shadow-[0_22px_50px_-30px_rgba(20,60,30,0.45)];
+  }
+  .section-shell {
+    @apply mx-auto w-full max-w-6xl px-5 sm:px-8;
+  }
+  .eyebrow {
+    @apply inline-flex items-center gap-2 rounded-full bg-primary/12 px-4 py-1.5 text-sm font-bold tracking-wide text-brand-green-dark uppercase;
+  }
+}
+
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(2deg);
+  }
+}
+
+@keyframes float-soft-slow {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(12px) rotate(-2deg);
+  }
+}
+
+@keyframes rise-fade {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility animate-float {
+  animation: float-soft 7s ease-in-out infinite;
+}
+
+@utility animate-float-slow {
+  animation: float-soft-slow 9s ease-in-out infinite;
+}
+
+@utility animate-rise {
+  animation: rise-fade 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float,
+  .animate-float-slow,
+  .animate-rise {
+    animation: none !important;
+  }
 }

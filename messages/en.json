@@ -6,38 +6,65 @@
     "events": "Activities",
     "enroll": "Enrollment",
     "contact": "Contact",
-    "admin": "Log in"
+    "admin": "Log in",
+    "menu": "Menu",
+    "menuDescription": "Navigate the site",
+    "localeLabel": "Language",
+    "skipToContent": "Skip to content"
   },
   "hero": {
     "eyebrow": "Sunday school in Bærum",
     "title": "Islam, Quran and Arabic for children",
     "subtitle": "A safe and playful place where children learn about our religion and make friends with other Muslim children.",
     "ctaPrimary": "Enroll your child",
-    "ctaSecondary": "See the classes"
+    "ctaSecondary": "See the classes",
+    "badgeAge": "Ages 6-18",
+    "badgeWhen": "Sundays 10-14",
+    "badgeWhere": "Vøyenenga, Bærum"
   },
   "vision": {
     "title": "Our vision",
+    "subtitle": "Three things we promise every child who joins us.",
     "pillars": {
-      "wellbeing": { "title": "Well-being, safety and play", "body": "Children should look forward to coming. We create a warm environment with play and friendship." },
-      "learning": { "title": "Learning and knowledge", "body": "Structured teaching in Quran, Arabic and Islamic knowledge, adapted by age." },
-      "identity": { "title": "Strong identity", "body": "Children build a confident Muslim identity and a sense of belonging in the community." }
+      "wellbeing": {
+        "title": "Well-being, safety and play",
+        "body": "Children should look forward to coming. We create a warm environment with play and friendship."
+      },
+      "learning": {
+        "title": "Learning and knowledge",
+        "body": "Structured teaching in Quran, Arabic and Islamic knowledge, adapted by age."
+      },
+      "identity": {
+        "title": "Strong identity",
+        "body": "Children build a confident Muslim identity and a sense of belonging in the community."
+      }
     }
   },
   "values": {
     "title": "Our values",
+    "subtitle": "The values that shape our everyday life.",
     "items": {
-      "openness": "Openness",
-      "respect": "Respect",
-      "tolerance": "Tolerance",
-      "clarity": "Clarity"
+      "openness": { "title": "Openness", "body": "All children and families are welcome, whatever their background." },
+      "respect": { "title": "Respect", "body": "We treat one another with kindness and care." },
+      "tolerance": { "title": "Tolerance", "body": "There is room for questions, wonder and different views." },
+      "clarity": { "title": "Clarity", "body": "Clear structure that gives children safety and predictability." }
     }
   },
   "classes": {
     "title": "Classes",
     "subtitle": "A 12-year curriculum for children aged 6 to 18, grouped by age and level.",
+    "intro": "We follow each child through a coherent 12-year curriculum. Every class has 8-12 students, so everyone is seen and supported.",
     "ageLabel": "Age",
+    "ageYears": "Ages {min}-{max}",
     "capacityLabel": "Seats per class",
-    "empty": "Classes will be published soon."
+    "capacityValue": "{count} students",
+    "curriculumLabel": "Curriculum",
+    "descriptionLabel": "About the class",
+    "viewAll": "See all classes",
+    "detail": "See the class",
+    "empty": "Classes will be published soon.",
+    "previewTitle": "Our classes",
+    "previewSubtitle": "Tailored teaching from the youngest to the teenagers."
   },
   "events": {
     "title": "Activities and events",
@@ -45,37 +72,73 @@
     "upcoming": "Upcoming",
     "past": "Past",
     "empty": "No activities have been published yet.",
-    "readMore": "Read more"
+    "emptyUpcoming": "No upcoming activities right now. Check back soon!",
+    "emptyPast": "No past activities to show.",
+    "readMore": "Read more",
+    "previewTitle": "What's happening",
+    "previewSubtitle": "Gatherings, celebrations and shared experiences through the year.",
+    "viewAll": "See all activities",
+    "detailsTitle": "Details"
   },
   "info": {
     "title": "Useful information",
-    "schedule": "Lessons every Sunday 10:00–14:00",
-    "season": "35 Sundays a year, from August to June",
-    "enrollmentOpens": "Enrollment opens in April/May",
-    "curriculum": "We use Weekend Learning, Understand Quran and the Madina Arabic curriculum"
+    "subtitle": "The key things to know before you start.",
+    "scheduleTitle": "Teaching hours",
+    "schedule": "Every Sunday 10:00-14:00",
+    "seasonTitle": "The school year",
+    "season": "35 Sundays from August to June",
+    "enrollmentOpensTitle": "Enrollment",
+    "enrollmentOpens": "Opens in April/May each year",
+    "curriculumTitle": "Curriculum",
+    "curriculum": "Weekend Learning, Understand Quran and Madina Arabic"
   },
   "enroll": {
     "title": "Enroll your child",
-    "body": "Send an email to admissions to enroll your child or to join the waiting list.",
-    "cta": "Send enrollment"
+    "body": "Send an email to admissions to enroll your child or to join the waiting list. We will reply as soon as we can.",
+    "cta": "Send enrollment",
+    "note": "Enrollment for the coming school year opens in April/May."
+  },
+  "about": {
+    "title": "About us",
+    "subtitle": "A Sunday school built on community, knowledge and joy.",
+    "storyTitle": "Our story",
+    "storyBody": "Islamskole Bærum is a Sunday school for Muslim children in Bærum. We offer a coherent 12-year curriculum for children aged 6 to 18, with 8-12 students per class. Our goal is for children to get to know other Muslim children, build friendships and learn about their religion in a safe and playful environment.",
+    "approachTitle": "How we teach",
+    "approachBody": "We combine Quran, Arabic and Islamic knowledge with play, conversation and teamwork. Teaching is grouped by age and adapted to each level, so every child experiences mastery. Community is at the heart of it: children learn together, play together and grow together.",
+    "communityTitle": "A community to belong to",
+    "communityBody": "For many children, Sundays with us are a steady anchor where they meet friends who share their faith. That creates safety, belonging and joy that lasts all week."
   },
   "contact": {
     "title": "Contact us",
+    "subtitle": "We would love to hear from you. Reach out by email or drop by.",
     "email": "Email",
     "enrollEmail": "Enrollment",
     "address": "Address",
     "addressValue": "Skuiveien 40, 1339 Vøyenenga",
     "hours": "Teaching hours",
-    "hoursValue": "Sundays 10:00–14:00"
+    "hoursValue": "Sundays 10:00-14:00",
+    "social": "Follow us",
+    "facebook": "Facebook",
+    "instagram": "Instagram",
+    "summaryTitle": "Find us",
+    "writeUs": "Write to us"
   },
   "footer": {
     "tagline": "Sunday school for Muslim children in Bærum.",
-    "rights": "All rights reserved."
+    "rights": "All rights reserved.",
+    "explore": "Explore",
+    "getInTouch": "Get in touch"
   },
   "common": {
     "loading": "Loading…",
     "back": "Back",
+    "backToClasses": "Back to classes",
+    "backToEvents": "Back to activities",
     "date": "Date",
-    "location": "Location"
+    "location": "Location",
+    "time": "Time",
+    "learnMore": "Learn more",
+    "notFound": "Page not found",
+    "notFoundBody": "The content you are looking for does not exist."
   }
 }
