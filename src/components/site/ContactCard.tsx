@@ -1,13 +1,7 @@
 import { getTranslations } from "next-intl/server";
-import {
-  MailIcon,
-  MapPinIcon,
-  ClockIcon,
-  SendIcon,
-  GlobeIcon,
-  CameraIcon,
-} from "lucide-react";
+import { MailIcon, MapPinIcon, ClockIcon, SendIcon } from "lucide-react";
 import { getSiteSettings } from "@/lib/data";
+import { FacebookIcon, InstagramIcon } from "./brand-icons";
 
 type ContactCardProps = {
   showSummary?: boolean;
@@ -80,7 +74,7 @@ export async function ContactCard({ showSummary = false }: ContactCardProps) {
               aria-label={t("facebook")}
               className="inline-flex size-10 items-center justify-center rounded-full bg-primary/12 text-brand-green-dark transition-colors hover:bg-primary/20 focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
             >
-              <GlobeIcon className="size-5" aria-hidden="true" />
+              <FacebookIcon className="size-5" />
             </a>
           )}
           {instagram && (
@@ -91,7 +85,7 @@ export async function ContactCard({ showSummary = false }: ContactCardProps) {
               aria-label={t("instagram")}
               className="inline-flex size-10 items-center justify-center rounded-full bg-primary/12 text-brand-green-dark transition-colors hover:bg-primary/20 focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
             >
-              <CameraIcon className="size-5" aria-hidden="true" />
+              <InstagramIcon className="size-5" />
             </a>
           )}
         </div>
