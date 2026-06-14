@@ -1,6 +1,15 @@
 import "server-only";
-import { createClient } from "@/lib/supabase/server";
+import { createServerClient } from "@supabase/ssr";
+import type { Database } from "@/lib/supabase/types";
 import type { Locale } from "@/i18n/routing";
+
+function getReadClient() {
+  return createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll: () => [], setAll: () => {} } },
+  );
+}
 
 export type ClassItem = {
   id: string;
@@ -73,7 +82,7 @@ function hasSupabaseEnv() {
 
 export async function getPublishedClasses(): Promise<ClassItem[]> {
   if (!hasSupabaseEnv()) return [];
-  const supabase = await createClient();
+  const supabase = getReadClient();
   const { data } = await supabase
     .from("classes")
     .select("*")
@@ -84,7 +93,7 @@ export async function getPublishedClasses(): Promise<ClassItem[]> {
 
 export async function getClassBySlug(slug: string): Promise<ClassItem | null> {
   if (!hasSupabaseEnv()) return null;
-  const supabase = await createClient();
+  const supabase = getReadClient();
   const { data } = await supabase
     .from("classes")
     .select("*")
@@ -95,7 +104,7 @@ export async function getClassBySlug(slug: string): Promise<ClassItem | null> {
 
 export async function getPublishedEvents(): Promise<EventItem[]> {
   if (!hasSupabaseEnv()) return [];
-  const supabase = await createClient();
+  const supabase = getReadClient();
   const { data } = await supabase
     .from("events")
     .select("*")
@@ -106,7 +115,7 @@ export async function getPublishedEvents(): Promise<EventItem[]> {
 
 export async function getUpcomingEvents(): Promise<EventItem[]> {
   if (!hasSupabaseEnv()) return [];
-  const supabase = await createClient();
+  const supabase = getReadClient();
   const { data } = await supabase
     .from("events")
     .select("*")
@@ -118,7 +127,7 @@ export async function getUpcomingEvents(): Promise<EventItem[]> {
 
 export async function getPastEvents(): Promise<EventItem[]> {
   if (!hasSupabaseEnv()) return [];
-  const supabase = await createClient();
+  const supabase = getReadClient();
   const { data } = await supabase
     .from("events")
     .select("*")
@@ -130,7 +139,7 @@ export async function getPastEvents(): Promise<EventItem[]> {
 
 export async function getEventBySlug(slug: string): Promise<EventItem | null> {
   if (!hasSupabaseEnv()) return null;
-  const supabase = await createClient();
+  const supabase = getReadClient();
   const { data } = await supabase
     .from("events")
     .select("*")
@@ -141,7 +150,7 @@ export async function getEventBySlug(slug: string): Promise<EventItem | null> {
 
 export async function getInfoBlocks(): Promise<InfoBlock[]> {
   if (!hasSupabaseEnv()) return [];
-  const supabase = await createClient();
+  const supabase = getReadClient();
   const { data } = await supabase
     .from("info_blocks")
     .select("*")
@@ -151,7 +160,7 @@ export async function getInfoBlocks(): Promise<InfoBlock[]> {
 
 export async function getSiteSettings(): Promise<SiteSettings | null> {
   if (!hasSupabaseEnv()) return null;
-  const supabase = await createClient();
+  const supabase = getReadClient();
   const { data } = await supabase
     .from("site_settings")
     .select("*")
