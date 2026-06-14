@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 import type { Locale } from "@/i18n/routing";
 
-export const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "http://localhost:3000";
+export const siteUrl = (
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "") ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "") ||
+  "http://localhost:3000"
+).replace(/\/$/, "");
 
 export const siteName = "Islamskole Bærum";
 
@@ -67,9 +73,8 @@ export function contentMetadata(opts: {
   basePath: string;
   image?: string | null;
 }): Metadata {
-  const { locale, title, description, basePath, image } = opts;
+  const { locale, title, description, basePath } = opts;
   const canonical = localePath(locale, basePath);
-  const ogImage = image && image.length > 0 ? image : "/brand/hero.png";
 
   return {
     title,
@@ -90,13 +95,11 @@ export function contentMetadata(opts: {
       locale: locale === "no" ? "nb_NO" : "en_US",
       title,
       description,
-      images: [{ url: ogImage }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [ogImage],
     },
   };
 }

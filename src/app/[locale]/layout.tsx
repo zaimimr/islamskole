@@ -66,20 +66,11 @@ export async function generateMetadata({
       url: `${siteUrl}${path}`,
       title: `${siteName} - islamsk søndagsskole for barn i Bærum`,
       description,
-      images: [
-        {
-          url: "/brand/hero.png",
-          width: 1408,
-          height: 768,
-          alt: siteName,
-        },
-      ],
     },
     twitter: {
       card: "summary_large_image",
       title: siteName,
       description,
-      images: ["/brand/hero.png"],
     },
     robots: {
       index: true,
