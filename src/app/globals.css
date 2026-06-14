@@ -54,13 +54,6 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/*
-  ============================================================
-  ISLAMSKOLE BÆRUM — single theme source of truth.
-  Change brand look here only. Tokens flow to every component.
-  Brand: leaf green (logo) + warm cream. Child-friendly, rounded.
-  ============================================================
-*/
 :root {
   --brand-green: oklch(0.66 0.16 143);
   --brand-green-dark: oklch(0.52 0.13 144);

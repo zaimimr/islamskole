@@ -55,7 +55,6 @@ export type SiteSettings = {
   instagram_url: string | null;
 };
 
-// Pick the right language field off a bilingual row.
 export function localized<T extends Record<string, unknown>>(
   row: T,
   base: string,

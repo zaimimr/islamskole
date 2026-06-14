@@ -1,11 +1,5 @@
--- Islamskole Bærum — initial schema, RLS, storage.
--- Bilingual content (Norwegian bokmål "_no" + English "_en"). Admin-only writes, public reads published rows.
-
 create extension if not exists "pgcrypto";
 
--- ---------------------------------------------------------------------------
--- Profiles: one row per auth user. Role gates admin access.
--- ---------------------------------------------------------------------------
 create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   full_name text,
@@ -44,9 +38,6 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- ---------------------------------------------------------------------------
--- updated_at helper
--- ---------------------------------------------------------------------------
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -57,9 +48,6 @@ begin
 end;
 $$;
 
--- ---------------------------------------------------------------------------
--- Classes
--- ---------------------------------------------------------------------------
 create table public.classes (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique,
@@ -83,9 +71,6 @@ create trigger classes_updated_at
   before update on public.classes
   for each row execute function public.set_updated_at();
 
--- ---------------------------------------------------------------------------
--- Events / activities
--- ---------------------------------------------------------------------------
 create table public.events (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique,
@@ -110,9 +95,6 @@ create trigger events_updated_at
   before update on public.events
   for each row execute function public.set_updated_at();
 
--- ---------------------------------------------------------------------------
--- Info blocks: editable page sections keyed by a stable string (hero, values, ...)
--- ---------------------------------------------------------------------------
 create table public.info_blocks (
   id uuid primary key default gen_random_uuid(),
   key text not null unique,
@@ -129,9 +111,6 @@ create trigger info_blocks_updated_at
   before update on public.info_blocks
   for each row execute function public.set_updated_at();
 
--- ---------------------------------------------------------------------------
--- Site settings: single row of global contact info.
--- ---------------------------------------------------------------------------
 create table public.site_settings (
   id boolean primary key default true check (id),
   contact_email text,
@@ -151,48 +130,37 @@ insert into public.site_settings (id, contact_email, enroll_email, address, hour
 values (true, 'baerum@islamskole.no', 'opptak@islamskole.no', 'Skuiveien 40, 1339 Vøyenenga', 'Søndager 10:00–14:00')
 on conflict (id) do nothing;
 
--- ---------------------------------------------------------------------------
--- Row Level Security
--- ---------------------------------------------------------------------------
 alter table public.profiles enable row level security;
 alter table public.classes enable row level security;
 alter table public.events enable row level security;
 alter table public.info_blocks enable row level security;
 alter table public.site_settings enable row level security;
 
--- profiles: a user reads/updates their own row; admins read all.
 create policy "profiles self read" on public.profiles
   for select using (auth.uid() = id or public.is_admin());
 create policy "profiles self update" on public.profiles
   for update using (auth.uid() = id);
 
--- classes: public reads published, admin full access.
 create policy "classes public read" on public.classes
   for select using (published or public.is_admin());
 create policy "classes admin write" on public.classes
   for all using (public.is_admin()) with check (public.is_admin());
 
--- events: public reads published, admin full access.
 create policy "events public read" on public.events
   for select using (published or public.is_admin());
 create policy "events admin write" on public.events
   for all using (public.is_admin()) with check (public.is_admin());
 
--- info_blocks: public read all, admin write.
 create policy "info public read" on public.info_blocks
   for select using (true);
 create policy "info admin write" on public.info_blocks
   for all using (public.is_admin()) with check (public.is_admin());
 
--- site_settings: public read, admin write.
 create policy "settings public read" on public.site_settings
   for select using (true);
 create policy "settings admin write" on public.site_settings
   for all using (public.is_admin()) with check (public.is_admin());
 
--- ---------------------------------------------------------------------------
--- Storage: public media bucket, admin-only writes.
--- ---------------------------------------------------------------------------
 insert into storage.buckets (id, name, public)
 values ('media', 'media', true)
 on conflict (id) do nothing;
