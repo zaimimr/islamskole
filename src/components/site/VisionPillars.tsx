@@ -1,8 +1,12 @@
-import Image from "next/image";
 import { getTranslations } from "next-intl/server";
+import { HeartHandshakeIcon, BookOpenIcon, ShieldCheckIcon } from "lucide-react";
 import { Section, SectionHeading } from "./Section";
 
-const pillars = ["wellbeing", "learning", "identity"] as const;
+const pillars = [
+  { key: "wellbeing", icon: HeartHandshakeIcon, tone: "bg-secondary text-secondary-foreground" },
+  { key: "learning", icon: BookOpenIcon, tone: "bg-accent text-accent-foreground" },
+  { key: "identity", icon: ShieldCheckIcon, tone: "bg-primary/15 text-brand-green-dark" },
+] as const;
 
 export async function VisionPillars() {
   const t = await getTranslations("vision");
@@ -16,26 +20,20 @@ export async function VisionPillars() {
         subtitle={t("subtitle")}
       />
       <ul className="mt-12 grid gap-6 md:grid-cols-3">
-        {pillars.map((key) => (
+        {pillars.map(({ key, icon: Icon, tone }) => (
           <li
             key={key}
-            className="soft-card group flex flex-col gap-0 overflow-hidden p-0 transition-transform duration-300 hover:-translate-y-1"
+            className="soft-card group flex flex-col gap-4 p-7 transition-transform duration-300 hover:-translate-y-1"
           >
-            <div className="relative aspect-[4/3] w-full bg-primary/10">
-              <Image
-                src={`/brand/vision-${key}.png`}
-                alt=""
-                fill
-                sizes="(min-width: 768px) 30vw, 100vw"
-                className="object-cover"
-              />
-            </div>
-            <div className="flex flex-col gap-3 p-7">
-              <h3 className="text-xl font-bold">{t(`pillars.${key}.title`)}</h3>
-              <p className="text-base text-muted-foreground text-balance-pretty">
-                {t(`pillars.${key}.body`)}
-              </p>
-            </div>
+            <span
+              className={`inline-flex size-14 items-center justify-center rounded-2xl ${tone}`}
+            >
+              <Icon className="size-7" aria-hidden="true" />
+            </span>
+            <h3 className="text-xl font-bold">{t(`pillars.${key}.title`)}</h3>
+            <p className="text-base text-muted-foreground text-balance-pretty">
+              {t(`pillars.${key}.body`)}
+            </p>
           </li>
         ))}
       </ul>
