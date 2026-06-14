@@ -44,6 +44,37 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   return (
     <>
       <Hero />
+
+      <Section className="bg-card" ariaLabelledby="home-events-heading">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <SectionHeading
+            id="home-events-heading"
+            align="left"
+            eyebrow={t("events.title")}
+            title={t("events.previewTitle")}
+            subtitle={t("events.previewSubtitle")}
+          />
+          <Link
+            href="/aktiviteter"
+            className="inline-flex shrink-0 items-center gap-1.5 text-base font-bold text-brand-green-dark outline-none focus-visible:underline"
+          >
+            {t("events.viewAll")}
+            <ArrowRightIcon className="size-4" aria-hidden="true" />
+          </Link>
+        </div>
+        <div className="mt-10">
+          {previewEvents.length > 0 ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {previewEvents.map((item) => (
+                <EventCard key={item.id} item={item} locale={typedLocale} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState message={t("events.emptyUpcoming")} />
+          )}
+        </div>
+      </Section>
+
       <VisionPillars />
       <ValuesStrip />
 
@@ -73,36 +104,6 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             </div>
           ) : (
             <EmptyState message={t("classes.empty")} />
-          )}
-        </div>
-      </Section>
-
-      <Section className="bg-card" ariaLabelledby="home-events-heading">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-          <SectionHeading
-            id="home-events-heading"
-            align="left"
-            eyebrow={t("events.title")}
-            title={t("events.previewTitle")}
-            subtitle={t("events.previewSubtitle")}
-          />
-          <Link
-            href="/aktiviteter"
-            className="inline-flex shrink-0 items-center gap-1.5 text-base font-bold text-brand-green-dark outline-none focus-visible:underline"
-          >
-            {t("events.viewAll")}
-            <ArrowRightIcon className="size-4" aria-hidden="true" />
-          </Link>
-        </div>
-        <div className="mt-10">
-          {previewEvents.length > 0 ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {previewEvents.map((item) => (
-                <EventCard key={item.id} item={item} locale={typedLocale} />
-              ))}
-            </div>
-          ) : (
-            <EmptyState message={t("events.emptyUpcoming")} />
           )}
         </div>
       </Section>
