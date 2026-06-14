@@ -1,12 +1,10 @@
 import { getTranslations } from "next-intl/server";
-import { MailIcon } from "lucide-react";
-import { getSiteSettings } from "@/lib/data";
+import { ArrowRightIcon } from "lucide-react";
+import { Link } from "@/i18n/navigation";
 import { Blob, DottedArc } from "./decor";
 
 export async function EnrollCta() {
   const t = await getTranslations("enroll");
-  const settings = await getSiteSettings();
-  const enrollEmail = settings?.enroll_email ?? "opptak@islamskole.no";
 
   return (
     <section className="py-16 sm:py-24" aria-labelledby="enroll-heading">
@@ -25,13 +23,10 @@ export async function EnrollCta() {
             <p className="text-lg text-primary-foreground/90 text-balance-pretty">
               {t("body")}
             </p>
-            <a
-              href={`mailto:${enrollEmail}`}
-              className="btn-pill-cream mt-2"
-            >
-              <MailIcon className="size-5" aria-hidden="true" />
+            <Link href="/pamelding" className="btn-pill-cream mt-2">
               {t("cta")}
-            </a>
+              <ArrowRightIcon className="size-5" aria-hidden="true" />
+            </Link>
             <p className="text-sm text-primary-foreground/75">{t("note")}</p>
           </div>
         </div>

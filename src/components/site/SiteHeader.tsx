@@ -78,7 +78,7 @@ export function SiteHeader() {
             {t("admin")}
           </NextLink>
           <Link
-            href="/kontakt"
+            href="/pamelding"
             className="btn-pill-primary hidden h-11 px-5 py-0 text-sm lg:inline-flex"
           >
             {t("enroll")}
@@ -132,7 +132,7 @@ export function SiteHeader() {
               <div className="mt-auto flex flex-col gap-4 border-t border-foreground/8 p-5">
                 <SheetClose
                   render={
-                    <Link href="/kontakt" className="btn-pill-primary w-full">
+                    <Link href="/pamelding" className="btn-pill-primary w-full">
                       {t("enroll")}
                     </Link>
                   }

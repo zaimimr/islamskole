@@ -32,7 +32,7 @@ export async function Hero() {
             {t("subtitle")}
           </p>
           <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
-            <Link href="/kontakt" className="btn-pill-primary">
+            <Link href="/pamelding" className="btn-pill-primary">
               {t("ctaPrimary")}
             </Link>
             <Link href="/klasser" className="btn-pill-outline">

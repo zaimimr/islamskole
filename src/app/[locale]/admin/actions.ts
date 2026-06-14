@@ -385,6 +385,85 @@ export async function deleteTeacherApplication(
   return { ok: true, id };
 }
 
+const studentApplicationSchema = z.object({
+  child_name: z.string().min(1, "Barnets navn er påkrevd"),
+  guardian_name: z.string().min(1, "Foresattes navn er påkrevd"),
+  email: z.string().min(1, "E-post er påkrevd").email("Ugyldig e-postadresse"),
+});
+const studentStatusSchema = z.enum(["ny", "kontaktet", "arkivert"]);
+
+export async function createStudentApplication(
+  formData: FormData,
+): Promise<ActionResult> {
+  const childName = readString(formData, "child_name");
+  const guardianName = readString(formData, "guardian_name");
+  const email = readString(formData, "email");
+
+  const parsed = studentApplicationSchema.safeParse({
+    child_name: childName,
+    guardian_name: guardianName,
+    email,
+  });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message };
+  }
+
+  const payload = {
+    child_name: childName,
+    child_age: readNumber(formData, "child_age"),
+    guardian_name: guardianName,
+    email,
+    phone: readOptionalString(formData, "phone"),
+    desired_class: readOptionalString(formData, "desired_class"),
+    message: readOptionalString(formData, "message"),
+  };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("student_applications")
+    .insert(payload as never);
+
+  if (error) return { ok: false, error: error.message };
+
+  return { ok: true };
+}
+
+export async function updateStudentApplicationStatus(
+  id: string,
+  status: string,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const parsed = studentStatusSchema.safeParse(status);
+  if (!parsed.success) {
+    return { ok: false, error: "Ugyldig status" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("student_applications")
+    .update({ status: parsed.data } as never)
+    .eq("id", id);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/", "layout");
+  return { ok: true, id };
+}
+
+export async function deleteStudentApplication(
+  id: string,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("student_applications")
+    .delete()
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/", "layout");
+  return { ok: true, id };
+}
+
 export async function signOut(): Promise<void> {
   const supabase = await createClient();
   await supabase.auth.signOut();

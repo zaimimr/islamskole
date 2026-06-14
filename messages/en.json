@@ -96,8 +96,38 @@
   "enroll": {
     "title": "Enroll your child",
     "body": "Send an email to admissions to enroll your child or to join the waiting list. We will reply as soon as we can.",
-    "cta": "Send enrollment",
+    "cta": "Enroll your child",
     "note": "Enrollment for the coming school year opens in April/May."
+  },
+  "enrollForm": {
+    "eyebrow": "Enrollment",
+    "title": "Enroll your child",
+    "subtitle": "Fill in the form and we will get back to you about a place and start date.",
+    "facts": {
+      "schedule": "Lessons every Sunday 10:00-14:00",
+      "season": "35 Sundays from August to June",
+      "ages": "For children aged 6 to 18"
+    },
+    "formTitle": "Enrollment form",
+    "formSubtitle": "We reply as soon as we can. Enrollment is not binding.",
+    "fieldChildName": "Child's name",
+    "placeholderChildName": "First and last name",
+    "fieldChildAge": "Child's age",
+    "placeholderChildAge": "E.g. 8",
+    "fieldGuardian": "Guardian's name",
+    "placeholderGuardian": "First and last name",
+    "fieldEmail": "Email",
+    "placeholderEmail": "you@email.com",
+    "fieldPhone": "Phone",
+    "placeholderPhone": "Phone number",
+    "fieldDesiredClass": "Preferred class or age group",
+    "placeholderDesiredClass": "E.g. Yellow birds (6-7 years)",
+    "fieldMessage": "Message",
+    "placeholderMessage": "Anything we should know?",
+    "submit": "Send enrollment",
+    "toastSuccess": "Thank you! We have received your enrollment.",
+    "thanksTitle": "Thank you!",
+    "thanksBody": "We have received your enrollment and will be in touch as soon as we can."
   },
   "about": {
     "title": "About us",

@@ -34,6 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     entry("/om-oss", 0.7, "monthly"),
     entry("/kontakt", 0.6, "yearly"),
     entry("/bli-laerer", 0.8, "monthly"),
+    entry("/pamelding", 0.9, "monthly"),
   ];
 
   const classPages = classes.map((c) => entry(`/klasser/${c.slug}`, 0.6, "monthly"));

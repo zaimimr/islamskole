@@ -235,6 +235,45 @@ export type Database = {
         }
         Relationships: []
       }
+      student_applications: {
+        Row: {
+          child_age: number | null
+          child_name: string
+          created_at: string
+          desired_class: string | null
+          email: string
+          guardian_name: string
+          id: string
+          message: string | null
+          phone: string | null
+          status: string
+        }
+        Insert: {
+          child_age?: number | null
+          child_name: string
+          created_at?: string
+          desired_class?: string | null
+          email: string
+          guardian_name: string
+          id?: string
+          message?: string | null
+          phone?: string | null
+          status?: string
+        }
+        Update: {
+          child_age?: number | null
+          child_name?: string
+          created_at?: string
+          desired_class?: string | null
+          email?: string
+          guardian_name?: string
+          id?: string
+          message?: string | null
+          phone?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       teacher_applications: {
         Row: {
           created_at: string
@@ -409,3 +448,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

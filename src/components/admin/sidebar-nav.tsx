@@ -9,6 +9,7 @@ import {
   FileText,
   Settings,
   Users,
+  UserPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ export function SidebarNav({ basePath }: { basePath: string }) {
       icon: CalendarDays,
     },
     { href: `${basePath}/klasser`, label: "Klasser", icon: GraduationCap },
+    { href: `${basePath}/elever`, label: "Påmeldinger", icon: UserPlus },
     { href: `${basePath}/laerere`, label: "Lærere", icon: Users },
     { href: `${basePath}/innhold`, label: "Innhold", icon: FileText },
     {

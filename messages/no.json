@@ -96,8 +96,38 @@
   "enroll": {
     "title": "Meld på barnet ditt",
     "body": "Send en e-post til opptak for å melde på barnet ditt eller for å sette deg på venteliste. Vi svarer så fort vi kan.",
-    "cta": "Send påmelding",
+    "cta": "Meld på barnet ditt",
     "note": "Påmeldingen for kommende skoleår åpner i april/mai."
+  },
+  "enrollForm": {
+    "eyebrow": "Påmelding",
+    "title": "Meld på barnet ditt",
+    "subtitle": "Fyll ut skjemaet, så tar vi kontakt med deg om plass og oppstart.",
+    "facts": {
+      "schedule": "Undervisning hver søndag kl. 10:00-14:00",
+      "season": "35 søndager fra august til juni",
+      "ages": "For barn fra 6 til 18 år"
+    },
+    "formTitle": "Påmeldingsskjema",
+    "formSubtitle": "Vi svarer så fort vi kan. Påmelding er ikke bindende.",
+    "fieldChildName": "Barnets navn",
+    "placeholderChildName": "Fornavn og etternavn",
+    "fieldChildAge": "Barnets alder",
+    "placeholderChildAge": "F.eks. 8",
+    "fieldGuardian": "Foresattes navn",
+    "placeholderGuardian": "Fornavn og etternavn",
+    "fieldEmail": "E-post",
+    "placeholderEmail": "din@epost.no",
+    "fieldPhone": "Telefon",
+    "placeholderPhone": "Telefonnummer",
+    "fieldDesiredClass": "Ønsket klasse eller alderstrinn",
+    "placeholderDesiredClass": "F.eks. Gule fugler (6-7 år)",
+    "fieldMessage": "Melding",
+    "placeholderMessage": "Er det noe vi bør vite?",
+    "submit": "Send påmelding",
+    "toastSuccess": "Takk! Vi har mottatt påmeldingen din.",
+    "thanksTitle": "Tusen takk!",
+    "thanksBody": "Vi har mottatt påmeldingen din og tar kontakt så snart vi kan."
   },
   "about": {
     "title": "Om oss",
