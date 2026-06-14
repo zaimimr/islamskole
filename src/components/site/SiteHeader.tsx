@@ -23,6 +23,7 @@ const navItems = [
   { href: "/klasser", key: "classes" },
   { href: "/aktiviteter", key: "events" },
   { href: "/om-oss", key: "about" },
+  { href: "/bli-laerer", key: "teacher" },
   { href: "/kontakt", key: "contact" },
 ] as const;
 

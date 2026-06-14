@@ -5,6 +5,7 @@
     "classes": "Classes",
     "events": "Activities",
     "enroll": "Enrollment",
+    "teacher": "Become a teacher",
     "contact": "Contact",
     "admin": "Log in",
     "menu": "Menu",
@@ -122,6 +123,49 @@
     "instagram": "Instagram",
     "summaryTitle": "Find us",
     "writeUs": "Write to us"
+  },
+  "teacher": {
+    "eyebrow": "Join our team",
+    "title": "Become a teacher with us",
+    "subtitle": "Want to share knowledge, work with children and give back to the community? We would love to hear from you.",
+    "introTitle": "Help shape our Sundays",
+    "introBody": "As a teacher or volunteer at Islamskole Bærum you help give children a safe and playful start to their journey in faith and knowledge. You do not need to be an expert, just willing to contribute and be a good role model.",
+    "reasons": {
+      "community": {
+        "title": "Give back to the community",
+        "body": "You become an important part of a warm environment where children, families and volunteers grow together."
+      },
+      "knowledge": {
+        "title": "Share your knowledge",
+        "body": "Whether it is Quran, Arabic or Islamic knowledge, you get to share what you know with curious children."
+      },
+      "children": {
+        "title": "Work with children",
+        "body": "You meet happy, eager learners and help create a sense of mastery and safety."
+      },
+      "growth": {
+        "title": "Grow yourself",
+        "body": "You develop through teaching, teamwork and good experiences alongside other volunteers."
+      }
+    },
+    "valuesTitle": "The values we share",
+    "valuesBody": "Our everyday life rests on four values. As a teacher you help bring them to life.",
+    "formTitle": "Register your interest",
+    "formSubtitle": "Fill in the form and we will get in touch with you.",
+    "fieldName": "Name",
+    "fieldEmail": "Email",
+    "fieldPhone": "Phone",
+    "fieldSubjects": "Subject or interest",
+    "fieldMessage": "Message",
+    "placeholderName": "Full name",
+    "placeholderEmail": "name@example.com",
+    "placeholderPhone": "Optional",
+    "placeholderSubjects": "E.g. Quran, Arabic, play and activities",
+    "placeholderMessage": "Tell us a little about yourself and why you want to help",
+    "submit": "Submit",
+    "toastSuccess": "Thank you! We have received your message.",
+    "thanksTitle": "Thank you so much!",
+    "thanksBody": "We have received your interest and will be in touch as soon as we can. We really appreciate that you want to contribute."
   },
   "footer": {
     "tagline": "Sunday school for Muslim children in Bærum.",

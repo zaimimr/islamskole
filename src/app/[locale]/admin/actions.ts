@@ -309,6 +309,82 @@ export async function updateSettings(formData: FormData): Promise<ActionResult> 
   return { ok: true };
 }
 
+const teacherApplicationSchema = z.object({
+  full_name: z.string().min(1, "Navn er påkrevd"),
+  email: z.string().min(1, "E-post er påkrevd").email("Ugyldig e-postadresse"),
+});
+
+const teacherStatusSchema = z.enum(["ny", "kontaktet", "arkivert"]);
+
+export async function createTeacherApplication(
+  formData: FormData,
+): Promise<ActionResult> {
+  const fullName = readString(formData, "full_name");
+  const email = readString(formData, "email");
+
+  const parsed = teacherApplicationSchema.safeParse({
+    full_name: fullName,
+    email,
+  });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message };
+  }
+
+  const payload = {
+    full_name: fullName,
+    email,
+    phone: readOptionalString(formData, "phone"),
+    subjects: readOptionalString(formData, "subjects"),
+    message: readOptionalString(formData, "message"),
+  };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("teacher_applications")
+    .insert(payload as never);
+
+  if (error) return { ok: false, error: error.message };
+
+  return { ok: true };
+}
+
+export async function updateTeacherApplicationStatus(
+  id: string,
+  status: string,
+): Promise<ActionResult> {
+  await requireAdmin();
+
+  const parsed = teacherStatusSchema.safeParse(status);
+  if (!parsed.success) {
+    return { ok: false, error: "Ugyldig status" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("teacher_applications")
+    .update({ status: parsed.data } as never)
+    .eq("id", id);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/", "layout");
+  return { ok: true, id };
+}
+
+export async function deleteTeacherApplication(
+  id: string,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("teacher_applications")
+    .delete()
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/", "layout");
+  return { ok: true, id };
+}
+
 export async function signOut(): Promise<void> {
   const supabase = await createClient();
   await supabase.auth.signOut();
