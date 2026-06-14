@@ -5,8 +5,15 @@ import { useRouter } from "next/navigation";
 import { LogOut, Loader2 } from "lucide-react";
 import { signOut } from "@/app/[locale]/admin/actions";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-export function SignOutButton({ loginHref }: { loginHref: string }) {
+export function SignOutButton({
+  loginHref,
+  className,
+}: {
+  loginHref: string;
+  className?: string;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -21,7 +28,7 @@ export function SignOutButton({ loginHref }: { loginHref: string }) {
   return (
     <Button
       variant="ghost"
-      className="w-full justify-start"
+      className={cn("w-full justify-start", className)}
       onClick={handleClick}
       disabled={pending}
     >

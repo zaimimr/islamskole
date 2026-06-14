@@ -52,7 +52,7 @@ export default async function AdminLayout({
               Adminpanel
             </span>
           </div>
-          <SignOutButton loginHref={loginPath(locale)} />
+          <SignOutButton loginHref={loginPath(locale)} className="w-auto shrink-0" />
         </header>
         <div className="md:hidden">
           <div className="border-b border-border bg-card px-4 py-2">
