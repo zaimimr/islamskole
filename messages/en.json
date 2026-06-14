@@ -1,0 +1,81 @@
+{
+  "nav": {
+    "home": "Home",
+    "about": "About",
+    "classes": "Classes",
+    "events": "Activities",
+    "enroll": "Enrollment",
+    "contact": "Contact",
+    "admin": "Log in"
+  },
+  "hero": {
+    "eyebrow": "Sunday school in Bærum",
+    "title": "Islam, Quran and Arabic for children",
+    "subtitle": "A safe and playful place where children learn about our religion and make friends with other Muslim children.",
+    "ctaPrimary": "Enroll your child",
+    "ctaSecondary": "See the classes"
+  },
+  "vision": {
+    "title": "Our vision",
+    "pillars": {
+      "wellbeing": { "title": "Well-being, safety and play", "body": "Children should look forward to coming. We create a warm environment with play and friendship." },
+      "learning": { "title": "Learning and knowledge", "body": "Structured teaching in Quran, Arabic and Islamic knowledge, adapted by age." },
+      "identity": { "title": "Strong identity", "body": "Children build a confident Muslim identity and a sense of belonging in the community." }
+    }
+  },
+  "values": {
+    "title": "Our values",
+    "items": {
+      "openness": "Openness",
+      "respect": "Respect",
+      "tolerance": "Tolerance",
+      "clarity": "Clarity"
+    }
+  },
+  "classes": {
+    "title": "Classes",
+    "subtitle": "A 12-year curriculum for children aged 6 to 18, grouped by age and level.",
+    "ageLabel": "Age",
+    "capacityLabel": "Seats per class",
+    "empty": "Classes will be published soon."
+  },
+  "events": {
+    "title": "Activities and events",
+    "subtitle": "Stay up to date with what is happening at the school.",
+    "upcoming": "Upcoming",
+    "past": "Past",
+    "empty": "No activities have been published yet.",
+    "readMore": "Read more"
+  },
+  "info": {
+    "title": "Useful information",
+    "schedule": "Lessons every Sunday 10:00–14:00",
+    "season": "35 Sundays a year, from August to June",
+    "enrollmentOpens": "Enrollment opens in April/May",
+    "curriculum": "We use Weekend Learning, Understand Quran and the Madina Arabic curriculum"
+  },
+  "enroll": {
+    "title": "Enroll your child",
+    "body": "Send an email to admissions to enroll your child or to join the waiting list.",
+    "cta": "Send enrollment"
+  },
+  "contact": {
+    "title": "Contact us",
+    "email": "Email",
+    "enrollEmail": "Enrollment",
+    "address": "Address",
+    "addressValue": "Skuiveien 40, 1339 Vøyenenga",
+    "hours": "Teaching hours",
+    "hoursValue": "Sundays 10:00–14:00"
+  },
+  "footer": {
+    "tagline": "Sunday school for Muslim children in Bærum.",
+    "rights": "All rights reserved."
+  },
+  "common": {
+    "loading": "Loading…",
+    "back": "Back",
+    "date": "Date",
+    "location": "Location"
+  }
+}
