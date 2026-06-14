@@ -6,38 +6,65 @@
     "events": "Aktiviteter",
     "enroll": "Påmelding",
     "contact": "Kontakt",
-    "admin": "Logg inn"
+    "admin": "Logg inn",
+    "menu": "Meny",
+    "menuDescription": "Naviger på nettstedet",
+    "localeLabel": "Språk",
+    "skipToContent": "Hopp til innhold"
   },
   "hero": {
     "eyebrow": "Søndagsskole i Bærum",
     "title": "Islam, Koran og arabisk for barn",
     "subtitle": "Et trygt og lekent sted der barna lærer om vår religion og blir kjent med andre muslimske barn.",
     "ctaPrimary": "Meld på barnet ditt",
-    "ctaSecondary": "Se klassene"
+    "ctaSecondary": "Se klassene",
+    "badgeAge": "6-18 år",
+    "badgeWhen": "Søndager 10-14",
+    "badgeWhere": "Vøyenenga, Bærum"
   },
   "vision": {
     "title": "Vår visjon",
+    "subtitle": "Tre ting vi lover hvert eneste barn som går her.",
     "pillars": {
-      "wellbeing": { "title": "Trivsel, trygghet og lek", "body": "Barna skal glede seg til å komme. Vi skaper et varmt miljø med lek og vennskap." },
-      "learning": { "title": "Læring og kunnskap", "body": "Strukturert undervisning i Koran, arabisk og islamsk kunnskap tilpasset alder." },
-      "identity": { "title": "Sterk identitet", "body": "Barna bygger en trygg muslimsk identitet og tilhørighet i fellesskapet." }
+      "wellbeing": {
+        "title": "Trivsel, trygghet og lek",
+        "body": "Barna skal glede seg til å komme. Vi skaper et varmt miljø med lek og vennskap."
+      },
+      "learning": {
+        "title": "Læring og kunnskap",
+        "body": "Strukturert undervisning i Koran, arabisk og islamsk kunnskap tilpasset alder."
+      },
+      "identity": {
+        "title": "Sterk identitet",
+        "body": "Barna bygger en trygg muslimsk identitet og tilhørighet i fellesskapet."
+      }
     }
   },
   "values": {
     "title": "Våre verdier",
+    "subtitle": "Verdiene som former hverdagen vår.",
     "items": {
-      "openness": "Åpenhet",
-      "respect": "Respekt",
-      "tolerance": "Takhøyde",
-      "clarity": "Tydelighet"
+      "openness": { "title": "Åpenhet", "body": "Alle barn og familier er velkomne, uansett bakgrunn." },
+      "respect": { "title": "Respekt", "body": "Vi møter hverandre med vennlighet og omtanke." },
+      "tolerance": { "title": "Takhøyde", "body": "Det er rom for spørsmål, undring og ulike meninger." },
+      "clarity": { "title": "Tydelighet", "body": "Klare rammer som gir barna trygghet og forutsigbarhet." }
     }
   },
   "classes": {
     "title": "Klasser",
     "subtitle": "12-årig læreplan for barn fra 6 til 18 år, delt inn etter alder og nivå.",
+    "intro": "Vi følger barna gjennom en sammenhengende 12-årig læreplan. Hver klasse har 8-12 elever, slik at alle blir sett og fulgt opp.",
     "ageLabel": "Alder",
+    "ageYears": "{min}-{max} år",
     "capacityLabel": "Plasser per klasse",
-    "empty": "Klasser publiseres snart."
+    "capacityValue": "{count} elever",
+    "curriculumLabel": "Læreplan",
+    "descriptionLabel": "Om klassen",
+    "viewAll": "Se alle klasser",
+    "detail": "Se klassen",
+    "empty": "Klasser publiseres snart.",
+    "previewTitle": "Klassene våre",
+    "previewSubtitle": "Tilpasset undervisning fra de minste til ungdommene."
   },
   "events": {
     "title": "Aktiviteter og arrangementer",
@@ -45,37 +72,73 @@
     "upcoming": "Kommende",
     "past": "Tidligere",
     "empty": "Ingen aktiviteter er publisert ennå.",
-    "readMore": "Les mer"
+    "emptyUpcoming": "Ingen kommende aktiviteter akkurat nå. Kom tilbake snart!",
+    "emptyPast": "Ingen tidligere aktiviteter å vise.",
+    "readMore": "Les mer",
+    "previewTitle": "Hva skjer hos oss",
+    "previewSubtitle": "Samlinger, fester og felles opplevelser gjennom året.",
+    "viewAll": "Se alle aktiviteter",
+    "detailsTitle": "Detaljer"
   },
   "info": {
     "title": "Nyttig informasjon",
-    "schedule": "Undervisning hver søndag kl. 10:00–14:00",
-    "season": "35 søndager i året, fra august til juni",
-    "enrollmentOpens": "Påmelding åpner i april/mai",
-    "curriculum": "Vi bruker Weekend Learning, Understand Quran og Madina arabisk læreplan"
+    "subtitle": "Det viktigste å vite før dere starter.",
+    "scheduleTitle": "Undervisningstid",
+    "schedule": "Hver søndag kl. 10:00-14:00",
+    "seasonTitle": "Skoleåret",
+    "season": "35 søndager fra august til juni",
+    "enrollmentOpensTitle": "Påmelding",
+    "enrollmentOpens": "Åpner i april/mai hvert år",
+    "curriculumTitle": "Læreplan",
+    "curriculum": "Weekend Learning, Understand Quran og Madina arabisk"
   },
   "enroll": {
     "title": "Meld på barnet ditt",
-    "body": "Send en e-post til opptak for å melde på barnet ditt eller for å sette deg på venteliste.",
-    "cta": "Send påmelding"
+    "body": "Send en e-post til opptak for å melde på barnet ditt eller for å sette deg på venteliste. Vi svarer så fort vi kan.",
+    "cta": "Send påmelding",
+    "note": "Påmeldingen for kommende skoleår åpner i april/mai."
+  },
+  "about": {
+    "title": "Om oss",
+    "subtitle": "En søndagsskole bygget på fellesskap, kunnskap og glede.",
+    "storyTitle": "Vår historie",
+    "storyBody": "Islamskole Bærum er en søndagsskole for muslimske barn i Bærum. Vi tilbyr en sammenhengende 12-årig læreplan for barn fra 6 til 18 år, med 8-12 elever per klasse. Målet vårt er at barna skal bli kjent med andre muslimske barn, bygge vennskap og lære om religionen sin i et trygt og lekent miljø.",
+    "approachTitle": "Slik underviser vi",
+    "approachBody": "Vi kombinerer Koran, arabisk og islamsk kunnskap med lek, samtaler og samarbeid. Undervisningen er aldersinndelt og tilpasset hvert nivå, slik at hvert barn opplever mestring. Fellesskapet står i sentrum: barna lærer sammen, leker sammen og vokser sammen.",
+    "communityTitle": "Et fellesskap å høre til",
+    "communityBody": "For mange barn er søndagene hos oss et fast holdepunkt der de møter venner som deler troen deres. Det skaper trygghet, tilhørighet og glede som varer hele uken."
   },
   "contact": {
     "title": "Kontakt oss",
+    "subtitle": "Vi hører gjerne fra deg. Ta kontakt på e-post eller stikk innom.",
     "email": "E-post",
     "enrollEmail": "Påmelding",
     "address": "Adresse",
     "addressValue": "Skuiveien 40, 1339 Vøyenenga",
     "hours": "Undervisningstid",
-    "hoursValue": "Søndager 10:00–14:00"
+    "hoursValue": "Søndager 10:00-14:00",
+    "social": "Følg oss",
+    "facebook": "Facebook",
+    "instagram": "Instagram",
+    "summaryTitle": "Finn oss",
+    "writeUs": "Skriv til oss"
   },
   "footer": {
     "tagline": "Søndagsskole for muslimske barn i Bærum.",
-    "rights": "Alle rettigheter forbeholdt."
+    "rights": "Alle rettigheter forbeholdt.",
+    "explore": "Utforsk",
+    "getInTouch": "Ta kontakt"
   },
   "common": {
     "loading": "Laster…",
     "back": "Tilbake",
+    "backToClasses": "Tilbake til klasser",
+    "backToEvents": "Tilbake til aktiviteter",
     "date": "Dato",
-    "location": "Sted"
+    "location": "Sted",
+    "time": "Tid",
+    "learnMore": "Les mer",
+    "notFound": "Fant ikke siden",
+    "notFoundBody": "Innholdet du leter etter finnes ikke."
   }
 }
