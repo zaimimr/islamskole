@@ -96,3 +96,20 @@ supabase gen types typescript --local > src/lib/supabase/types.ts
 ## Storage
 
 The `media` storage bucket is public for reads. Admins can upload, update and delete files. Bucket is created by the migration so no manual setup is needed.
+
+## Illustrations
+
+All illustrations share one flat-vector style defined in `scripts/generate-image.mjs` (the `IMAGE_STYLE` constant). Generate a new on-style image with a Gemini API key:
+
+```
+GEMINI_API_KEY=... node scripts/generate-image.mjs "<subject>" <aspect> <output>
+```
+
+Examples:
+
+```
+GEMINI_API_KEY=... node scripts/generate-image.mjs "children reading the Quran together" "4:3" public/brand/example.png
+GEMINI_API_KEY=... node scripts/generate-image.mjs "diverse children playing outside a Nordic school with a mosque dome" "1:1" public/brand/hero.png
+```
+
+Aspect ratios used in the UI: hero is `1:1`, class cards `4:3`, event cards `16:9`. Only describe the subject, the shared style is added automatically so every image matches.
