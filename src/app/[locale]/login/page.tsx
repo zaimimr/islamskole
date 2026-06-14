@@ -1,7 +1,6 @@
 "use client";
 
 import { use, useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -20,7 +19,6 @@ import {
 
 export default function LoginPage({ params }: PageProps<"/[locale]/login">) {
   const { locale } = use(params);
-  const router = useRouter();
   const [pending, setPending] = useState(false);
 
   async function handleSubmit(formData: FormData) {
@@ -36,11 +34,12 @@ export default function LoginPage({ params }: PageProps<"/[locale]/login">) {
       });
       if (error) {
         toast.error("Feil e-post eller passord");
+        setPending(false);
         return;
       }
-      router.push(adminBasePath(locale));
-      router.refresh();
-    } finally {
+      window.location.assign(adminBasePath(locale));
+    } catch {
+      toast.error("Noe gikk galt. Prøv igjen.");
       setPending(false);
     }
   }

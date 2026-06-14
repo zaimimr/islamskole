@@ -25,23 +25,32 @@ export function MediaFrame({
   sizes = "(min-width: 1024px) 33vw, 100vw",
   priority = false,
 }: MediaFrameProps) {
-  const resolvedSrc = src && src.length > 0 ? src : "/brand/klassenavn.jpg";
+  const hasImage = Boolean(src && src.length > 0);
+
   return (
     <div
-      className={cn(
-        "relative overflow-hidden",
-        toneClass[tone],
-        className,
-      )}
+      className={cn("relative overflow-hidden", toneClass[tone], className)}
     >
-      <Image
-        src={resolvedSrc}
-        alt={alt}
-        fill
-        sizes={sizes}
-        priority={priority}
-        className="object-cover transition-transform duration-500 group-hover/card:scale-105"
-      />
+      {hasImage ? (
+        <Image
+          src={src as string}
+          alt={alt}
+          fill
+          sizes={sizes}
+          priority={priority}
+          className="object-cover transition-transform duration-500 group-hover/card:scale-105"
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/15 via-card to-secondary/40">
+          <Image
+            src="/brand/logo.png"
+            alt=""
+            width={160}
+            height={65}
+            className="w-2/5 max-w-[160px] opacity-25"
+          />
+        </div>
+      )}
     </div>
   );
 }
