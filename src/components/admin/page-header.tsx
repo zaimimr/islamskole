@@ -7,11 +7,13 @@ export function PageHeader({
   description,
   newHref,
   newLabel,
+  action,
 }: {
   title: string;
   description?: string;
   newHref?: string;
   newLabel?: string;
+  action?: React.ReactNode;
 }) {
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -21,6 +23,7 @@ export function PageHeader({
           <p className="text-muted-foreground">{description}</p>
         ) : null}
       </div>
+      {action ?? null}
       {newHref ? (
         <Link href={newHref} className={buttonVariants()}>
           <Plus className="size-4" />

@@ -1,11 +1,25 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getIsAdmin } from "@/lib/auth";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
+type PasswordResult =
+  | { ok: true; password: string; email?: string }
+  | { ok: false; error: string };
+
+function generatePassword() {
+  const raw = randomBytes(12)
+    .toString("base64")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .slice(0, 12)
+    .padEnd(12, "x");
+  return `${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`;
+}
 
 async function requireAdmin() {
   const isAdmin = await getIsAdmin();
@@ -462,6 +476,85 @@ export async function deleteStudentApplication(
   if (error) return { ok: false, error: error.message };
   revalidatePath("/", "layout");
   return { ok: true, id };
+}
+
+const createUserSchema = z.object({
+  email: z.string().min(1, "E-post er påkrevd").email("Ugyldig e-postadresse"),
+});
+
+export async function createUser(formData: FormData): Promise<PasswordResult> {
+  await requireAdmin();
+  const email = readString(formData, "email");
+  const fullName = readOptionalString(formData, "full_name");
+
+  const parsed = createUserSchema.safeParse({ email });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message };
+  }
+
+  const password = generatePassword();
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: fullName ?? "", role: "admin" },
+  });
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/", "layout");
+  return { ok: true, password, email };
+}
+
+export async function resetUserPassword(
+  userId: string,
+): Promise<PasswordResult> {
+  await requireAdmin();
+  const password = generatePassword();
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(userId, { password });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, password };
+}
+
+export async function deleteUser(userId: string): Promise<ActionResult> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user?.id === userId) {
+    return { ok: false, error: "Du kan ikke slette din egen konto" };
+  }
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/", "layout");
+  return { ok: true, id: userId };
+}
+
+export async function changeOwnPassword(
+  formData: FormData,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Du er ikke innlogget" };
+
+  const password = readString(formData, "password");
+  const confirm = readString(formData, "confirm");
+  if (password.length < 8) {
+    return { ok: false, error: "Passordet må ha minst 8 tegn" };
+  }
+  if (password !== confirm) {
+    return { ok: false, error: "Passordene er ikke like" };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }
 
 export async function signOut(): Promise<void> {

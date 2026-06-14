@@ -10,6 +10,8 @@ import {
   Settings,
   Users,
   UserPlus,
+  ShieldCheck,
+  UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +40,8 @@ export function SidebarNav({ basePath }: { basePath: string }) {
       label: "Innstillinger",
       icon: Settings,
     },
+    { href: `${basePath}/brukere`, label: "Brukere", icon: ShieldCheck },
+    { href: `${basePath}/konto`, label: "Min konto", icon: UserCog },
   ];
 
   function isActive(href: string) {
