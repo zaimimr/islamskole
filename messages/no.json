@@ -5,6 +5,7 @@
     "classes": "Klasser",
     "events": "Aktiviteter",
     "enroll": "Påmelding",
+    "teacher": "Bli lærer",
     "contact": "Kontakt",
     "admin": "Logg inn",
     "menu": "Meny",
@@ -122,6 +123,49 @@
     "instagram": "Instagram",
     "summaryTitle": "Finn oss",
     "writeUs": "Skriv til oss"
+  },
+  "teacher": {
+    "eyebrow": "Bli med i teamet vårt",
+    "title": "Bli lærer hos oss",
+    "subtitle": "Vil du dele kunnskap, jobbe med barn og bidra til fellesskapet? Vi vil gjerne høre fra deg.",
+    "introTitle": "Vær med å forme søndagene",
+    "introBody": "Som lærer eller frivillig hos Islamskole Bærum er du med på å gi barna en trygg og lekende start på reisen i tro og kunnskap. Du trenger ikke å være ekspert, bare ha lyst til å bidra og være et godt forbilde.",
+    "reasons": {
+      "community": {
+        "title": "Bidra til fellesskapet",
+        "body": "Du blir en viktig del av et varmt miljø der barn, familier og frivillige vokser sammen."
+      },
+      "knowledge": {
+        "title": "Del kunnskapen din",
+        "body": "Enten det er Koran, arabisk eller islamsk kunnskap, får du dele det du kan med nysgjerrige barn."
+      },
+      "children": {
+        "title": "Jobb med barn",
+        "body": "Du møter glade og lærevillige barn, og er med på å skape mestring og trygghet."
+      },
+      "growth": {
+        "title": "Vokse selv",
+        "body": "Du utvikler deg gjennom undervisning, samarbeid og gode opplevelser sammen med andre frivillige."
+      }
+    },
+    "valuesTitle": "Verdiene vi deler",
+    "valuesBody": "Hverdagen vår hviler på fire verdier. Som lærer er du med på å gi dem liv.",
+    "formTitle": "Meld din interesse",
+    "formSubtitle": "Fyll ut skjemaet, så tar vi kontakt med deg.",
+    "fieldName": "Navn",
+    "fieldEmail": "E-post",
+    "fieldPhone": "Telefon",
+    "fieldSubjects": "Fag eller interesse",
+    "fieldMessage": "Melding",
+    "placeholderName": "Fullt navn",
+    "placeholderEmail": "navn@eksempel.no",
+    "placeholderPhone": "Valgfritt",
+    "placeholderSubjects": "F.eks. Koran, arabisk, lek og aktiviteter",
+    "placeholderMessage": "Fortell litt om deg selv og hvorfor du vil bidra",
+    "submit": "Send inn",
+    "toastSuccess": "Takk! Vi har mottatt henvendelsen din.",
+    "thanksTitle": "Tusen takk!",
+    "thanksBody": "Vi har mottatt interessen din og tar kontakt så snart vi kan. Vi setter stor pris på at du vil bidra."
   },
   "footer": {
     "tagline": "Søndagsskole for muslimske barn i Bærum.",
