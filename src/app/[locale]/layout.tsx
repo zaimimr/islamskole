@@ -5,6 +5,7 @@ import { setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { routing, type Locale } from "@/i18n/routing";
+import { getUser } from "@/lib/auth";
 import { Toaster } from "@/components/ui/sonner";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
@@ -100,6 +101,7 @@ export default async function LocaleLayout({
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
   const t = await getTranslations("nav");
+  const user = await getUser();
 
   return (
     <html
@@ -127,7 +129,7 @@ export default async function LocaleLayout({
           >
             {t("skipToContent")}
           </a>
-          <SiteHeader />
+          <SiteHeader isLoggedIn={Boolean(user)} />
           <main id="main-content" className="flex flex-1 flex-col">
             {children}
           </main>

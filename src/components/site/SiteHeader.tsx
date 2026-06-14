@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { MenuIcon, LogInIcon } from "lucide-react";
+import { MenuIcon, LogInIcon, LayoutDashboardIcon } from "lucide-react";
 import NextLink from "next/link";
 import { Link, usePathname } from "@/i18n/navigation";
 import {
@@ -32,10 +32,14 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function SiteHeader() {
+export function SiteHeader({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+
+  const accountHref = isLoggedIn ? "/admin" : "/login";
+  const AccountIcon = isLoggedIn ? LayoutDashboardIcon : LogInIcon;
+  const accountLabel = isLoggedIn ? t("dashboard") : t("admin");
 
   return (
     <header className="sticky top-0 z-50 border-b border-foreground/8 bg-background/85 backdrop-blur-md">
@@ -71,11 +75,11 @@ export function SiteHeader() {
             <LocaleSwitcher />
           </div>
           <NextLink
-            href="/login"
+            href={accountHref}
             className="hidden items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold text-foreground/70 transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 sm:inline-flex"
           >
-            <LogInIcon className="size-4" aria-hidden="true" />
-            {t("admin")}
+            <AccountIcon className="size-4" aria-hidden="true" />
+            {accountLabel}
           </NextLink>
           <Link
             href="/pamelding"
@@ -141,11 +145,11 @@ export function SiteHeader() {
                   <SheetClose
                     render={
                       <NextLink
-                        href="/login"
+                        href={accountHref}
                         className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground/70 hover:text-foreground"
                       >
-                        <LogInIcon className="size-4" aria-hidden="true" />
-                        {t("admin")}
+                        <AccountIcon className="size-4" aria-hidden="true" />
+                        {accountLabel}
                       </NextLink>
                     }
                   />
