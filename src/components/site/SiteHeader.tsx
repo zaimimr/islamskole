@@ -81,13 +81,6 @@ export function SiteHeader({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
             <AccountIcon className="size-4" aria-hidden="true" />
             {accountLabel}
           </NextLink>
-          <Link
-            href="/pamelding"
-            className="btn-pill-primary hidden h-11 px-5 py-0 text-sm lg:inline-flex"
-          >
-            {t("enroll")}
-          </Link>
-
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger
               render={
@@ -134,13 +127,6 @@ export function SiteHeader({ isLoggedIn = false }: { isLoggedIn?: boolean }) {
                 })}
               </nav>
               <div className="mt-auto flex flex-col gap-4 border-t border-foreground/8 p-5">
-                <SheetClose
-                  render={
-                    <Link href="/pamelding" className="btn-pill-primary w-full">
-                      {t("enroll")}
-                    </Link>
-                  }
-                />
                 <div className="flex items-center justify-between">
                   <SheetClose
                     render={
