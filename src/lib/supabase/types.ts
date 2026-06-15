@@ -283,6 +283,173 @@ export type Database = {
         }
         Relationships: []
       }
+      students: {
+        Row: {
+          application_id: string | null
+          child_age: number | null
+          created_at: string
+          email: string | null
+          full_name: string
+          guardian_name: string
+          id: string
+          level_arabic: string | null
+          level_islam: string | null
+          level_quran: string | null
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          application_id?: string | null
+          child_age?: number | null
+          created_at?: string
+          email?: string | null
+          full_name: string
+          guardian_name: string
+          id?: string
+          level_arabic?: string | null
+          level_islam?: string | null
+          level_quran?: string | null
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string | null
+          child_age?: number | null
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          guardian_name?: string
+          id?: string
+          level_arabic?: string | null
+          level_islam?: string | null
+          level_quran?: string | null
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "students_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "student_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enrollments: {
+        Row: {
+          class_id: string
+          created_at: string
+          id: string
+          status: string
+          student_id: string
+          term: string
+          updated_at: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          id?: string
+          status?: string
+          student_id: string
+          term: string
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          id?: string
+          status?: string
+          student_id?: string
+          term?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollments_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          captured_at: string | null
+          created_at: string
+          currency: string
+          description: string | null
+          enrollment_id: string | null
+          id: string
+          reference: string
+          redirect_url: string | null
+          status: string
+          student_id: string
+          term: string | null
+          updated_at: string
+          vipps_state: string | null
+        }
+        Insert: {
+          amount: number
+          captured_at?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          enrollment_id?: string | null
+          id?: string
+          reference: string
+          redirect_url?: string | null
+          status?: string
+          student_id: string
+          term?: string | null
+          updated_at?: string
+          vipps_state?: string | null
+        }
+        Update: {
+          amount?: number
+          captured_at?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          enrollment_id?: string | null
+          id?: string
+          reference?: string
+          redirect_url?: string | null
+          status?: string
+          student_id?: string
+          term?: string | null
+          updated_at?: string
+          vipps_state?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teacher_applications: {
         Row: {
           created_at: string

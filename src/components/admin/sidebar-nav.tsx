@@ -9,6 +9,7 @@ import {
   Settings,
   Users,
   UserPlus,
+  UserCheck,
   ShieldCheck,
   UserCog,
 } from "lucide-react";
@@ -32,6 +33,7 @@ export function SidebarNav({ basePath }: { basePath: string }) {
     },
     { href: `${basePath}/klasser`, label: "Klasser", icon: GraduationCap },
     { href: `${basePath}/elever`, label: "Påmeldinger", icon: UserPlus },
+    { href: `${basePath}/registrerte`, label: "Elever", icon: UserCheck },
     { href: `${basePath}/laerere`, label: "Lærere", icon: Users },
     {
       href: `${basePath}/innstillinger`,

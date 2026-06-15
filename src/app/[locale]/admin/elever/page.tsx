@@ -1,7 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { deleteStudentApplication } from "@/app/[locale]/admin/actions";
+import { adminBasePath } from "@/components/admin/paths";
 import { PageHeader } from "@/components/admin/page-header";
 import { DeleteButton } from "@/components/admin/delete-button";
+import { RegisterStudentButton } from "@/components/admin/register-student-button";
 import { StudentStatusSelect } from "@/components/admin/student-status-select";
 import { StudentFilters } from "@/components/admin/student-filters";
 import { Card, CardContent } from "@/components/ui/card";
@@ -83,8 +85,11 @@ function formatDate(value: string | null) {
 }
 
 export default async function EleverPage({
+  params,
   searchParams,
 }: PageProps<"/[locale]/admin/elever">) {
+  const { locale } = await params;
+  const basePath = adminBasePath(locale);
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q : "";
   const status = typeof sp.status === "string" ? sp.status : "";
@@ -160,6 +165,10 @@ export default async function EleverPage({
                     <TableCell>{formatDate(application.created_at)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end">
+                        <RegisterStudentButton
+                          applicationId={application.id}
+                          basePath={basePath}
+                        />
                         <DeleteButton
                           id={application.id}
                           label="påmelding"
