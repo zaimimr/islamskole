@@ -212,6 +212,7 @@ export async function createClass(formData: FormData): Promise<ActionResult> {
     age_min: readNumber(formData, "age_min"),
     age_max: readNumber(formData, "age_max"),
     capacity: readNumber(formData, "capacity"),
+    price: readNumber(formData, "price"),
     description_no: readOptionalString(formData, "description_no"),
     description_en: readOptionalString(formData, "description_en"),
     curriculum_no: readOptionalString(formData, "curriculum_no"),
@@ -256,6 +257,7 @@ export async function updateClass(
     age_min: readNumber(formData, "age_min"),
     age_max: readNumber(formData, "age_max"),
     capacity: readNumber(formData, "capacity"),
+    price: readNumber(formData, "price"),
     description_no: readOptionalString(formData, "description_no"),
     description_en: readOptionalString(formData, "description_en"),
     curriculum_no: readOptionalString(formData, "curriculum_no"),
@@ -410,8 +412,8 @@ const studentApplicationSchema = z.object({
 const studentStatusSchema = z.enum([
   "ny",
   "kontaktet",
-  "betaling",
   "akseptert",
+  "avslatt",
   "arkivert",
 ]);
 

@@ -155,6 +155,7 @@ export type GetPaymentResult = {
   state: VippsPaymentState;
   authorizedAmount: number;
   capturedAmount: number;
+  refundedAmount: number;
 };
 
 export async function getPayment(
@@ -178,6 +179,7 @@ export async function getPayment(
     aggregate?: {
       authorizedAmount?: { value?: number };
       capturedAmount?: { value?: number };
+      refundedAmount?: { value?: number };
     };
   };
 
@@ -185,7 +187,58 @@ export async function getPayment(
     state: data.state,
     authorizedAmount: data.aggregate?.authorizedAmount?.value ?? 0,
     capturedAmount: data.aggregate?.capturedAmount?.value ?? 0,
+    refundedAmount: data.aggregate?.refundedAmount?.value ?? 0,
   };
+}
+
+export async function refundPayment(
+  reference: string,
+  amount: number,
+): Promise<void> {
+  const config = getConfig();
+  const token = await getAccessToken(config);
+
+  const response = await fetch(
+    `${config.baseUrl}/epayment/v1/payments/${encodeURIComponent(reference)}/refund`,
+    {
+      method: "POST",
+      headers: {
+        ...baseHeaders(config, token),
+        "Idempotency-Key": randomUUID(),
+      },
+      body: JSON.stringify({
+        modificationAmount: { currency: "NOK", value: amount },
+      }),
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Vipps refund-feil (${response.status}): ${errorBody}`);
+  }
+}
+
+export async function cancelPayment(reference: string): Promise<void> {
+  const config = getConfig();
+  const token = await getAccessToken(config);
+
+  const response = await fetch(
+    `${config.baseUrl}/epayment/v1/payments/${encodeURIComponent(reference)}/cancel`,
+    {
+      method: "POST",
+      headers: {
+        ...baseHeaders(config, token),
+        "Idempotency-Key": randomUUID(),
+      },
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Vipps cancel-feil (${response.status}): ${errorBody}`);
+  }
 }
 
 export async function capturePayment(

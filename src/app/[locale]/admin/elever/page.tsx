@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { deleteStudentApplication } from "@/app/[locale]/admin/actions";
 import { adminBasePath } from "@/components/admin/paths";
+import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/admin/page-header";
 import { DeleteButton } from "@/components/admin/delete-button";
 import { RegisterStudentButton } from "@/components/admin/register-student-button";
@@ -74,6 +76,25 @@ async function getApplications(
   }
 }
 
+async function getRegisteredMap(): Promise<Map<string, string>> {
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("students")
+      .select("id, application_id")
+      .not("application_id", "is", null);
+    const rows =
+      (data as { id: string; application_id: string | null }[] | null) ?? [];
+    return new Map(
+      rows
+        .filter((r) => r.application_id)
+        .map((r) => [r.application_id as string, r.id]),
+    );
+  } catch {
+    return new Map();
+  }
+}
+
 function formatDate(value: string | null) {
   if (!value) return "-";
   const date = new Date(value);
@@ -93,7 +114,10 @@ export default async function EleverPage({
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q : "";
   const status = typeof sp.status === "string" ? sp.status : "";
-  const applications = await getApplications(q, status);
+  const [applications, registered] = await Promise.all([
+    getApplications(q, status),
+    getRegisteredMap(),
+  ]);
   const filtered = Boolean(q || status);
 
   return (
@@ -164,11 +188,21 @@ export default async function EleverPage({
                     </TableCell>
                     <TableCell>{formatDate(application.created_at)}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end">
-                        <RegisterStudentButton
-                          applicationId={application.id}
-                          basePath={basePath}
-                        />
+                      <div className="flex items-center justify-end gap-1">
+                        {registered.has(application.id) ? (
+                          <Link
+                            href={`${basePath}/registrerte/${registered.get(
+                              application.id,
+                            )}`}
+                          >
+                            <Badge variant="secondary">Registrert</Badge>
+                          </Link>
+                        ) : (
+                          <RegisterStudentButton
+                            applicationId={application.id}
+                            basePath={basePath}
+                          />
+                        )}
                         <DeleteButton
                           id={application.id}
                           label="påmelding"

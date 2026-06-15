@@ -24,7 +24,13 @@ function renderEmail(opts: {
   title: string;
   intro: string;
   rows: Row[];
+  cta?: { label: string; url: string };
 }) {
+  const cta = opts.cta
+    ? `<div style="padding:8px 0 4px;">
+          <a href="${escapeHtml(opts.cta.url)}" style="display:inline-block;background:#ff5b24;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:999px;">${escapeHtml(opts.cta.label)}</a>
+        </div>`
+    : "";
   const rows = opts.rows
     .filter(([, value]) => value != null && String(value).trim() !== "")
     .map(
@@ -48,6 +54,7 @@ function renderEmail(opts: {
         <div style="padding:24px 28px;">
           <p style="margin:0 0 18px;color:#5b6b53;font-size:15px;">${escapeHtml(opts.intro)}</p>
           <table style="width:100%;border-collapse:collapse;border:1px solid #e7eee0;border-radius:12px;overflow:hidden;">${rows}</table>
+          ${cta}
         </div>
         <div style="padding:16px 28px;background:#f8faf4;color:#7d8a73;font-size:12px;">
           Sendt automatisk fra islamskole.no
@@ -66,6 +73,7 @@ async function send(opts: {
   title: string;
   intro: string;
   rows: Row[];
+  cta?: { label: string; url: string };
 }) {
   const resend = getClient();
   if (!resend) return;
@@ -80,11 +88,60 @@ async function send(opts: {
         title: opts.title,
         intro: opts.intro,
         rows: opts.rows,
+        cta: opts.cta,
       }),
     });
   } catch (error) {
     console.error("Resend email failed", error);
   }
+}
+
+function formatNok(amountOre: number) {
+  return `${(amountOre / 100).toLocaleString("nb-NO")} kr`;
+}
+
+export async function sendPaymentLinkEmail(opts: {
+  to: string;
+  guardianName: string;
+  childName: string;
+  amount: number;
+  term: string | null;
+  url: string;
+}) {
+  await send({
+    to: opts.to,
+    subject: `Betaling for ${opts.childName}`,
+    badge: "Betaling",
+    title: "Betaling av skolepenger",
+    intro: `Hei ${opts.guardianName}, her er betalingslenken for ${opts.childName}. Trykk på knappen for å betale med Vipps.`,
+    cta: { label: "Betal med Vipps", url: opts.url },
+    rows: [
+      ["Elev", opts.childName],
+      ["Termin", opts.term],
+      ["Beløp", formatNok(opts.amount)],
+    ],
+  });
+}
+
+export async function sendPaymentReceiptEmail(opts: {
+  to: string;
+  guardianName: string;
+  childName: string;
+  amount: number;
+  term: string | null;
+}) {
+  await send({
+    to: opts.to,
+    subject: `Kvittering - betaling for ${opts.childName}`,
+    badge: "Kvittering",
+    title: "Betaling mottatt",
+    intro: `Hei ${opts.guardianName}, vi har mottatt betalingen for ${opts.childName}. Takk!`,
+    rows: [
+      ["Elev", opts.childName],
+      ["Termin", opts.term],
+      ["Beløp betalt", formatNok(opts.amount)],
+    ],
+  });
 }
 
 export async function sendStudentApplicationEmail(opts: {

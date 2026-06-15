@@ -12,16 +12,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const statuses = [
-  { value: "alle", label: "Alle statuser" },
-  { value: "ny", label: "Ny" },
-  { value: "kontaktet", label: "Kontaktet" },
-  { value: "akseptert", label: "Akseptert" },
-  { value: "avslatt", label: "Avslått" },
-  { value: "arkivert", label: "Arkivert" },
+const paymentStatuses = [
+  { value: "alle", label: "All betaling" },
+  { value: "betalt", label: "Betalt" },
+  { value: "venter", label: "Venter på betaling" },
+  { value: "ubetalt", label: "Ingen betaling" },
 ];
 
-export function StudentFilters() {
+export function EleverFilters({
+  classes,
+}: {
+  classes: { id: string; name: string }[];
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -51,14 +53,30 @@ export function StudentFilters() {
         />
       </div>
       <Select
-        value={searchParams.get("status") ?? "alle"}
-        onValueChange={(value) => setParam("status", value ?? "alle")}
+        value={searchParams.get("class") ?? "alle"}
+        onValueChange={(value) => setParam("class", value ?? "alle")}
+      >
+        <SelectTrigger className="w-full sm:w-48">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="alle">Alle klasser</SelectItem>
+          {classes.map((c) => (
+            <SelectItem key={c.id} value={c.id}>
+              {c.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select
+        value={searchParams.get("pay") ?? "alle"}
+        onValueChange={(value) => setParam("pay", value ?? "alle")}
       >
         <SelectTrigger className="w-full sm:w-52">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {statuses.map((s) => (
+          {paymentStatuses.map((s) => (
             <SelectItem key={s.value} value={s.value}>
               {s.label}
             </SelectItem>

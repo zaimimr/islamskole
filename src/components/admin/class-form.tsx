@@ -21,6 +21,7 @@ export type ClassRecord = {
   age_min: number | null;
   age_max: number | null;
   capacity: number | null;
+  price: number | null;
   description_no: string | null;
   description_en: string | null;
   curriculum_no: string | null;
@@ -159,6 +160,17 @@ export function ClassForm({
                 defaultValue={classRecord?.capacity ?? ""}
               />
             </div>
+          </div>
+          <div className="grid gap-2 sm:max-w-xs">
+            <Label htmlFor="price">Pris per termin (kr)</Label>
+            <Input
+              id="price"
+              name="price"
+              type="number"
+              min="0"
+              placeholder="f.eks. 1500"
+              defaultValue={classRecord?.price ?? ""}
+            />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">

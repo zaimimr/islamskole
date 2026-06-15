@@ -48,6 +48,7 @@ export type Database = {
           image_url: string | null
           name_en: string
           name_no: string
+          price: number | null
           published: boolean
           slug: string
           sort_order: number
@@ -57,6 +58,7 @@ export type Database = {
           age_max?: number | null
           age_min?: number | null
           capacity?: number | null
+          price?: number | null
           created_at?: string
           curriculum_en?: string | null
           curriculum_no?: string | null
@@ -84,6 +86,7 @@ export type Database = {
           image_url?: string | null
           name_en?: string
           name_no?: string
+          price?: number | null
           published?: boolean
           slug?: string
           sort_order?: number

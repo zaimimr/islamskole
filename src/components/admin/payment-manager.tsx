@@ -3,11 +3,23 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Link2, RefreshCw, Check, Trash2 } from "lucide-react";
+import {
+  Loader2,
+  Link2,
+  Mail,
+  RefreshCw,
+  Check,
+  Undo2,
+  Ban,
+  Trash2,
+} from "lucide-react";
 import {
   createVippsPayment,
   syncPaymentStatus,
   captureVippsPayment,
+  refundVippsPayment,
+  cancelVippsPayment,
+  sendPaymentLink,
   deletePayment,
 } from "@/app/[locale]/admin/students-actions";
 import { Button } from "@/components/ui/button";
@@ -37,7 +49,7 @@ export type PaymentRow = {
 };
 
 const statusLabels: Record<string, string> = {
-  opprettet: "Opprettet",
+  opprettet: "Venter",
   autorisert: "Autorisert",
   fanget: "Betalt",
   avbrutt: "Avbrutt",
@@ -66,11 +78,13 @@ export function PaymentManager({
   studentId,
   enrollments,
   defaultTerm,
+  defaultAmount,
   payments,
 }: {
   studentId: string;
   enrollments: EnrollmentOption[];
   defaultTerm: string;
+  defaultAmount: number | null;
   payments: PaymentRow[];
 }) {
   const router = useRouter();
@@ -131,7 +145,7 @@ export function PaymentManager({
           className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
         >
           <div className="grid gap-2">
-            <Label htmlFor="amount_nok">Beløp (NOK)</Label>
+            <Label htmlFor="amount_nok">Beløp (kr)</Label>
             <Input
               id="amount_nok"
               name="amount_nok"
@@ -139,6 +153,7 @@ export function PaymentManager({
               min="1"
               step="1"
               required
+              defaultValue={defaultAmount ?? ""}
             />
           </div>
           <div className="grid gap-2">
@@ -164,12 +179,6 @@ export function PaymentManager({
             {pending ? <Loader2 className="size-4 animate-spin" /> : null}
             Opprett betaling
           </Button>
-          <Input
-            type="hidden"
-            name="description"
-            id="payment_description"
-            className="hidden"
-          />
         </form>
 
         {payments.length === 0 ? (
@@ -215,6 +224,21 @@ export function PaymentManager({
                         type="button"
                         variant="ghost"
                         size="icon"
+                        aria-label="Send lenke på e-post"
+                        disabled={pending}
+                        onClick={() =>
+                          run(
+                            () => sendPaymentLink(payment.id),
+                            "Betalingslenke sendt",
+                          )
+                        }
+                      >
+                        <Mail className="size-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
                         aria-label="Synkroniser status"
                         disabled={pending}
                         onClick={() =>
@@ -241,6 +265,41 @@ export function PaymentManager({
                           }
                         >
                           <Check className="size-4" />
+                        </Button>
+                      ) : null}
+                      {payment.status === "opprettet" ||
+                      payment.status === "autorisert" ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Avbryt betaling"
+                          disabled={pending}
+                          onClick={() =>
+                            run(
+                              () => cancelVippsPayment(payment.id),
+                              "Betaling avbrutt",
+                            )
+                          }
+                        >
+                          <Ban className="size-4" />
+                        </Button>
+                      ) : null}
+                      {payment.status === "fanget" ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Refunder betaling"
+                          disabled={pending}
+                          onClick={() =>
+                            run(
+                              () => refundVippsPayment(payment.id),
+                              "Betaling refundert",
+                            )
+                          }
+                        >
+                          <Undo2 className="size-4" />
                         </Button>
                       ) : null}
                       <Button

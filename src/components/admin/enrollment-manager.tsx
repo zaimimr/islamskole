@@ -14,13 +14,18 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export type ClassOption = { id: string; name: string };
+export type ClassOption = { id: string; name: string; price: number | null };
 export type EnrollmentRow = {
   id: string;
   className: string;
   term: string;
   status: string;
+  price: number | null;
 };
+
+function priceLabel(price: number | null) {
+  return price != null ? `${price.toLocaleString("nb-NO")} kr/termin` : null;
+}
 
 export function EnrollmentManager({
   studentId,
@@ -77,6 +82,12 @@ export function EnrollmentManager({
                 <span>
                   <span className="font-medium">{enrollment.className}</span>
                   <span className="text-muted-foreground"> · {enrollment.term}</span>
+                  {priceLabel(enrollment.price) ? (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · {priceLabel(enrollment.price)}
+                    </span>
+                  ) : null}
                   {enrollment.status !== "aktiv" ? (
                     <Badge variant="secondary" className="ml-2">
                       {enrollment.status}
@@ -119,6 +130,9 @@ export function EnrollmentManager({
                 {classes.map((option) => (
                   <option key={option.id} value={option.id}>
                     {option.name}
+                    {priceLabel(option.price)
+                      ? ` (${priceLabel(option.price)})`
+                      : ""}
                   </option>
                 ))}
               </select>

@@ -7,10 +7,12 @@ import { createClient } from "@/lib/supabase/server";
 import { getIsAdmin } from "@/lib/auth";
 import {
   capturePayment,
+  cancelPayment,
   createPayment,
-  getPayment,
-  type VippsPaymentState,
+  refundPayment,
 } from "@/lib/vipps";
+import { syncPaymentByReference } from "@/lib/payments-sync";
+import { sendPaymentLinkEmail } from "@/lib/email";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 type PaymentResult =
@@ -296,61 +298,33 @@ export async function createVippsPayment(
   return { ok: true, redirectUrl, reference };
 }
 
-function mapState(
-  state: VippsPaymentState,
-  capturedAmount: number,
-): string {
-  if (capturedAmount > 0) return "fanget";
-  switch (state) {
-    case "AUTHORIZED":
-      return "autorisert";
-    case "ABORTED":
-    case "EXPIRED":
-    case "TERMINATED":
-      return "avbrutt";
-    default:
-      return "opprettet";
-  }
+async function getPaymentReference(
+  paymentId: string,
+): Promise<{ reference: string; amount: number } | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("payments")
+    .select("reference, amount")
+    .eq("id", paymentId)
+    .maybeSingle();
+  return (data as unknown as { reference: string; amount: number } | null) ?? null;
 }
 
 export async function syncPaymentStatus(
   paymentId: string,
 ): Promise<ActionResult> {
   await requireAdmin();
-  const supabase = await createClient();
+  const row = await getPaymentReference(paymentId);
+  if (!row) return { ok: false, error: "Fant ikke betalingen" };
 
-  const { data: payment } = await supabase
-    .from("payments")
-    .select("reference")
-    .eq("id", paymentId)
-    .maybeSingle();
-  const reference = (payment as unknown as { reference: string } | null)
-    ?.reference;
-  if (!reference) return { ok: false, error: "Fant ikke betalingen" };
-
-  let result;
   try {
-    result = await getPayment(reference);
+    await syncPaymentByReference(row.reference);
   } catch (error) {
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Ukjent Vipps-feil",
     };
   }
-
-  const status = mapState(result.state, result.capturedAmount);
-  const update: Record<string, unknown> = {
-    status,
-    vipps_state: result.state,
-  };
-  if (status === "fanget") update.captured_at = new Date().toISOString();
-
-  const { error } = await supabase
-    .from("payments")
-    .update(update as never)
-    .eq("id", paymentId);
-
-  if (error) return { ok: false, error: error.message };
   revalidate();
   return { ok: true, id: paymentId };
 }
@@ -359,21 +333,31 @@ export async function captureVippsPayment(
   paymentId: string,
 ): Promise<ActionResult> {
   await requireAdmin();
-  const supabase = await createClient();
-
-  const { data: payment } = await supabase
-    .from("payments")
-    .select("reference, amount")
-    .eq("id", paymentId)
-    .maybeSingle();
-  const row = payment as unknown as {
-    reference: string;
-    amount: number;
-  } | null;
+  const row = await getPaymentReference(paymentId);
   if (!row) return { ok: false, error: "Fant ikke betalingen" };
 
   try {
     await capturePayment(row.reference, row.amount);
+    await syncPaymentByReference(row.reference);
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Ukjent Vipps-feil",
+    };
+  }
+  revalidate();
+  return { ok: true, id: paymentId };
+}
+
+export async function refundVippsPayment(
+  paymentId: string,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const row = await getPaymentReference(paymentId);
+  if (!row) return { ok: false, error: "Fant ikke betalingen" };
+
+  try {
+    await refundPayment(row.reference, row.amount);
   } catch (error) {
     return {
       ok: false,
@@ -381,16 +365,83 @@ export async function captureVippsPayment(
     };
   }
 
+  const supabase = await createClient();
   const { error } = await supabase
     .from("payments")
-    .update({
-      status: "fanget",
-      captured_at: new Date().toISOString(),
-    } as never)
+    .update({ status: "refundert" } as never)
     .eq("id", paymentId);
-
   if (error) return { ok: false, error: error.message };
   revalidate();
+  return { ok: true, id: paymentId };
+}
+
+export async function cancelVippsPayment(
+  paymentId: string,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const row = await getPaymentReference(paymentId);
+  if (!row) return { ok: false, error: "Fant ikke betalingen" };
+
+  try {
+    await cancelPayment(row.reference);
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Ukjent Vipps-feil",
+    };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("payments")
+    .update({ status: "avbrutt", vipps_state: "TERMINATED" } as never)
+    .eq("id", paymentId);
+  if (error) return { ok: false, error: error.message };
+  revalidate();
+  return { ok: true, id: paymentId };
+}
+
+export async function sendPaymentLink(
+  paymentId: string,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("payments")
+    .select(
+      "amount, term, redirect_url, students(full_name, guardian_name, email)",
+    )
+    .eq("id", paymentId)
+    .maybeSingle();
+
+  const payment = data as unknown as {
+    amount: number;
+    term: string | null;
+    redirect_url: string | null;
+    students: {
+      full_name: string | null;
+      guardian_name: string | null;
+      email: string | null;
+    } | null;
+  } | null;
+
+  if (!payment) return { ok: false, error: "Fant ikke betalingen" };
+  if (!payment.redirect_url) {
+    return { ok: false, error: "Betalingen mangler en lenke" };
+  }
+  if (!payment.students?.email) {
+    return { ok: false, error: "Foresatt mangler e-postadresse" };
+  }
+
+  await sendPaymentLinkEmail({
+    to: payment.students.email,
+    guardianName: payment.students.guardian_name ?? "",
+    childName: payment.students.full_name ?? "",
+    amount: payment.amount,
+    term: payment.term,
+    url: payment.redirect_url,
+  });
+
   return { ok: true, id: paymentId };
 }
 

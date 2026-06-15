@@ -56,33 +56,44 @@ export default async function ElevDetailPage({
 
   const { data: classData } = await supabase
     .from("classes")
-    .select("id, name_no")
+    .select("id, name_no, price")
     .order("sort_order", { ascending: true });
   const classes = (
-    (classData as { id: string; name_no: string | null }[] | null) ?? []
-  ).map((c) => ({ id: c.id, name: c.name_no ?? "(uten navn)" }));
+    (classData as
+      | { id: string; name_no: string | null; price: number | null }[]
+      | null) ?? []
+  ).map((c) => ({
+    id: c.id,
+    name: c.name_no ?? "(uten navn)",
+    price: c.price,
+  }));
 
   const { data: enrollmentData } = await supabase
     .from("enrollments")
-    .select("id, term, status, classes(name_no)")
+    .select("id, term, status, classes(name_no, price)")
     .eq("student_id", id)
     .order("created_at", { ascending: false });
 
-  const enrollments: EnrollmentRow[] = (
+  const enrollmentRaw =
     (enrollmentData as
       | {
           id: string;
           term: string;
           status: string;
-          classes: { name_no: string | null } | null;
+          classes: { name_no: string | null; price: number | null } | null;
         }[]
-      | null) ?? []
-  ).map((e) => ({
+      | null) ?? [];
+
+  const enrollments: EnrollmentRow[] = enrollmentRaw.map((e) => ({
     id: e.id,
     term: e.term,
     status: e.status,
     className: e.classes?.name_no ?? "(uten navn)",
+    price: e.classes?.price ?? null,
   }));
+
+  const activeEnrollment = enrollmentRaw.find((e) => e.status === "aktiv");
+  const defaultAmount = activeEnrollment?.classes?.price ?? null;
 
   const { data: paymentData } = await supabase
     .from("payments")
@@ -118,6 +129,7 @@ export default async function ElevDetailPage({
         studentId={student.id}
         enrollments={enrollmentOptions}
         defaultTerm={term}
+        defaultAmount={defaultAmount}
         payments={payments}
       />
 

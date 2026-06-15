@@ -15,8 +15,8 @@ import {
 const statusOptions = [
   { value: "ny", label: "Ny" },
   { value: "kontaktet", label: "Kontaktet" },
-  { value: "betaling", label: "Betaling" },
   { value: "akseptert", label: "Akseptert" },
+  { value: "avslatt", label: "Avslått" },
   { value: "arkivert", label: "Arkivert" },
 ];
 
