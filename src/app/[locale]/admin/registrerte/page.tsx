@@ -1,8 +1,9 @@
-import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { adminBasePath } from "@/components/admin/paths";
 import { PageHeader } from "@/components/admin/page-header";
 import { EleverFilters } from "@/components/admin/elever-filters";
+import { ClickableRow } from "@/components/admin/clickable-row";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -192,20 +193,19 @@ export default async function RegistrertePage({
                   <TableHead>Klasse</TableHead>
                   <TableHead>Betalt</TableHead>
                   <TableHead>Betaling</TableHead>
+                  <TableHead className="w-8" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {students.map((student) => {
                   const state = payState(student.payments);
                   return (
-                    <TableRow key={student.id}>
+                    <ClickableRow
+                      key={student.id}
+                      href={`${basePath}/registrerte/${student.id}`}
+                    >
                       <TableCell className="font-medium">
-                        <Link
-                          href={`${basePath}/registrerte/${student.id}`}
-                          className="underline-offset-2 hover:underline"
-                        >
-                          {student.full_name ?? "-"}
-                        </Link>
+                        {student.full_name ?? "-"}
                       </TableCell>
                       <TableCell>{student.child_age ?? "-"}</TableCell>
                       <TableCell>{student.guardian_name ?? "-"}</TableCell>
@@ -220,7 +220,10 @@ export default async function RegistrertePage({
                           <Badge variant="outline">Ingen</Badge>
                         )}
                       </TableCell>
-                    </TableRow>
+                      <TableCell className="text-muted-foreground">
+                        <ChevronRight className="size-4" />
+                      </TableCell>
+                    </ClickableRow>
                   );
                 })}
               </TableBody>
