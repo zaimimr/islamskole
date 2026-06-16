@@ -1,6 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getPayment, type VippsPaymentState } from "@/lib/vipps";
+import { getPayment, capturePayment, type VippsPaymentState } from "@/lib/vipps";
 import { sendPaymentReceiptEmail } from "@/lib/email";
 import { emailNotifications } from "@/flags";
 
@@ -40,9 +40,26 @@ export async function syncPaymentByReference(
   reference: string,
 ): Promise<string | null> {
   const result = await getPayment(reference);
+
+  let capturedAmount = result.capturedAmount;
+  const autoCapture = process.env.VIPPS_AUTO_CAPTURE !== "false";
+  if (
+    autoCapture &&
+    result.state === "AUTHORIZED" &&
+    capturedAmount === 0 &&
+    result.authorizedAmount > 0
+  ) {
+    try {
+      await capturePayment(reference, result.authorizedAmount);
+      capturedAmount = result.authorizedAmount;
+    } catch (error) {
+      console.error("Auto-capture failed", error);
+    }
+  }
+
   const status = mapVippsState(
     result.state,
-    result.capturedAmount,
+    capturedAmount,
     result.refundedAmount,
   );
 
