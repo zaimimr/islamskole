@@ -86,6 +86,11 @@ export default async function BetalingPage({
             (p) => p.school_year_id === year.id,
           );
 
+          const studentIds = [
+            ...new Set(yearEnrollments.map((e) => e.student_id)),
+          ];
+          const enrolledSet = new Set(studentIds);
+
           const paidByStudent = new Map<string, number>();
           const stateByStudent = new Map<
             string,
@@ -106,15 +111,19 @@ export default async function BetalingPage({
             }
           }
 
-          const studentIds = [
-            ...new Set(yearEnrollments.map((e) => e.student_id)),
-          ];
           const paidCount = studentIds.filter(
             (id) => stateByStudent.get(id) === "betalt",
           ).length;
           const missingCount = studentIds.length - paidCount;
           const collected = yearPayments
-            .filter((p) => p.status === "fanget")
+            .filter((p) => p.status === "fanget" && enrolledSet.has(p.student_id))
+            .reduce((s, p) => s + p.amount, 0);
+          const outstanding = yearPayments
+            .filter(
+              (p) =>
+                (p.status === "opprettet" || p.status === "autorisert") &&
+                enrolledSet.has(p.student_id),
+            )
             .reduce((s, p) => s + p.amount, 0);
 
           const seen = new Set<string>();
@@ -134,11 +143,12 @@ export default async function BetalingPage({
                 <BatchSendButton schoolYearId={year.id} yearLabel={year.label} />
               </CardHeader>
               <CardContent className="grid gap-4">
-                <div className="grid gap-3 sm:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
                   <Stat label="Elever" value={String(studentIds.length)} />
                   <Stat label="Betalt" value={String(paidCount)} />
                   <Stat label="Mangler" value={String(missingCount)} />
-                  <Stat label="Samlet" value={formatNok(collected)} />
+                  <Stat label="Innbetalt" value={formatNok(collected)} />
+                  <Stat label="Utestående" value={formatNok(outstanding)} />
                 </div>
 
                 {rows.length === 0 ? (

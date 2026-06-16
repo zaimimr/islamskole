@@ -254,7 +254,7 @@ export async function capturePayment(
       method: "POST",
       headers: {
         ...baseHeaders(config, token),
-        "Idempotency-Key": randomUUID(),
+        "Idempotency-Key": `capture-${reference}`,
       },
       body: JSON.stringify({
         modificationAmount: { currency: "NOK", value: amount },
