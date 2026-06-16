@@ -16,7 +16,13 @@ import { sendPaymentLinkEmail } from "@/lib/email";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 type PaymentResult =
-  | { ok: true; redirectUrl: string; reference: string; emailed?: boolean }
+  | {
+      ok: true;
+      redirectUrl: string;
+      reference: string;
+      emailed?: boolean;
+      emailedTo?: number;
+    }
   | { ok: false; error: string };
 type BatchResult =
   | { ok: true; sent: number; skipped: number; note?: string }
@@ -405,7 +411,13 @@ export async function createVippsPayment(
   }
 
   revalidate();
-  return { ok: true, redirectUrl: payLink, reference, emailed };
+  return {
+    ok: true,
+    redirectUrl: payLink,
+    reference,
+    emailed,
+    emailedTo: emailed ? recipients.length : 0,
+  };
 }
 
 type BatchEnrollment = {

@@ -100,8 +100,10 @@ export function PaymentManager({
       if (result.ok) {
         toast.success(
           result.emailed
-            ? "Betaling opprettet og sendt til foresatt på e-post"
-            : "Betaling opprettet (foresatt mangler e-post - bruk Kopier/Send-knappene)",
+            ? `Betaling opprettet og sendt til ${result.emailedTo} foresatt${
+                result.emailedTo === 1 ? "" : "e"
+              } på e-post`
+            : "Betaling opprettet (ingen foresatt har e-post - bruk Kopier/Send-knappene)",
         );
         router.refresh();
       } else {
