@@ -226,6 +226,7 @@ export function PaymentManager({
                         variant="ghost"
                         size="icon"
                         aria-label="Kopier betalingslenke"
+                        title="Kopier betalingslenke"
                         onClick={() => copyLink(payment.id)}
                       >
                         <Link2 className="size-4" />
@@ -235,6 +236,7 @@ export function PaymentManager({
                         variant="ghost"
                         size="icon"
                         aria-label="Send lenke på e-post"
+                        title="Send betalingslenke til foresatte på e-post"
                         disabled={pending}
                         onClick={() =>
                           run(
@@ -250,6 +252,7 @@ export function PaymentManager({
                         variant="ghost"
                         size="icon"
                         aria-label="Synkroniser status"
+                        title="Hent oppdatert status fra Vipps"
                         disabled={pending}
                         onClick={() =>
                           run(
@@ -266,6 +269,7 @@ export function PaymentManager({
                           variant="ghost"
                           size="icon"
                           aria-label="Kapre betaling"
+                          title="Kapre betaling – trekk de reserverte pengene (gjør den til Betalt)"
                           disabled={pending}
                           onClick={() =>
                             run(
@@ -284,6 +288,7 @@ export function PaymentManager({
                           variant="ghost"
                           size="icon"
                           aria-label="Avbryt betaling"
+                          title="Avbryt betaling (kanseller før den er trukket)"
                           disabled={pending}
                           onClick={() =>
                             run(
@@ -301,6 +306,7 @@ export function PaymentManager({
                           variant="ghost"
                           size="icon"
                           aria-label="Refunder betaling"
+                          title="Refunder betaling (betal tilbake til foresatt)"
                           disabled={pending}
                           onClick={() =>
                             run(
@@ -317,6 +323,7 @@ export function PaymentManager({
                         variant="ghost"
                         size="icon"
                         aria-label="Slett betaling"
+                        title="Slett betalingen fra listen"
                         disabled={pending}
                         onClick={() =>
                           run(() => deletePayment(payment.id), "Betaling slettet")
