@@ -318,19 +318,26 @@ export async function createVippsPayment(
     };
   }
 
-  const { error: insertError } = await supabase.from("payments").insert({
-    student_id: studentId,
-    enrollment_id: enrollmentId,
-    school_year_id: schoolYearId,
-    reference,
-    amount,
-    description,
-    status: "opprettet",
-    vipps_state: "CREATED",
-    redirect_url: redirectUrl,
-  } as never);
+  const { data: inserted, error: insertError } = await supabase
+    .from("payments")
+    .insert({
+      student_id: studentId,
+      enrollment_id: enrollmentId,
+      school_year_id: schoolYearId,
+      reference,
+      amount,
+      description,
+      status: "opprettet",
+      vipps_state: "CREATED",
+      redirect_url: redirectUrl,
+    } as never)
+    .select("id")
+    .single();
 
   if (insertError) return { ok: false, error: insertError.message };
+
+  const paymentId = (inserted as unknown as { id: string }).id;
+  const payLink = `${siteUrl}/api/vipps/pay/${paymentId}`;
 
   let emailed = false;
   if (studentRow?.email) {
@@ -340,12 +347,12 @@ export async function createVippsPayment(
       childName: studentRow.full_name ?? "",
       amount,
       schoolYear: yearLabel,
-      url: redirectUrl,
+      url: payLink,
     });
   }
 
   revalidate();
-  return { ok: true, redirectUrl, reference, emailed };
+  return { ok: true, redirectUrl: payLink, reference, emailed };
 }
 
 type BatchEnrollment = {
@@ -360,6 +367,7 @@ type BatchEnrollment = {
   } | null;
 };
 type BatchPayment = {
+  id: string;
   student_id: string;
   status: string;
   redirect_url: string | null;
@@ -393,7 +401,7 @@ export async function batchSendPaymentLinks(
 
   const { data: pays } = await supabase
     .from("payments")
-    .select("student_id, status, redirect_url, amount")
+    .select("id, student_id, status, redirect_url, amount")
     .eq("school_year_id", schoolYearId);
   const payments = (pays as unknown as BatchPayment[] | null) ?? [];
 
@@ -404,7 +412,6 @@ export async function batchSendPaymentLinks(
   for (const p of payments) {
     if (
       (p.status === "opprettet" || p.status === "autorisert") &&
-      p.redirect_url &&
       !pendingByStudent.has(p.student_id)
     ) {
       pendingByStudent.set(p.student_id, p);
@@ -434,14 +441,14 @@ export async function batchSendPaymentLinks(
     }
 
     const pending = pendingByStudent.get(e.student_id);
-    if (pending?.redirect_url) {
+    if (pending) {
       const ok = await sendPaymentLinkEmail({
         to: st.email,
         guardianName: st.guardian_name ?? "",
         childName: st.full_name ?? "",
         amount: pending.amount,
         schoolYear: yearLabel,
-        url: pending.redirect_url,
+        url: `${siteUrl}/api/vipps/pay/${pending.id}`,
       });
       if (ok) sent++;
       else failed++;
@@ -465,18 +472,22 @@ export async function batchSendPaymentLinks(
         returnUrl,
         phoneNumber: st.phone,
       });
-      const { error: insertError } = await supabase.from("payments").insert({
-        student_id: e.student_id,
-        enrollment_id: e.id,
-        school_year_id: schoolYearId,
-        reference,
-        amount,
-        description,
-        status: "opprettet",
-        vipps_state: "CREATED",
-        redirect_url: result.redirectUrl,
-      } as never);
-      if (insertError) {
+      const { data: ins, error: insertError } = await supabase
+        .from("payments")
+        .insert({
+          student_id: e.student_id,
+          enrollment_id: e.id,
+          school_year_id: schoolYearId,
+          reference,
+          amount,
+          description,
+          status: "opprettet",
+          vipps_state: "CREATED",
+          redirect_url: result.redirectUrl,
+        } as never)
+        .select("id")
+        .single();
+      if (insertError || !ins) {
         failed++;
         continue;
       }
@@ -486,7 +497,7 @@ export async function batchSendPaymentLinks(
         childName: st.full_name ?? "",
         amount,
         schoolYear: yearLabel,
-        url: result.redirectUrl,
+        url: `${siteUrl}/api/vipps/pay/${(ins as unknown as { id: string }).id}`,
       });
       if (ok) sent++;
       else failed++;
@@ -708,14 +719,13 @@ export async function sendPaymentLink(
   const { data } = await supabase
     .from("payments")
     .select(
-      "amount, redirect_url, school_years(label), students(full_name, guardian_name, email)",
+      "amount, school_years(label), students(full_name, guardian_name, email)",
     )
     .eq("id", paymentId)
     .maybeSingle();
 
   const payment = data as unknown as {
     amount: number;
-    redirect_url: string | null;
     school_years: { label: string } | null;
     students: {
       full_name: string | null;
@@ -725,21 +735,22 @@ export async function sendPaymentLink(
   } | null;
 
   if (!payment) return { ok: false, error: "Fant ikke betalingen" };
-  if (!payment.redirect_url) {
-    return { ok: false, error: "Betalingen mangler en lenke" };
-  }
   if (!payment.students?.email) {
     return { ok: false, error: "Foresatt mangler e-postadresse" };
   }
 
-  await sendPaymentLinkEmail({
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
+  const ok = await sendPaymentLinkEmail({
     to: payment.students.email,
     guardianName: payment.students.guardian_name ?? "",
     childName: payment.students.full_name ?? "",
     amount: payment.amount,
     schoolYear: payment.school_years?.label ?? null,
-    url: payment.redirect_url,
+    url: `${siteUrl}/api/vipps/pay/${paymentId}`,
   });
+  if (!ok) {
+    return { ok: false, error: "E-posten kunne ikke sendes" };
+  }
 
   return { ok: true, id: paymentId };
 }

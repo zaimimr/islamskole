@@ -125,12 +125,11 @@ export function PaymentManager({
     });
   }
 
-  function copyLink(url: string | null) {
-    if (!url) {
-      toast.error("Ingen betalingslenke");
-      return;
-    }
-    navigator.clipboard.writeText(url);
+  function copyLink(paymentId: string) {
+    const base = (
+      process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin
+    ).replace(/\/$/, "");
+    navigator.clipboard.writeText(`${base}/api/vipps/pay/${paymentId}`);
     toast.success("Betalingslenke kopiert");
   }
 
@@ -227,7 +226,7 @@ export function PaymentManager({
                         variant="ghost"
                         size="icon"
                         aria-label="Kopier betalingslenke"
-                        onClick={() => copyLink(payment.redirect_url)}
+                        onClick={() => copyLink(payment.id)}
                       >
                         <Link2 className="size-4" />
                       </Button>
