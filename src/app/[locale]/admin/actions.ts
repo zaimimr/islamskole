@@ -2,14 +2,19 @@
 
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getIsAdmin } from "@/lib/auth";
 import { getSiteSettings } from "@/lib/data";
+import { writeAudit } from "@/lib/audit";
+import { rateLimit } from "@/lib/rate-limit";
 import {
   sendStudentApplicationEmail,
   sendTeacherApplicationEmail,
+  sendStudentApplicationConfirmationEmail,
+  sendTeacherApplicationConfirmationEmail,
 } from "@/lib/email";
 
 const levelLabelsNo: Record<string, string> = {
@@ -133,8 +138,16 @@ export async function createEvent(formData: FormData): Promise<ActionResult> {
 
   if (error) return { ok: false, error: error.message };
 
+  const eventId = (data as unknown as { id: string }).id;
+  await writeAudit({
+    action: "event.create",
+    entityType: "events",
+    entityId: eventId,
+    metadata: { title_no: titleNo, slug, published: payload.published },
+  });
+
   revalidateAdminAndSite();
-  return { ok: true, id: (data as unknown as { id: string }).id };
+  return { ok: true, id: eventId };
 }
 
 export async function updateEvent(
@@ -179,6 +192,13 @@ export async function updateEvent(
 
   if (error) return { ok: false, error: error.message };
 
+  await writeAudit({
+    action: "event.update",
+    entityType: "events",
+    entityId: id,
+    metadata: { title_no: titleNo, slug, published: payload.published },
+  });
+
   revalidateAdminAndSite();
   return { ok: true, id };
 }
@@ -188,6 +208,7 @@ export async function deleteEvent(id: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { error } = await supabase.from("events").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
+  await writeAudit({ action: "event.delete", entityType: "events", entityId: id });
   revalidateAdminAndSite();
   return { ok: true, id };
 }
@@ -229,8 +250,16 @@ export async function createClass(formData: FormData): Promise<ActionResult> {
 
   if (error) return { ok: false, error: error.message };
 
+  const classId = (data as unknown as { id: string }).id;
+  await writeAudit({
+    action: "class.create",
+    entityType: "classes",
+    entityId: classId,
+    metadata: { name_no: nameNo, slug, published: payload.published },
+  });
+
   revalidateAdminAndSite();
-  return { ok: true, id: (data as unknown as { id: string }).id };
+  return { ok: true, id: classId };
 }
 
 export async function updateClass(
@@ -272,6 +301,13 @@ export async function updateClass(
 
   if (error) return { ok: false, error: error.message };
 
+  await writeAudit({
+    action: "class.update",
+    entityType: "classes",
+    entityId: id,
+    metadata: { name_no: nameNo, slug, published: payload.published },
+  });
+
   revalidateAdminAndSite();
   return { ok: true, id };
 }
@@ -281,6 +317,7 @@ export async function deleteClass(id: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { error } = await supabase.from("classes").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
+  await writeAudit({ action: "class.delete", entityType: "classes", entityId: id });
   revalidateAdminAndSite();
   return { ok: true, id };
 }
@@ -305,6 +342,15 @@ export async function updateSettings(formData: FormData): Promise<ActionResult> 
 
   if (error) return { ok: false, error: error.message };
 
+  await writeAudit({
+    action: "settings.update",
+    entityType: "site_settings",
+    metadata: {
+      contact_email: payload.contact_email,
+      enroll_email: payload.enroll_email,
+    },
+  });
+
   revalidateAdminAndSite();
   return { ok: true };
 }
@@ -319,6 +365,14 @@ const teacherStatusSchema = z.enum(["ny", "kontaktet", "arkivert"]);
 export async function createTeacherApplication(
   formData: FormData,
 ): Promise<ActionResult> {
+  const ip =
+    (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    "unknown";
+  const limit = rateLimit(`apply:${ip}`, { limit: 5, windowMs: 60_000 });
+  if (!limit.ok) {
+    return { ok: false, error: "For mange forsøk, prøv igjen senere." };
+  }
+
   const fullName = readString(formData, "full_name");
   const email = readString(formData, "email");
 
@@ -359,6 +413,11 @@ export async function createTeacherApplication(
         ["Melding", payload.message],
       ],
     });
+    await sendTeacherApplicationConfirmationEmail({
+      to: email,
+      fullName,
+      lang: "no",
+    });
   }
 
   return { ok: true };
@@ -383,6 +442,13 @@ export async function updateTeacherApplicationStatus(
 
   if (error) return { ok: false, error: error.message };
 
+  await writeAudit({
+    action: "teacher.status",
+    entityType: "teacher_applications",
+    entityId: id,
+    metadata: { status: parsed.data },
+  });
+
   revalidatePath("/", "layout");
   return { ok: true, id };
 }
@@ -397,6 +463,11 @@ export async function deleteTeacherApplication(
     .delete()
     .eq("id", id);
   if (error) return { ok: false, error: error.message };
+  await writeAudit({
+    action: "teacher.delete",
+    entityType: "teacher_applications",
+    entityId: id,
+  });
   revalidatePath("/", "layout");
   return { ok: true, id };
 }
@@ -417,6 +488,14 @@ const studentStatusSchema = z.enum([
 export async function createStudentApplication(
   formData: FormData,
 ): Promise<ActionResult> {
+  const ip =
+    (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    "unknown";
+  const limit = rateLimit(`apply:${ip}`, { limit: 5, windowMs: 60_000 });
+  if (!limit.ok) {
+    return { ok: false, error: "For mange forsøk, prøv igjen senere." };
+  }
+
   const childName = readString(formData, "child_name");
   const guardianName = readString(formData, "guardian_name");
   const email = readString(formData, "email");
@@ -469,6 +548,11 @@ export async function createStudentApplication(
         ["Melding", payload.message],
       ],
     });
+    await sendStudentApplicationConfirmationEmail({
+      to: email,
+      childName,
+      lang: "no",
+    });
   }
 
   return { ok: true };
@@ -492,6 +576,13 @@ export async function updateStudentApplicationStatus(
 
   if (error) return { ok: false, error: error.message };
 
+  await writeAudit({
+    action: "application.status",
+    entityType: "student_applications",
+    entityId: id,
+    metadata: { status: parsed.data },
+  });
+
   revalidatePath("/", "layout");
   return { ok: true, id };
 }
@@ -506,6 +597,11 @@ export async function deleteStudentApplication(
     .delete()
     .eq("id", id);
   if (error) return { ok: false, error: error.message };
+  await writeAudit({
+    action: "application.delete",
+    entityType: "student_applications",
+    entityId: id,
+  });
   revalidatePath("/", "layout");
   return { ok: true, id };
 }
@@ -535,6 +631,12 @@ export async function createUser(formData: FormData): Promise<PasswordResult> {
 
   if (error) return { ok: false, error: error.message };
 
+  await writeAudit({
+    action: "user.create",
+    entityType: "users",
+    metadata: { email },
+  });
+
   revalidatePath("/", "layout");
   return { ok: true, password, email };
 }
@@ -547,6 +649,11 @@ export async function resetUserPassword(
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.updateUserById(userId, { password });
   if (error) return { ok: false, error: error.message };
+  await writeAudit({
+    action: "user.reset_password",
+    entityType: "users",
+    entityId: userId,
+  });
   return { ok: true, password };
 }
 
@@ -562,6 +669,11 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) return { ok: false, error: error.message };
+  await writeAudit({
+    action: "user.delete",
+    entityType: "users",
+    entityId: userId,
+  });
   revalidatePath("/", "layout");
   return { ok: true, id: userId };
 }
@@ -605,6 +717,68 @@ export async function reorderClasses(ids: string[]): Promise<ActionResult> {
   );
   const failed = results.find((r) => r.error);
   if (failed?.error) return { ok: false, error: failed.error.message };
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function bulkUpdateApplicationStatus(
+  ids: string[],
+  status: string,
+): Promise<ActionResult> {
+  await requireAdmin();
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { ok: false, error: "Ingen påmeldinger valgt" };
+  }
+  const parsed = studentStatusSchema.safeParse(status);
+  if (!parsed.success) {
+    return { ok: false, error: "Ugyldig status" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("student_applications")
+    .update({ status: parsed.data } as never)
+    .in("id", ids);
+
+  if (error) return { ok: false, error: error.message };
+
+  await writeAudit({
+    action: "application.bulk_status",
+    entityType: "student_applications",
+    metadata: { count: ids.length, status: parsed.data },
+  });
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function bulkUpdateTeacherStatus(
+  ids: string[],
+  status: string,
+): Promise<ActionResult> {
+  await requireAdmin();
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { ok: false, error: "Ingen søknader valgt" };
+  }
+  const parsed = teacherStatusSchema.safeParse(status);
+  if (!parsed.success) {
+    return { ok: false, error: "Ugyldig status" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("teacher_applications")
+    .update({ status: parsed.data } as never)
+    .in("id", ids);
+
+  if (error) return { ok: false, error: error.message };
+
+  await writeAudit({
+    action: "teacher.bulk_status",
+    entityType: "teacher_applications",
+    metadata: { count: ids.length, status: parsed.data },
+  });
+
   revalidatePath("/", "layout");
   return { ok: true };
 }

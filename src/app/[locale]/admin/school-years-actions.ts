@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getIsAdmin } from "@/lib/auth";
+import { writeAudit } from "@/lib/audit";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -85,8 +86,15 @@ export async function createSchoolYear(
     }
     return { ok: false, error: error.message };
   }
+  const schoolYearId = (data as unknown as { id: string }).id;
+  await writeAudit({
+    action: "school_year.create",
+    entityType: "school_years",
+    entityId: schoolYearId,
+    metadata: { label, is_active: isActive },
+  });
   revalidate();
-  return { ok: true, id: (data as unknown as { id: string }).id };
+  return { ok: true, id: schoolYearId };
 }
 
 export async function updateSchoolYear(
@@ -124,6 +132,12 @@ export async function updateSchoolYear(
     }
     return { ok: false, error: error.message };
   }
+  await writeAudit({
+    action: "school_year.update",
+    entityType: "school_years",
+    entityId: id,
+    metadata: { label, is_active: isActive },
+  });
   revalidate();
   return { ok: true, id };
 }
@@ -137,6 +151,11 @@ export async function setActiveSchoolYear(id: string): Promise<ActionResult> {
     .update({ is_active: true } as never)
     .eq("id", id);
   if (error) return { ok: false, error: error.message };
+  await writeAudit({
+    action: "school_year.activate",
+    entityType: "school_years",
+    entityId: id,
+  });
   revalidate();
   return { ok: true, id };
 }
@@ -154,6 +173,11 @@ export async function deleteSchoolYear(id: string): Promise<ActionResult> {
     }
     return { ok: false, error: error.message };
   }
+  await writeAudit({
+    action: "school_year.delete",
+    entityType: "school_years",
+    entityId: id,
+  });
   revalidate();
   return { ok: true, id };
 }

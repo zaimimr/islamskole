@@ -13,6 +13,7 @@ import {
   UserCheck,
   Wallet,
   ShieldCheck,
+  ScrollText,
   UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,7 @@ export function SidebarNav({ basePath }: { basePath: string }) {
       icon: Settings,
     },
     { href: `${basePath}/brukere`, label: "Brukere", icon: ShieldCheck },
+    { href: `${basePath}/revisjon`, label: "Revisjon", icon: ScrollText },
     { href: `${basePath}/konto`, label: "Min konto", icon: UserCog },
   ];
 
