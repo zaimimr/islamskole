@@ -1,8 +1,6 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { deleteStudentApplication } from "@/app/[locale]/admin/actions";
 import { adminBasePath } from "@/components/admin/paths";
-import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/admin/page-header";
 import { DeleteButton } from "@/components/admin/delete-button";
 import { RegisterStudentButton } from "@/components/admin/register-student-button";
@@ -95,6 +93,33 @@ async function getRegisteredMap(): Promise<Map<string, string>> {
   }
 }
 
+async function getPlacementOptions() {
+  try {
+    const supabase = await createClient();
+    const [{ data: classes }, { data: years }] = await Promise.all([
+      supabase
+        .from("classes")
+        .select("id, name_no")
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("school_years")
+        .select("id, label, is_active")
+        .order("label", { ascending: false }),
+    ]);
+    return {
+      classes: (
+        (classes as { id: string; name_no: string | null }[] | null) ?? []
+      ).map((c) => ({ id: c.id, name: c.name_no ?? "(uten navn)" })),
+      schoolYears: (
+        (years as { id: string; label: string; is_active: boolean }[] | null) ??
+        []
+      ).map((y) => ({ id: y.id, label: y.label, is_active: y.is_active })),
+    };
+  } catch {
+    return { classes: [], schoolYears: [] };
+  }
+}
+
 function formatDate(value: string | null) {
   if (!value) return "-";
   const date = new Date(value);
@@ -114,10 +139,14 @@ export default async function PameldingerPage({
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q : "";
   const status = typeof sp.status === "string" ? sp.status : "";
-  const [applications, registered] = await Promise.all([
+  const [allApplications, registered, placement] = await Promise.all([
     getApplications(q, status),
     getRegisteredMap(),
+    getPlacementOptions(),
   ]);
+  const applications = allApplications.filter((a) => !registered.has(a.id));
+  const defaultSchoolYearId =
+    placement.schoolYears.find((y) => y.is_active)?.id ?? null;
   const filtered = Boolean(q || status);
 
   return (
@@ -189,20 +218,13 @@ export default async function PameldingerPage({
                     <TableCell>{formatDate(application.created_at)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {registered.has(application.id) ? (
-                          <Link
-                            href={`${basePath}/elever/${registered.get(
-                              application.id,
-                            )}`}
-                          >
-                            <Badge variant="secondary">Registrert</Badge>
-                          </Link>
-                        ) : (
-                          <RegisterStudentButton
-                            applicationId={application.id}
-                            basePath={basePath}
-                          />
-                        )}
+                        <RegisterStudentButton
+                          applicationId={application.id}
+                          basePath={basePath}
+                          classes={placement.classes}
+                          schoolYears={placement.schoolYears}
+                          defaultSchoolYearId={defaultSchoolYearId}
+                        />
                         <DeleteButton
                           id={application.id}
                           label="påmelding"

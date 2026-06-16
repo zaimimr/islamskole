@@ -81,6 +81,8 @@ export function ResetPasswordButton({
                 type="button"
                 variant="outline"
                 size="icon"
+                aria-label="Kopier passord"
+                title="Kopier passord"
                 onClick={copyPassword}
               >
                 {copied ? <Check className="size-4" /> : <Copy className="size-4" />}

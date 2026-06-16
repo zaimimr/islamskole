@@ -172,25 +172,14 @@ export function ClassForm({
               defaultValue={classRecord?.price ?? ""}
             />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="sort_order">Rekkefølge</Label>
-              <Input
-                id="sort_order"
-                name="sort_order"
-                type="number"
-                defaultValue={classRecord?.sort_order ?? 0}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="slug">Slug</Label>
-              <Input
-                id="slug"
-                name="slug"
-                placeholder="Genereres automatisk fra navn"
-                defaultValue={classRecord?.slug ?? ""}
-              />
-            </div>
+          <div className="grid gap-2 sm:max-w-xs">
+            <Label htmlFor="slug">Slug</Label>
+            <Input
+              id="slug"
+              name="slug"
+              placeholder="Genereres automatisk fra navn"
+              defaultValue={classRecord?.slug ?? ""}
+            />
           </div>
           <ImageUpload name="image_url" defaultValue={classRecord?.image_url} />
           <div className="flex items-center gap-3">

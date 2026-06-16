@@ -20,6 +20,7 @@ type YearRow = {
   starts_on: string | null;
   ends_on: string | null;
   is_active: boolean;
+  fee: number | null;
   enrollments: { count: number }[];
 };
 
@@ -28,7 +29,7 @@ async function getYears(): Promise<YearRow[]> {
     const supabase = await createClient();
     const { data } = await supabase
       .from("school_years")
-      .select("id, label, starts_on, ends_on, is_active, enrollments(count)")
+      .select("id, label, starts_on, ends_on, is_active, fee, enrollments(count)")
       .order("label", { ascending: false });
     return (data as YearRow[] | null) ?? [];
   } catch {
@@ -73,6 +74,7 @@ export default async function SkolearPage({
                 <TableRow>
                   <TableHead>Skoleår</TableHead>
                   <TableHead>Periode</TableHead>
+                  <TableHead>Semesteravgift</TableHead>
                   <TableHead>Elever</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-8" />
@@ -92,6 +94,11 @@ export default async function SkolearPage({
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {start && end ? `${start} – ${end}` : "-"}
+                      </TableCell>
+                      <TableCell>
+                        {year.fee != null
+                          ? `${year.fee.toLocaleString("nb-NO")} kr`
+                          : "-"}
                       </TableCell>
                       <TableCell>{year.enrollments?.[0]?.count ?? 0}</TableCell>
                       <TableCell>

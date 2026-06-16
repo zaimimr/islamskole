@@ -21,6 +21,7 @@ export function CopyLinkButton({ url }: { url: string }) {
       variant="ghost"
       size="icon"
       aria-label="Kopier invitasjonslenke"
+      title="Kopier invitasjonslenke"
       onClick={copy}
     >
       {copied ? <Check className="size-4" /> : <Link2 className="size-4" />}

@@ -92,6 +92,8 @@ export function CreateUserDialog() {
                     type="button"
                     variant="outline"
                     size="icon"
+                    aria-label="Kopier passord"
+                    title="Kopier passord"
                     onClick={copyPassword}
                   >
                     {copied ? (

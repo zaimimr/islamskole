@@ -12,6 +12,7 @@ type ClassRow = {
   name_no: string | null;
   age_min: number | null;
   age_max: number | null;
+  price: number | null;
   published: boolean | null;
 };
 
@@ -20,7 +21,7 @@ async function getClasses(): Promise<ClassRow[]> {
     const supabase = await createClient();
     const { data } = await supabase
       .from("classes")
-      .select("id, name_no, age_min, age_max, published")
+      .select("id, name_no, age_min, age_max, price, published")
       .order("sort_order", { ascending: true });
     return (data as ClassRow[] | null) ?? [];
   } catch {
@@ -46,6 +47,7 @@ export default async function KlasserPage({
     id: c.id,
     name: c.name_no ?? "(uten navn)",
     age: formatAge(c.age_min, c.age_max),
+    price: c.price,
     published: Boolean(c.published),
   }));
 

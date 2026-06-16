@@ -1,25 +1,49 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, UserCheck } from "lucide-react";
 import { createStudentFromApplication } from "@/app/[locale]/admin/students-actions";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
+type Option = { id: string; label: string };
 
 export function RegisterStudentButton({
   applicationId,
   basePath,
+  classes,
+  schoolYears,
+  defaultSchoolYearId,
 }: {
   applicationId: string;
   basePath: string;
+  classes: { id: string; name: string }[];
+  schoolYears: Option[];
+  defaultSchoolYearId: string | null;
 }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [classId, setClassId] = useState("");
+  const [schoolYearId, setSchoolYearId] = useState(defaultSchoolYearId ?? "");
 
-  function handleClick() {
+  function handleRegister() {
     startTransition(async () => {
-      const result = await createStudentFromApplication(applicationId);
+      const result = await createStudentFromApplication(applicationId, {
+        classId: classId || null,
+        schoolYearId: classId ? schoolYearId || null : null,
+      });
       if (result.ok && result.id) {
         toast.success("Eleven er registrert");
         router.push(`${basePath}/elever/${result.id}`);
@@ -30,20 +54,77 @@ export function RegisterStudentButton({
     });
   }
 
+  const selectClass =
+    "h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs";
+
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      aria-label="Registrer som elev"
-      disabled={pending}
-      onClick={handleClick}
-    >
-      {pending ? (
-        <Loader2 className="size-4 animate-spin" />
-      ) : (
-        <UserCheck className="size-4" />
-      )}
-    </Button>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Registrer som elev"
+            title="Registrer som elev"
+          >
+            <UserCheck className="size-4" />
+          </Button>
+        }
+      />
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Registrer som elev</DialogTitle>
+          <DialogDescription>
+            Du kan plassere eleven i en klasse og et skoleår nå, eller gjøre det
+            senere fra elevsiden.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="reg_class">Klasse (valgfritt)</Label>
+            <select
+              id="reg_class"
+              value={classId}
+              onChange={(e) => setClassId(e.target.value)}
+              className={selectClass}
+            >
+              <option value="">Ikke plasser ennå</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {classId ? (
+            <div className="grid gap-2">
+              <Label htmlFor="reg_year">Skoleår</Label>
+              <select
+                id="reg_year"
+                value={schoolYearId}
+                onChange={(e) => setSchoolYearId(e.target.value)}
+                className={selectClass}
+              >
+                {schoolYears.map((y) => (
+                  <option key={y.id} value={y.id}>
+                    {y.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            onClick={handleRegister}
+            disabled={pending || (Boolean(classId) && !schoolYearId)}
+          >
+            {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+            Registrer elev
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -108,6 +108,7 @@ export function EnrollmentManager({
                   variant="ghost"
                   size="icon"
                   aria-label="Fjern plassering"
+                  title="Fjern plassering"
                   disabled={pending}
                   onClick={() => handleRemove(enrollment.id)}
                 >

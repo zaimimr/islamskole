@@ -47,7 +47,12 @@ export function DeleteButton({ id, label, action }: DeleteButtonProps) {
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger
         render={
-          <Button variant="ghost" size="icon" aria-label="Slett">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Slett ${label}`}
+            title={`Slett ${label}`}
+          >
             <Trash2 className="size-4" />
           </Button>
         }

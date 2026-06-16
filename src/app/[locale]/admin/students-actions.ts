@@ -95,6 +95,7 @@ export async function createStudent(formData: FormData): Promise<ActionResult> {
 
 export async function createStudentFromApplication(
   applicationId: string,
+  placement?: { classId?: string | null; schoolYearId?: string | null },
 ): Promise<ActionResult> {
   await requireAdmin();
   const supabase = await createClient();
@@ -143,13 +144,24 @@ export async function createStudentFromApplication(
 
   if (error) return { ok: false, error: error.message };
 
+  const studentId = (data as unknown as { id: string }).id;
+
+  if (placement?.classId && placement?.schoolYearId) {
+    await supabase.from("enrollments").insert({
+      student_id: studentId,
+      class_id: placement.classId,
+      school_year_id: placement.schoolYearId,
+      status: "aktiv",
+    } as never);
+  }
+
   await supabase
     .from("student_applications")
     .update({ status: "akseptert" } as never)
     .eq("id", applicationId);
 
   revalidate();
-  return { ok: true, id: (data as unknown as { id: string }).id };
+  return { ok: true, id: studentId };
 }
 
 export async function updateStudent(

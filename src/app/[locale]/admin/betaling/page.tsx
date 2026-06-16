@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { adminBasePath } from "@/components/admin/paths";
 import { PageHeader } from "@/components/admin/page-header";
 import { BatchSendButton } from "@/components/admin/batch-send-button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -134,24 +134,34 @@ export default async function BetalingPage({
           });
 
           return (
-            <Card key={year.id}>
-              <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
-                <CardTitle className="flex items-center gap-2">
-                  {year.label}
-                  {year.is_active ? <Badge>Aktivt</Badge> : null}
-                </CardTitle>
-                <BatchSendButton schoolYearId={year.id} yearLabel={year.label} />
-              </CardHeader>
-              <CardContent className="grid gap-4">
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                  <Stat label="Elever" value={String(studentIds.length)} />
-                  <Stat label="Betalt" value={String(paidCount)} />
-                  <Stat label="Mangler" value={String(missingCount)} />
-                  <Stat label="Innbetalt" value={formatNok(collected)} />
-                  <Stat label="Utestående" value={formatNok(outstanding)} />
-                </div>
+            <Card key={year.id} className="overflow-hidden p-0">
+              <details open={year.is_active}>
+                <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
+                  <span className="flex items-center gap-2 font-heading text-lg font-semibold">
+                    {year.label}
+                    {year.is_active ? <Badge>Aktivt</Badge> : null}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {paidCount}/{studentIds.length} betalt · {formatNok(collected)}{" "}
+                    innbetalt
+                  </span>
+                </summary>
+                <div className="grid gap-4 border-t p-4">
+                  <div className="flex justify-end">
+                    <BatchSendButton
+                      schoolYearId={year.id}
+                      yearLabel={year.label}
+                    />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                    <Stat label="Elever" value={String(studentIds.length)} />
+                    <Stat label="Betalt" value={String(paidCount)} />
+                    <Stat label="Mangler" value={String(missingCount)} />
+                    <Stat label="Innbetalt" value={formatNok(collected)} />
+                    <Stat label="Utestående" value={formatNok(outstanding)} />
+                  </div>
 
-                {rows.length === 0 ? (
+                  {rows.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     Ingen elever plassert dette skoleåret.
                   </p>
@@ -195,10 +205,11 @@ export default async function BetalingPage({
                           </TableRow>
                         );
                       })}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
+              </details>
             </Card>
           );
         })

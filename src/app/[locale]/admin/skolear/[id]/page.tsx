@@ -125,6 +125,8 @@ export default async function SkolearDetailPage({
         }
       />
 
+      <SchoolYearForm schoolYear={year} listHref={listHref} />
+
       <div className="grid gap-3 sm:grid-cols-3">
         <Card>
           <CardContent className="p-4">
@@ -201,8 +203,6 @@ export default async function SkolearDetailPage({
           )}
         </CardContent>
       </Card>
-
-      <SchoolYearForm schoolYear={year} listHref={listHref} />
     </div>
   );
 }

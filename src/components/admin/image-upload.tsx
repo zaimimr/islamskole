@@ -80,6 +80,8 @@ export function ImageUpload({
             type="button"
             size="icon"
             variant="secondary"
+            aria-label="Fjern bilde"
+            title="Fjern bilde"
             className="absolute right-2 top-2"
             onClick={() => setUrl("")}
           >

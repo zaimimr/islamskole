@@ -31,6 +31,7 @@ export type SortableClass = {
   id: string;
   name: string;
   age: string;
+  price: number | null;
   published: boolean;
 };
 
@@ -55,6 +56,7 @@ function Row({ item, basePath }: { item: SortableClass; basePath: string }) {
       <button
         type="button"
         aria-label="Dra for å endre rekkefølge"
+        title="Dra for å endre rekkefølge"
         className="cursor-grab touch-none rounded-md p-1 text-muted-foreground hover:bg-muted active:cursor-grabbing"
         {...attributes}
         {...listeners}
@@ -63,7 +65,12 @@ function Row({ item, basePath }: { item: SortableClass; basePath: string }) {
       </button>
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{item.name}</p>
-        <p className="text-sm text-muted-foreground">{item.age}</p>
+        <p className="text-sm text-muted-foreground">
+          {item.age}
+          {item.price != null
+            ? ` · ${item.price.toLocaleString("nb-NO")} kr/termin`
+            : ""}
+        </p>
       </div>
       <Badge variant={item.published ? "default" : "secondary"}>
         {item.published ? "Publisert" : "Utkast"}
@@ -71,6 +78,7 @@ function Row({ item, basePath }: { item: SortableClass; basePath: string }) {
       <Link
         href={`${basePath}/klasser/${item.id}`}
         aria-label="Rediger"
+        title="Rediger klasse"
         className={buttonVariants({ variant: "ghost", size: "icon" })}
       >
         <Pencil className="size-4" />

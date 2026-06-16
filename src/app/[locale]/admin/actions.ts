@@ -11,7 +11,6 @@ import {
   sendStudentApplicationEmail,
   sendTeacherApplicationEmail,
 } from "@/lib/email";
-import { emailNotifications } from "@/flags";
 
 const levelLabelsNo: Record<string, string> = {
   nybegynner: "Nybegynner",
@@ -218,7 +217,6 @@ export async function createClass(formData: FormData): Promise<ActionResult> {
     curriculum_no: readOptionalString(formData, "curriculum_no"),
     curriculum_en: readOptionalString(formData, "curriculum_en"),
     image_url: readOptionalString(formData, "image_url"),
-    sort_order: readNumber(formData, "sort_order") ?? 0,
     published: readBoolean(formData, "published"),
   };
 
@@ -263,7 +261,6 @@ export async function updateClass(
     curriculum_no: readOptionalString(formData, "curriculum_no"),
     curriculum_en: readOptionalString(formData, "curriculum_en"),
     image_url: readOptionalString(formData, "image_url"),
-    sort_order: readNumber(formData, "sort_order") ?? 0,
     published: readBoolean(formData, "published"),
   };
 
@@ -348,7 +345,7 @@ export async function createTeacherApplication(
 
   if (error) return { ok: false, error: error.message };
 
-  if (await emailNotifications()) {
+  {
     const settings = await getSiteSettings();
     await sendTeacherApplicationEmail({
       to: settings?.contact_email ?? "baerum@islamskole.no",
@@ -453,7 +450,7 @@ export async function createStudentApplication(
 
   if (error) return { ok: false, error: error.message };
 
-  if (await emailNotifications()) {
+  {
     const settings = await getSiteSettings();
     await sendStudentApplicationEmail({
       to: settings?.enroll_email ?? "opptak@islamskole.no",
