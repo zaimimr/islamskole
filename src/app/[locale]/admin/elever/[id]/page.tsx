@@ -17,7 +17,7 @@ import { deleteStudent } from "@/app/[locale]/admin/students-actions";
 type StudentData = {
   id: string;
   full_name: string | null;
-  child_age: number | null;
+  birth_date: string | null;
   guardian_name: string | null;
   email: string | null;
   phone: string | null;
@@ -52,7 +52,7 @@ export default async function ElevDetailPage({
     supabase
       .from("students")
       .select(
-        "id, full_name, child_age, guardian_name, email, phone, guardian2_name, guardian2_email, guardian2_phone, student_email, student_phone, level_quran, level_arabic, level_islam, notes",
+        "id, full_name, birth_date, guardian_name, email, phone, guardian2_name, guardian2_email, guardian2_phone, student_email, student_phone, level_quran, level_arabic, level_islam, notes",
       )
       .eq("id", id)
       .maybeSingle(),

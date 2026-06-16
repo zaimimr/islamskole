@@ -20,6 +20,7 @@ type StudentRow = {
   full_name: string | null;
   guardian_name: string | null;
   child_age: number | null;
+  birth_date: string | null;
   enrollments: {
     school_year_id: string;
     school_years: { label: string } | null;
@@ -28,13 +29,29 @@ type StudentRow = {
   payments: { status: string; amount: number; school_year_id: string | null }[];
 };
 
+function ageFromBirthDate(value: string | null): number | null {
+  if (!value) return null;
+  const b = new Date(value);
+  if (Number.isNaN(b.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age--;
+  return age >= 0 ? age : null;
+}
+
+function displayAge(student: StudentRow): string {
+  const age = ageFromBirthDate(student.birth_date) ?? student.child_age;
+  return age != null ? String(age) : "-";
+}
+
 async function getStudents(q: string): Promise<StudentRow[]> {
   try {
     const supabase = await createClient();
     let query = supabase
       .from("students")
       .select(
-        "id, full_name, guardian_name, child_age, enrollments(school_year_id, school_years(label), classes(id, name_no)), payments(status, amount, school_year_id)",
+        "id, full_name, guardian_name, child_age, birth_date, enrollments(school_year_id, school_years(label), classes(id, name_no)), payments(status, amount, school_year_id)",
       )
       .order("created_at", { ascending: false });
 
@@ -271,7 +288,7 @@ export default async function RegistrertePage({
                       <TableCell className="font-medium">
                         {student.full_name ?? "-"}
                       </TableCell>
-                      <TableCell>{student.child_age ?? "-"}</TableCell>
+                      <TableCell>{displayAge(student)}</TableCell>
                       <TableCell>{student.guardian_name ?? "-"}</TableCell>
                       <TableCell>{classLabel(student.enrollments)}</TableCell>
                       <TableCell>

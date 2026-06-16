@@ -72,7 +72,7 @@ const studentSchema = z.object({
 function readStudentPayload(formData: FormData) {
   return {
     full_name: readString(formData, "full_name"),
-    child_age: readNumber(formData, "child_age"),
+    birth_date: readOptionalString(formData, "birth_date"),
     guardian_name: readString(formData, "guardian_name"),
     email: readOptionalString(formData, "email"),
     phone: readOptionalString(formData, "phone"),

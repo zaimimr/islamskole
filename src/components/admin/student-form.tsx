@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export type StudentRecord = {
   id: string;
   full_name: string | null;
-  child_age: number | null;
+  birth_date: string | null;
   guardian_name: string | null;
   email: string | null;
   phone: string | null;
@@ -111,12 +111,12 @@ export function StudentForm({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="child_age">Alder</Label>
+              <Label htmlFor="birth_date">Fødselsdato</Label>
               <Input
-                id="child_age"
-                name="child_age"
-                type="number"
-                defaultValue={student?.child_age ?? ""}
+                id="birth_date"
+                name="birth_date"
+                type="date"
+                defaultValue={student?.birth_date ?? ""}
               />
             </div>
           </div>
