@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createPayment, getPayment, cancelPayment } from "@/lib/vipps";
+import { rateLimit } from "@/lib/rate-limit";
 
 const FRESH_WINDOW_MS = 9 * 60 * 1000;
 
@@ -20,6 +21,19 @@ export async function GET(
   request: NextRequest,
   ctx: RouteContext<"/api/vipps/pay/[id]">,
 ) {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const result = rateLimit("vipps-pay:" + ip, { limit: 10, windowMs: 60_000 });
+  if (!result.ok) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(result.retryAfterMs / 1000)) },
+      },
+    );
+  }
+
   const { id } = await ctx.params;
   const site = (process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin)
     .replace(/\/$/, "");
