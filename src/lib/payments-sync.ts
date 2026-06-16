@@ -26,7 +26,7 @@ export function mapVippsState(
 type PaymentWithStudent = {
   status: string;
   amount: number;
-  term: string | null;
+  school_years: { label: string } | null;
   students: {
     full_name: string | null;
     guardian_name: string | null;
@@ -48,7 +48,9 @@ export async function syncPaymentByReference(
 
   const { data: existing } = await admin
     .from("payments")
-    .select("status, amount, term, students(full_name, guardian_name, email)")
+    .select(
+      "status, amount, school_years(label), students(full_name, guardian_name, email)",
+    )
     .eq("reference", reference)
     .maybeSingle();
   const payment = existing as PaymentWithStudent | null;
@@ -76,7 +78,7 @@ export async function syncPaymentByReference(
       guardianName: payment.students.guardian_name ?? "",
       childName: payment.students.full_name ?? "",
       amount: payment.amount,
-      term: payment.term,
+      schoolYear: payment.school_years?.label ?? null,
     });
   }
 

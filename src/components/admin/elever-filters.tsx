@@ -21,8 +21,10 @@ const paymentStatuses = [
 
 export function EleverFilters({
   classes,
+  schoolYears,
 }: {
   classes: { id: string; name: string }[];
+  schoolYears: { id: string; label: string }[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -52,6 +54,22 @@ export function EleverFilters({
           onChange={(e) => setParam("q", e.target.value)}
         />
       </div>
+      <Select
+        value={searchParams.get("year") ?? "alle"}
+        onValueChange={(value) => setParam("year", value ?? "alle")}
+      >
+        <SelectTrigger className="w-full sm:w-40">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="alle">Alle skoleår</SelectItem>
+          {schoolYears.map((y) => (
+            <SelectItem key={y.id} value={y.id}>
+              {y.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Select
         value={searchParams.get("class") ?? "alle"}
         onValueChange={(value) => setParam("class", value ?? "alle")}

@@ -342,32 +342,62 @@ export type Database = {
           },
         ]
       }
+      school_years: {
+        Row: {
+          created_at: string
+          ends_on: string | null
+          id: string
+          is_active: boolean
+          label: string
+          starts_on: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          ends_on?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          starts_on?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          ends_on?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          starts_on?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       enrollments: {
         Row: {
           class_id: string
           created_at: string
           id: string
+          school_year_id: string
           status: string
           student_id: string
-          term: string
           updated_at: string
         }
         Insert: {
           class_id: string
           created_at?: string
           id?: string
+          school_year_id: string
           status?: string
           student_id: string
-          term: string
           updated_at?: string
         }
         Update: {
           class_id?: string
           created_at?: string
           id?: string
+          school_year_id?: string
           status?: string
           student_id?: string
-          term?: string
           updated_at?: string
         }
         Relationships: [
@@ -376,6 +406,13 @@ export type Database = {
             columns: ["class_id"]
             isOneToOne: false
             referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollments_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
             referencedColumns: ["id"]
           },
           {
@@ -398,9 +435,9 @@ export type Database = {
           id: string
           reference: string
           redirect_url: string | null
+          school_year_id: string | null
           status: string
           student_id: string
-          term: string | null
           updated_at: string
           vipps_state: string | null
         }
@@ -414,9 +451,9 @@ export type Database = {
           id?: string
           reference: string
           redirect_url?: string | null
+          school_year_id?: string | null
           status?: string
           student_id: string
-          term?: string | null
           updated_at?: string
           vipps_state?: string | null
         }
@@ -430,9 +467,9 @@ export type Database = {
           id?: string
           reference?: string
           redirect_url?: string | null
+          school_year_id?: string | null
           status?: string
           student_id?: string
-          term?: string | null
           updated_at?: string
           vipps_state?: string | null
         }
@@ -442,6 +479,13 @@ export type Database = {
             columns: ["enrollment_id"]
             isOneToOne: false
             referencedRelation: "enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
             referencedColumns: ["id"]
           },
           {

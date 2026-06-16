@@ -14,12 +14,6 @@ import {
 } from "@/components/admin/payment-manager";
 import { deleteStudent } from "@/app/[locale]/admin/students-actions";
 
-function currentTerm() {
-  const now = new Date();
-  const season = now.getMonth() + 1 >= 7 ? "Høst" : "Vår";
-  return `${season} ${now.getFullYear()}`;
-}
-
 type StudentData = {
   id: string;
   full_name: string | null;
@@ -68,9 +62,21 @@ export default async function ElevDetailPage({
     price: c.price,
   }));
 
+  const { data: yearData } = await supabase
+    .from("school_years")
+    .select("id, label, is_active")
+    .order("label", { ascending: false });
+  const yearsRaw =
+    (yearData as
+      | { id: string; label: string; is_active: boolean }[]
+      | null) ?? [];
+  const schoolYears = yearsRaw.map((y) => ({ id: y.id, label: y.label }));
+  const activeYear = yearsRaw.find((y) => y.is_active) ?? yearsRaw[0];
+  const defaultSchoolYearId = activeYear?.id ?? null;
+
   const { data: enrollmentData } = await supabase
     .from("enrollments")
-    .select("id, term, status, classes(name_no, price)")
+    .select("id, school_year_id, status, classes(name_no, price), school_years(label)")
     .eq("student_id", id)
     .order("created_at", { ascending: false });
 
@@ -78,35 +84,56 @@ export default async function ElevDetailPage({
     (enrollmentData as
       | {
           id: string;
-          term: string;
+          school_year_id: string;
           status: string;
           classes: { name_no: string | null; price: number | null } | null;
+          school_years: { label: string } | null;
         }[]
       | null) ?? [];
 
   const enrollments: EnrollmentRow[] = enrollmentRaw.map((e) => ({
     id: e.id,
-    term: e.term,
+    schoolYear: e.school_years?.label ?? "-",
     status: e.status,
     className: e.classes?.name_no ?? "(uten navn)",
     price: e.classes?.price ?? null,
   }));
 
-  const activeEnrollment = enrollmentRaw.find((e) => e.status === "aktiv");
+  const activeEnrollment =
+    enrollmentRaw.find(
+      (e) => e.status === "aktiv" && e.school_year_id === defaultSchoolYearId,
+    ) ?? enrollmentRaw.find((e) => e.status === "aktiv");
   const defaultAmount = activeEnrollment?.classes?.price ?? null;
 
   const { data: paymentData } = await supabase
     .from("payments")
-    .select("id, amount, currency, term, description, status, redirect_url, created_at")
+    .select(
+      "id, amount, currency, description, status, redirect_url, created_at, school_years(label)",
+    )
     .eq("student_id", id)
     .order("created_at", { ascending: false });
-  const payments = (paymentData as PaymentRow[] | null) ?? [];
+
+  const payments: PaymentRow[] = (
+    (paymentData as
+      | (Omit<PaymentRow, "schoolYear"> & {
+          school_years: { label: string } | null;
+        })[]
+      | null) ?? []
+  ).map((p) => ({
+    id: p.id,
+    amount: p.amount,
+    currency: p.currency,
+    description: p.description,
+    status: p.status,
+    redirect_url: p.redirect_url,
+    created_at: p.created_at,
+    schoolYear: p.school_years?.label ?? null,
+  }));
 
   const enrollmentOptions = enrollments.map((e) => ({
     id: e.id,
-    label: `${e.className} · ${e.term}`,
+    label: `${e.className} · ${e.schoolYear}`,
   }));
-  const term = currentTerm();
 
   return (
     <div className="grid gap-6">
@@ -121,14 +148,16 @@ export default async function ElevDetailPage({
       <EnrollmentManager
         studentId={student.id}
         classes={classes}
+        schoolYears={schoolYears}
         enrollments={enrollments}
-        defaultTerm={term}
+        defaultSchoolYearId={defaultSchoolYearId}
       />
 
       <PaymentManager
         studentId={student.id}
         enrollments={enrollmentOptions}
-        defaultTerm={term}
+        schoolYears={schoolYears}
+        defaultSchoolYearId={defaultSchoolYearId}
         defaultAmount={defaultAmount}
         payments={payments}
       />

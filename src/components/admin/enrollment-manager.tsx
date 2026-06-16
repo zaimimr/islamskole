@@ -9,16 +9,16 @@ import {
   removeEnrollment,
 } from "@/app/[locale]/admin/students-actions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export type ClassOption = { id: string; name: string; price: number | null };
+export type SchoolYearOption = { id: string; label: string };
 export type EnrollmentRow = {
   id: string;
   className: string;
-  term: string;
+  schoolYear: string;
   status: string;
   price: number | null;
 };
@@ -30,13 +30,15 @@ function priceLabel(price: number | null) {
 export function EnrollmentManager({
   studentId,
   classes,
+  schoolYears,
   enrollments,
-  defaultTerm,
+  defaultSchoolYearId,
 }: {
   studentId: string;
   classes: ClassOption[];
+  schoolYears: SchoolYearOption[];
   enrollments: EnrollmentRow[];
-  defaultTerm: string;
+  defaultSchoolYearId: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -66,6 +68,8 @@ export function EnrollmentManager({
     });
   }
 
+  const canPlace = classes.length > 0 && schoolYears.length > 0;
+
   return (
     <Card>
       <CardHeader>
@@ -81,7 +85,10 @@ export function EnrollmentManager({
               >
                 <span>
                   <span className="font-medium">{enrollment.className}</span>
-                  <span className="text-muted-foreground"> · {enrollment.term}</span>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {enrollment.schoolYear}
+                  </span>
                   {priceLabel(enrollment.price) ? (
                     <span className="text-muted-foreground">
                       {" "}
@@ -113,12 +120,15 @@ export function EnrollmentManager({
           </p>
         )}
 
-        {classes.length === 0 ? (
+        {!canPlace ? (
           <p className="text-sm text-muted-foreground">
-            Opprett en klasse først for å plassere eleven.
+            Opprett en klasse og et skoleår først for å plassere eleven.
           </p>
         ) : (
-          <form action={handleSubmit} className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+          <form
+            action={handleSubmit}
+            className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+          >
             <div className="grid gap-2">
               <Label htmlFor="class_id">Klasse</Label>
               <select
@@ -138,14 +148,20 @@ export function EnrollmentManager({
               </select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="term">Termin</Label>
-              <Input
-                id="term"
-                name="term"
+              <Label htmlFor="school_year_id">Skoleår</Label>
+              <select
+                id="school_year_id"
+                name="school_year_id"
                 required
-                defaultValue={defaultTerm}
-                className="sm:w-40"
-              />
+                defaultValue={defaultSchoolYearId ?? ""}
+                className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
+              >
+                {schoolYears.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <Button type="submit" disabled={pending}>
               {pending ? <Loader2 className="size-4 animate-spin" /> : null}

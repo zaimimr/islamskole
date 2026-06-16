@@ -37,11 +37,12 @@ import {
 } from "@/components/ui/table";
 
 export type EnrollmentOption = { id: string; label: string };
+export type SchoolYearOption = { id: string; label: string };
 export type PaymentRow = {
   id: string;
   amount: number;
   currency: string;
-  term: string | null;
+  schoolYear: string | null;
   description: string | null;
   status: string;
   redirect_url: string | null;
@@ -77,13 +78,15 @@ function formatDate(value: string | null) {
 export function PaymentManager({
   studentId,
   enrollments,
-  defaultTerm,
+  schoolYears,
+  defaultSchoolYearId,
   defaultAmount,
   payments,
 }: {
   studentId: string;
   enrollments: EnrollmentOption[];
-  defaultTerm: string;
+  schoolYears: SchoolYearOption[];
+  defaultSchoolYearId: string | null;
   defaultAmount: number | null;
   payments: PaymentRow[];
 }) {
@@ -157,8 +160,19 @@ export function PaymentManager({
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="payment_term">Termin</Label>
-            <Input id="payment_term" name="term" defaultValue={defaultTerm} />
+            <Label htmlFor="payment_year">Skoleår</Label>
+            <select
+              id="payment_year"
+              name="school_year_id"
+              defaultValue={defaultSchoolYearId ?? ""}
+              className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
+            >
+              {schoolYears.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="enrollment_id">Klasse (valgfritt)</Label>
@@ -190,7 +204,7 @@ export function PaymentManager({
             <TableHeader>
               <TableRow>
                 <TableHead>Beløp</TableHead>
-                <TableHead>Termin</TableHead>
+                <TableHead>Skoleår</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Dato</TableHead>
                 <TableHead className="text-right">Handlinger</TableHead>
@@ -202,7 +216,7 @@ export function PaymentManager({
                   <TableCell className="font-medium">
                     {formatAmount(payment.amount, payment.currency)}
                   </TableCell>
-                  <TableCell>{payment.term ?? "-"}</TableCell>
+                  <TableCell>{payment.schoolYear ?? "-"}</TableCell>
                   <TableCell>
                     <Badge variant={statusVariant(payment.status)}>
                       {statusLabels[payment.status] ?? payment.status}

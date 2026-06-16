@@ -21,7 +21,7 @@ type StudentRow = {
   guardian_name: string | null;
   child_age: number | null;
   enrollments: {
-    term: string;
+    school_year_id: string;
     classes: { id: string; name_no: string | null } | null;
   }[];
   payments: { status: string; amount: number }[];
@@ -33,7 +33,7 @@ async function getStudents(q: string): Promise<StudentRow[]> {
     let query = supabase
       .from("students")
       .select(
-        "id, full_name, guardian_name, child_age, enrollments(term, classes(id, name_no)), payments(status, amount)",
+        "id, full_name, guardian_name, child_age, enrollments(school_year_id, classes(id, name_no)), payments(status, amount)",
       )
       .order("created_at", { ascending: false });
 
@@ -61,6 +61,22 @@ async function getClasses() {
     return ((data as { id: string; name_no: string | null }[] | null) ?? []).map(
       (c) => ({ id: c.id, name: c.name_no ?? "(uten navn)" }),
     );
+  } catch {
+    return [];
+  }
+}
+
+async function getSchoolYears() {
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("school_years")
+      .select("id, label")
+      .order("label", { ascending: false });
+    return ((data as { id: string; label: string }[] | null) ?? []).map((y) => ({
+      id: y.id,
+      label: y.label,
+    }));
   } catch {
     return [];
   }
@@ -115,14 +131,22 @@ export default async function RegistrertePage({
   const q = typeof sp.q === "string" ? sp.q : "";
   const classFilter = typeof sp.class === "string" ? sp.class : "";
   const payFilter = typeof sp.pay === "string" ? sp.pay : "";
+  const yearFilter = typeof sp.year === "string" ? sp.year : "";
   const basePath = adminBasePath(locale);
 
-  const [allStudents, classes] = await Promise.all([
+  const [allStudents, classes, schoolYears] = await Promise.all([
     getStudents(q),
     getClasses(),
+    getSchoolYears(),
   ]);
 
   const students = allStudents.filter((student) => {
+    if (yearFilter) {
+      const inYear = (student.enrollments ?? []).some(
+        (e) => e.school_year_id === yearFilter,
+      );
+      if (!inYear) return false;
+    }
     if (classFilter) {
       const inClass = (student.enrollments ?? []).some(
         (e) => e.classes?.id === classFilter,
@@ -141,7 +165,7 @@ export default async function RegistrertePage({
     0,
   );
 
-  const filtered = Boolean(q || classFilter || payFilter);
+  const filtered = Boolean(q || classFilter || payFilter || yearFilter);
 
   return (
     <div>
@@ -173,7 +197,7 @@ export default async function RegistrertePage({
         </Card>
       </div>
 
-      <EleverFilters classes={classes} />
+      <EleverFilters classes={classes} schoolYears={schoolYears} />
 
       <Card>
         <CardContent className="p-0">

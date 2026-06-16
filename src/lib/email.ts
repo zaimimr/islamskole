@@ -105,7 +105,7 @@ export async function sendPaymentLinkEmail(opts: {
   guardianName: string;
   childName: string;
   amount: number;
-  term: string | null;
+  schoolYear: string | null;
   url: string;
 }) {
   await send({
@@ -117,7 +117,7 @@ export async function sendPaymentLinkEmail(opts: {
     cta: { label: "Betal med Vipps", url: opts.url },
     rows: [
       ["Elev", opts.childName],
-      ["Termin", opts.term],
+      ["Skoleår", opts.schoolYear],
       ["Beløp", formatNok(opts.amount)],
     ],
   });
@@ -128,7 +128,7 @@ export async function sendPaymentReceiptEmail(opts: {
   guardianName: string;
   childName: string;
   amount: number;
-  term: string | null;
+  schoolYear: string | null;
 }) {
   await send({
     to: opts.to,
@@ -138,7 +138,7 @@ export async function sendPaymentReceiptEmail(opts: {
     intro: `Hei ${opts.guardianName}, vi har mottatt betalingen for ${opts.childName}. Takk!`,
     rows: [
       ["Elev", opts.childName],
-      ["Termin", opts.term],
+      ["Skoleår", opts.schoolYear],
       ["Beløp betalt", formatNok(opts.amount)],
     ],
   });

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CalendarDays,
+  CalendarRange,
   GraduationCap,
   LayoutDashboard,
   Settings,
@@ -34,6 +35,7 @@ export function SidebarNav({ basePath }: { basePath: string }) {
     { href: `${basePath}/klasser`, label: "Klasser", icon: GraduationCap },
     { href: `${basePath}/elever`, label: "Påmeldinger", icon: UserPlus },
     { href: `${basePath}/registrerte`, label: "Elever", icon: UserCheck },
+    { href: `${basePath}/skolear`, label: "Skoleår", icon: CalendarRange },
     { href: `${basePath}/laerere`, label: "Lærere", icon: Users },
     {
       href: `${basePath}/innstillinger`,

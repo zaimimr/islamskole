@@ -179,7 +179,7 @@ export async function deleteStudent(id: string): Promise<ActionResult> {
 const enrollmentSchema = z.object({
   student_id: z.string().min(1),
   class_id: z.string().min(1, "Velg en klasse"),
-  term: z.string().min(1, "Termin er påkrevd"),
+  school_year_id: z.string().min(1, "Velg et skoleår"),
 });
 
 export async function placeStudentInClass(
@@ -189,7 +189,7 @@ export async function placeStudentInClass(
   const payload = {
     student_id: readString(formData, "student_id"),
     class_id: readString(formData, "class_id"),
-    term: readString(formData, "term"),
+    school_year_id: readString(formData, "school_year_id"),
   };
 
   const parsed = enrollmentSchema.safeParse(payload);
@@ -235,11 +235,8 @@ export async function createVippsPayment(
 
   const studentId = readString(formData, "student_id");
   const enrollmentId = readOptionalString(formData, "enrollment_id");
-  const term = readOptionalString(formData, "term");
+  const schoolYearId = readOptionalString(formData, "school_year_id");
   const amountNok = readNumber(formData, "amount_nok");
-  const description =
-    readOptionalString(formData, "description") ??
-    `Skolepenger${term ? ` ${term}` : ""}`;
 
   const parsed = paymentSchema.safeParse({
     student_id: studentId,
@@ -258,6 +255,20 @@ export async function createVippsPayment(
     .eq("id", studentId)
     .maybeSingle();
   const phone = (student as unknown as { phone: string | null } | null)?.phone;
+
+  let yearLabel: string | null = null;
+  if (schoolYearId) {
+    const { data: year } = await supabase
+      .from("school_years")
+      .select("label")
+      .eq("id", schoolYearId)
+      .maybeSingle();
+    yearLabel = (year as unknown as { label: string } | null)?.label ?? null;
+  }
+
+  const description =
+    readOptionalString(formData, "description") ??
+    `Skolepenger${yearLabel ? ` ${yearLabel}` : ""}`;
 
   const reference = `isk-${randomUUID()}`;
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
@@ -283,9 +294,9 @@ export async function createVippsPayment(
   const { error: insertError } = await supabase.from("payments").insert({
     student_id: studentId,
     enrollment_id: enrollmentId,
+    school_year_id: schoolYearId,
     reference,
     amount,
-    term,
     description,
     status: "opprettet",
     vipps_state: "CREATED",
@@ -409,15 +420,15 @@ export async function sendPaymentLink(
   const { data } = await supabase
     .from("payments")
     .select(
-      "amount, term, redirect_url, students(full_name, guardian_name, email)",
+      "amount, redirect_url, school_years(label), students(full_name, guardian_name, email)",
     )
     .eq("id", paymentId)
     .maybeSingle();
 
   const payment = data as unknown as {
     amount: number;
-    term: string | null;
     redirect_url: string | null;
+    school_years: { label: string } | null;
     students: {
       full_name: string | null;
       guardian_name: string | null;
@@ -438,7 +449,7 @@ export async function sendPaymentLink(
     guardianName: payment.students.guardian_name ?? "",
     childName: payment.students.full_name ?? "",
     amount: payment.amount,
-    term: payment.term,
+    schoolYear: payment.school_years?.label ?? null,
     url: payment.redirect_url,
   });
 
