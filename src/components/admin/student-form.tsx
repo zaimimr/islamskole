@@ -21,6 +21,11 @@ export type StudentRecord = {
   guardian_name: string | null;
   email: string | null;
   phone: string | null;
+  guardian2_name: string | null;
+  guardian2_email: string | null;
+  guardian2_phone: string | null;
+  student_email: string | null;
+  student_phone: string | null;
   level_quran: string | null;
   level_arabic: string | null;
   level_islam: string | null;
@@ -120,7 +125,7 @@ export function StudentForm({
 
       <Card>
         <CardHeader>
-          <CardTitle>Foresatt</CardTitle>
+          <CardTitle>Foresatt 1</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
@@ -150,6 +155,70 @@ export function StudentForm({
                 defaultValue={student?.phone ?? ""}
               />
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Foresatt 2 (valgfritt)</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="guardian2_name">Navn</Label>
+            <Input
+              id="guardian2_name"
+              name="guardian2_name"
+              defaultValue={student?.guardian2_name ?? ""}
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="guardian2_email">E-post</Label>
+              <Input
+                id="guardian2_email"
+                name="guardian2_email"
+                type="email"
+                defaultValue={student?.guardian2_email ?? ""}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="guardian2_phone">Telefon</Label>
+              <Input
+                id="guardian2_phone"
+                name="guardian2_phone"
+                defaultValue={student?.guardian2_phone ?? ""}
+              />
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Betalingslenken sendes til e-posten til begge foresatte. Når én har
+            betalt, ser den andre kvitteringssiden.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Elevens kontakt (valgfritt)</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-2">
+            <Label htmlFor="student_email">E-post</Label>
+            <Input
+              id="student_email"
+              name="student_email"
+              type="email"
+              defaultValue={student?.student_email ?? ""}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="student_phone">Telefon</Label>
+            <Input
+              id="student_phone"
+              name="student_phone"
+              defaultValue={student?.student_phone ?? ""}
+            />
           </div>
         </CardContent>
       </Card>

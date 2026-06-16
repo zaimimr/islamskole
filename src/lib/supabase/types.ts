@@ -293,6 +293,9 @@ export type Database = {
           created_at: string
           email: string | null
           full_name: string
+          guardian2_email: string | null
+          guardian2_name: string | null
+          guardian2_phone: string | null
           guardian_name: string
           id: string
           level_arabic: string | null
@@ -300,6 +303,8 @@ export type Database = {
           level_quran: string | null
           notes: string | null
           phone: string | null
+          student_email: string | null
+          student_phone: string | null
           updated_at: string
         }
         Insert: {
@@ -308,6 +313,9 @@ export type Database = {
           created_at?: string
           email?: string | null
           full_name: string
+          guardian2_email?: string | null
+          guardian2_name?: string | null
+          guardian2_phone?: string | null
           guardian_name: string
           id?: string
           level_arabic?: string | null
@@ -315,6 +323,8 @@ export type Database = {
           level_quran?: string | null
           notes?: string | null
           phone?: string | null
+          student_email?: string | null
+          student_phone?: string | null
           updated_at?: string
         }
         Update: {
@@ -323,6 +333,9 @@ export type Database = {
           created_at?: string
           email?: string | null
           full_name?: string
+          guardian2_email?: string | null
+          guardian2_name?: string | null
+          guardian2_phone?: string | null
           guardian_name?: string
           id?: string
           level_arabic?: string | null
@@ -330,6 +343,8 @@ export type Database = {
           level_quran?: string | null
           notes?: string | null
           phone?: string | null
+          student_email?: string | null
+          student_phone?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -346,6 +361,7 @@ export type Database = {
         Row: {
           created_at: string
           ends_on: string | null
+          fee: number | null
           id: string
           is_active: boolean
           label: string
@@ -355,6 +371,7 @@ export type Database = {
         Insert: {
           created_at?: string
           ends_on?: string | null
+          fee?: number | null
           id?: string
           is_active?: boolean
           label: string
@@ -364,6 +381,7 @@ export type Database = {
         Update: {
           created_at?: string
           ends_on?: string | null
+          fee?: number | null
           id?: string
           is_active?: boolean
           label?: string

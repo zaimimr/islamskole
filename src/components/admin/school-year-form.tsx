@@ -19,6 +19,7 @@ export type SchoolYearRecord = {
   label: string | null;
   starts_on: string | null;
   ends_on: string | null;
+  fee: number | null;
   is_active: boolean | null;
 };
 
@@ -85,6 +86,21 @@ export function SchoolYearForm({
                 defaultValue={schoolYear?.ends_on ?? ""}
               />
             </div>
+          </div>
+          <div className="grid gap-2 sm:max-w-xs">
+            <Label htmlFor="fee">Semesteravgift (kr)</Label>
+            <Input
+              id="fee"
+              name="fee"
+              type="number"
+              min="0"
+              placeholder="f.eks. 1500"
+              defaultValue={schoolYear?.fee ?? ""}
+            />
+            <p className="text-sm text-muted-foreground">
+              Standard skolepenger for dette skoleåret. En klasse med egen pris
+              overstyrer dette.
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <Switch

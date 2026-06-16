@@ -21,6 +21,11 @@ type StudentData = {
   guardian_name: string | null;
   email: string | null;
   phone: string | null;
+  guardian2_name: string | null;
+  guardian2_email: string | null;
+  guardian2_phone: string | null;
+  student_email: string | null;
+  student_phone: string | null;
   level_quran: string | null;
   level_arabic: string | null;
   level_islam: string | null;
@@ -47,7 +52,7 @@ export default async function ElevDetailPage({
     supabase
       .from("students")
       .select(
-        "id, full_name, child_age, guardian_name, email, phone, level_quran, level_arabic, level_islam, notes",
+        "id, full_name, child_age, guardian_name, email, phone, guardian2_name, guardian2_email, guardian2_phone, student_email, student_phone, level_quran, level_arabic, level_islam, notes",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -57,7 +62,7 @@ export default async function ElevDetailPage({
       .order("sort_order", { ascending: true }),
     supabase
       .from("school_years")
-      .select("id, label, is_active")
+      .select("id, label, is_active, fee")
       .order("label", { ascending: false }),
     supabase
       .from("enrollments")
@@ -90,7 +95,7 @@ export default async function ElevDetailPage({
 
   const yearsRaw =
     (yearData as
-      | { id: string; label: string; is_active: boolean }[]
+      | { id: string; label: string; is_active: boolean; fee: number | null }[]
       | null) ?? [];
   const schoolYears = yearsRaw.map((y) => ({ id: y.id, label: y.label }));
   const activeYear = yearsRaw.find((y) => y.is_active) ?? yearsRaw[0];
@@ -119,7 +124,8 @@ export default async function ElevDetailPage({
     enrollmentRaw.find(
       (e) => e.status === "aktiv" && e.school_year_id === defaultSchoolYearId,
     ) ?? enrollmentRaw.find((e) => e.status === "aktiv");
-  const defaultAmount = activeEnrollment?.classes?.price ?? null;
+  const defaultAmount =
+    activeEnrollment?.classes?.price ?? activeYear?.fee ?? null;
 
   const payments: PaymentRow[] = (
     (paymentData as

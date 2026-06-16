@@ -4,6 +4,7 @@ import { adminBasePath } from "@/components/admin/paths";
 import { PageHeader } from "@/components/admin/page-header";
 import { EleverFilters } from "@/components/admin/elever-filters";
 import { ClickableRow } from "@/components/admin/clickable-row";
+import { BatchSendButton } from "@/components/admin/batch-send-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -212,6 +213,14 @@ export default async function RegistrertePage({
         description="Registrerte elever, klasseplassering og betaling."
         newHref={`${basePath}/elever/ny`}
         newLabel="Ny elev"
+        action={
+          activeYearId && activeYearLabel ? (
+            <BatchSendButton
+              schoolYearId={activeYearId}
+              yearLabel={activeYearLabel}
+            />
+          ) : undefined
+        }
       />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">

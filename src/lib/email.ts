@@ -66,7 +66,7 @@ function renderEmail(opts: {
 }
 
 async function send(opts: {
-  to: string;
+  to: string | string[];
   subject: string;
   replyTo?: string | null;
   badge: string;
@@ -107,11 +107,12 @@ function formatNok(amountOre: number) {
 }
 
 export async function sendPaymentLinkEmail(opts: {
-  to: string;
+  to: string | string[];
   guardianName: string;
   childName: string;
   amount: number;
   schoolYear: string | null;
+  className: string | null;
   url: string;
 }): Promise<boolean> {
   return await send({
@@ -119,10 +120,11 @@ export async function sendPaymentLinkEmail(opts: {
     subject: `Betaling for ${opts.childName}`,
     badge: "Betaling",
     title: "Betaling av skolepenger",
-    intro: `Hei ${opts.guardianName}, her er betalingslenken for ${opts.childName}. Trykk på knappen for å betale med Vipps.`,
+    intro: `Hei, her er betalingslenken for ${opts.childName}. Trykk på knappen for å betale med Vipps.`,
     cta: { label: "Betal med Vipps", url: opts.url },
     rows: [
       ["Elev", opts.childName],
+      ["Klasse", opts.className],
       ["Skoleår", opts.schoolYear],
       ["Beløp", formatNok(opts.amount)],
     ],
@@ -130,20 +132,22 @@ export async function sendPaymentLinkEmail(opts: {
 }
 
 export async function sendPaymentReceiptEmail(opts: {
-  to: string;
+  to: string | string[];
   guardianName: string;
   childName: string;
   amount: number;
   schoolYear: string | null;
+  className: string | null;
 }) {
   await send({
     to: opts.to,
     subject: `Kvittering - betaling for ${opts.childName}`,
     badge: "Kvittering",
     title: "Betaling mottatt",
-    intro: `Hei ${opts.guardianName}, vi har mottatt betalingen for ${opts.childName}. Takk!`,
+    intro: `Hei, vi har mottatt betalingen for ${opts.childName}. Takk!`,
     rows: [
       ["Elev", opts.childName],
+      ["Klasse", opts.className],
       ["Skoleår", opts.schoolYear],
       ["Beløp betalt", formatNok(opts.amount)],
     ],

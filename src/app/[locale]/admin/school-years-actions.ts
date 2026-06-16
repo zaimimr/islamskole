@@ -27,6 +27,13 @@ function readBoolean(formData: FormData, key: string) {
   return value === "on" || value === "true" || value === "1";
 }
 
+function readNumber(formData: FormData, key: string) {
+  const value = readString(formData, key);
+  if (value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function revalidate() {
   revalidatePath("/", "layout");
 }
@@ -61,6 +68,7 @@ export async function createSchoolYear(
     label,
     starts_on: readOptionalString(formData, "starts_on"),
     ends_on: readOptionalString(formData, "ends_on"),
+    fee: readNumber(formData, "fee"),
     is_active: isActive,
   };
 
@@ -100,6 +108,7 @@ export async function updateSchoolYear(
     label,
     starts_on: readOptionalString(formData, "starts_on"),
     ends_on: readOptionalString(formData, "ends_on"),
+    fee: readNumber(formData, "fee"),
     is_active: isActive,
   };
 

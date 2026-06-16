@@ -1,9 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2, Plus } from "lucide-react";
 import {
   placeStudentInClass,
   removeEnrollment,
@@ -42,6 +42,7 @@ export function EnrollmentManager({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [showForm, setShowForm] = useState(false);
 
   function handleSubmit(formData: FormData) {
     formData.set("student_id", studentId);
@@ -49,6 +50,7 @@ export function EnrollmentManager({
       const result = await placeStudentInClass(formData);
       if (result.ok) {
         toast.success("Eleven er plassert i klassen");
+        setShowForm(false);
         router.refresh();
       } else {
         toast.error(result.error);
@@ -124,10 +126,21 @@ export function EnrollmentManager({
           <p className="text-sm text-muted-foreground">
             Opprett en klasse og et skoleår først for å plassere eleven.
           </p>
+        ) : !showForm ? (
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowForm(true)}
+            >
+              <Plus className="size-4" />
+              Legg til plassering
+            </Button>
+          </div>
         ) : (
           <form
             action={handleSubmit}
-            className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+            className="grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end"
           >
             <div className="grid gap-2">
               <Label htmlFor="class_id">Klasse</Label>
@@ -166,6 +179,14 @@ export function EnrollmentManager({
             <Button type="submit" disabled={pending}>
               {pending ? <Loader2 className="size-4 animate-spin" /> : null}
               Plasser
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShowForm(false)}
+              disabled={pending}
+            >
+              Avbryt
             </Button>
           </form>
         )}

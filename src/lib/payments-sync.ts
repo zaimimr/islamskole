@@ -27,10 +27,12 @@ type PaymentWithStudent = {
   status: string;
   amount: number;
   school_years: { label: string } | null;
+  enrollments: { classes: { name_no: string | null } | null } | null;
   students: {
     full_name: string | null;
     guardian_name: string | null;
     email: string | null;
+    guardian2_email: string | null;
   } | null;
 };
 
@@ -49,7 +51,7 @@ export async function syncPaymentByReference(
   const { data: existing } = await admin
     .from("payments")
     .select(
-      "status, amount, school_years(label), students(full_name, guardian_name, email)",
+      "status, amount, school_years(label), enrollments(classes(name_no)), students(full_name, guardian_name, email, guardian2_email)",
     )
     .eq("reference", reference)
     .maybeSingle();
@@ -67,18 +69,23 @@ export async function syncPaymentByReference(
     .update(update as never)
     .eq("reference", reference);
 
+  const receiptRecipients = [
+    payment?.students?.email,
+    payment?.students?.guardian2_email,
+  ].filter((e): e is string => Boolean(e));
   if (
     status === "fanget" &&
     previousStatus !== "fanget" &&
-    payment?.students?.email &&
+    receiptRecipients.length > 0 &&
     (await emailNotifications())
   ) {
     await sendPaymentReceiptEmail({
-      to: payment.students.email,
-      guardianName: payment.students.guardian_name ?? "",
-      childName: payment.students.full_name ?? "",
-      amount: payment.amount,
-      schoolYear: payment.school_years?.label ?? null,
+      to: receiptRecipients,
+      guardianName: payment?.students?.guardian_name ?? "",
+      childName: payment?.students?.full_name ?? "",
+      amount: payment?.amount ?? 0,
+      schoolYear: payment?.school_years?.label ?? null,
+      className: payment?.enrollments?.classes?.name_no ?? null,
     });
   }
 
