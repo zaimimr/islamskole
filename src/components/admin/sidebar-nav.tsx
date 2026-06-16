@@ -33,8 +33,8 @@ export function SidebarNav({ basePath }: { basePath: string }) {
       icon: CalendarDays,
     },
     { href: `${basePath}/klasser`, label: "Klasser", icon: GraduationCap },
-    { href: `${basePath}/elever`, label: "Påmeldinger", icon: UserPlus },
-    { href: `${basePath}/registrerte`, label: "Elever", icon: UserCheck },
+    { href: `${basePath}/register`, label: "Påmeldinger", icon: UserPlus },
+    { href: `${basePath}/elever`, label: "Elever", icon: UserCheck },
     { href: `${basePath}/skolear`, label: "Skoleår", icon: CalendarRange },
     { href: `${basePath}/laerere`, label: "Lærere", icon: Users },
     {

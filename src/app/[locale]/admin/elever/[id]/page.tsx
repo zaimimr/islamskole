@@ -34,24 +34,50 @@ export default async function ElevDetailPage({
 }) {
   const { locale, id } = await params;
   const basePath = adminBasePath(locale);
-  const listHref = `${basePath}/registrerte`;
+  const listHref = `${basePath}/elever`;
   const supabase = await createClient();
 
-  const { data: studentData } = await supabase
-    .from("students")
-    .select(
-      "id, full_name, child_age, guardian_name, email, phone, level_quran, level_arabic, level_islam, notes",
-    )
-    .eq("id", id)
-    .maybeSingle();
+  const [
+    { data: studentData },
+    { data: classData },
+    { data: yearData },
+    { data: enrollmentData },
+    { data: paymentData },
+  ] = await Promise.all([
+    supabase
+      .from("students")
+      .select(
+        "id, full_name, child_age, guardian_name, email, phone, level_quran, level_arabic, level_islam, notes",
+      )
+      .eq("id", id)
+      .maybeSingle(),
+    supabase
+      .from("classes")
+      .select("id, name_no, price")
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("school_years")
+      .select("id, label, is_active")
+      .order("label", { ascending: false }),
+    supabase
+      .from("enrollments")
+      .select(
+        "id, school_year_id, status, classes(name_no, price), school_years(label)",
+      )
+      .eq("student_id", id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("payments")
+      .select(
+        "id, amount, currency, description, status, redirect_url, created_at, school_years(label)",
+      )
+      .eq("student_id", id)
+      .order("created_at", { ascending: false }),
+  ]);
 
   const student = studentData as StudentData | null;
   if (!student) notFound();
 
-  const { data: classData } = await supabase
-    .from("classes")
-    .select("id, name_no, price")
-    .order("sort_order", { ascending: true });
   const classes = (
     (classData as
       | { id: string; name_no: string | null; price: number | null }[]
@@ -62,10 +88,6 @@ export default async function ElevDetailPage({
     price: c.price,
   }));
 
-  const { data: yearData } = await supabase
-    .from("school_years")
-    .select("id, label, is_active")
-    .order("label", { ascending: false });
   const yearsRaw =
     (yearData as
       | { id: string; label: string; is_active: boolean }[]
@@ -73,12 +95,6 @@ export default async function ElevDetailPage({
   const schoolYears = yearsRaw.map((y) => ({ id: y.id, label: y.label }));
   const activeYear = yearsRaw.find((y) => y.is_active) ?? yearsRaw[0];
   const defaultSchoolYearId = activeYear?.id ?? null;
-
-  const { data: enrollmentData } = await supabase
-    .from("enrollments")
-    .select("id, school_year_id, status, classes(name_no, price), school_years(label)")
-    .eq("student_id", id)
-    .order("created_at", { ascending: false });
 
   const enrollmentRaw =
     (enrollmentData as
@@ -104,14 +120,6 @@ export default async function ElevDetailPage({
       (e) => e.status === "aktiv" && e.school_year_id === defaultSchoolYearId,
     ) ?? enrollmentRaw.find((e) => e.status === "aktiv");
   const defaultAmount = activeEnrollment?.classes?.price ?? null;
-
-  const { data: paymentData } = await supabase
-    .from("payments")
-    .select(
-      "id, amount, currency, description, status, redirect_url, created_at, school_years(label)",
-    )
-    .eq("student_id", id)
-    .order("created_at", { ascending: false });
 
   const payments: PaymentRow[] = (
     (paymentData as

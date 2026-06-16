@@ -183,7 +183,7 @@ export default async function AdminDashboardPage({
       value: d.students,
       hint: `${d.studentsNew} nye`,
       icon: UserPlus,
-      href: `${basePath}/elever`,
+      href: `${basePath}/register`,
     },
     {
       label: "Lærersøknader",
@@ -244,7 +244,7 @@ export default async function AdminDashboardPage({
               Siste påmeldinger
             </CardTitle>
             <Link
-              href={`${basePath}/elever`}
+              href={`${basePath}/register`}
               className={buttonVariants({ variant: "ghost", size: "sm" })}
             >
               Se alle

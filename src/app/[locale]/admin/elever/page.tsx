@@ -1,14 +1,11 @@
-import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { deleteStudentApplication } from "@/app/[locale]/admin/actions";
 import { adminBasePath } from "@/components/admin/paths";
-import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/admin/page-header";
-import { DeleteButton } from "@/components/admin/delete-button";
-import { RegisterStudentButton } from "@/components/admin/register-student-button";
-import { StudentStatusSelect } from "@/components/admin/student-status-select";
-import { StudentFilters } from "@/components/admin/student-filters";
+import { EleverFilters } from "@/components/admin/elever-filters";
+import { ClickableRow } from "@/components/admin/clickable-row";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -18,200 +15,241 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-type StudentApplicationRow = {
+type StudentRow = {
   id: string;
-  child_name: string | null;
-  child_age: number | null;
+  full_name: string | null;
   guardian_name: string | null;
-  email: string | null;
-  phone: string | null;
-  desired_class: string | null;
-  level_quran: string | null;
-  level_arabic: string | null;
-  level_islam: string | null;
-  message: string | null;
-  status: string | null;
-  created_at: string | null;
+  child_age: number | null;
+  enrollments: {
+    school_year_id: string;
+    classes: { id: string; name_no: string | null } | null;
+  }[];
+  payments: { status: string; amount: number }[];
 };
 
-const levelLabels: Record<string, string> = {
-  nybegynner: "Nybegynner",
-  litt: "Litt erfaring",
-  middels: "Middels",
-  god: "God",
-};
-
-function levelLabel(value: string | null) {
-  if (!value) return "-";
-  return levelLabels[value] ?? value;
-}
-
-async function getApplications(
-  q: string,
-  status: string,
-): Promise<StudentApplicationRow[]> {
+async function getStudents(q: string): Promise<StudentRow[]> {
   try {
     const supabase = await createClient();
     let query = supabase
-      .from("student_applications")
+      .from("students")
       .select(
-        "id, child_name, child_age, guardian_name, email, phone, desired_class, level_quran, level_arabic, level_islam, message, status, created_at",
+        "id, full_name, guardian_name, child_age, enrollments(school_year_id, classes(id, name_no)), payments(status, amount)",
       )
       .order("created_at", { ascending: false });
 
-    if (status) {
-      query = query.eq("status", status);
-    }
     const term = q.replace(/[%,()]/g, " ").trim();
     if (term) {
       query = query.or(
-        `child_name.ilike.%${term}%,guardian_name.ilike.%${term}%,email.ilike.%${term}%`,
+        `full_name.ilike.%${term}%,guardian_name.ilike.%${term}%,email.ilike.%${term}%`,
       );
     }
 
     const { data } = await query;
-    return (data as StudentApplicationRow[] | null) ?? [];
+    return (data as StudentRow[] | null) ?? [];
   } catch {
     return [];
   }
 }
 
-async function getRegisteredMap(): Promise<Map<string, string>> {
+async function getClasses() {
   try {
     const supabase = await createClient();
     const { data } = await supabase
-      .from("students")
-      .select("id, application_id")
-      .not("application_id", "is", null);
-    const rows =
-      (data as { id: string; application_id: string | null }[] | null) ?? [];
-    return new Map(
-      rows
-        .filter((r) => r.application_id)
-        .map((r) => [r.application_id as string, r.id]),
+      .from("classes")
+      .select("id, name_no")
+      .order("sort_order", { ascending: true });
+    return ((data as { id: string; name_no: string | null }[] | null) ?? []).map(
+      (c) => ({ id: c.id, name: c.name_no ?? "(uten navn)" }),
     );
   } catch {
-    return new Map();
+    return [];
   }
 }
 
-function formatDate(value: string | null) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleString("nb-NO", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+async function getSchoolYears() {
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("school_years")
+      .select("id, label")
+      .order("label", { ascending: false });
+    return ((data as { id: string; label: string }[] | null) ?? []).map((y) => ({
+      id: y.id,
+      label: y.label,
+    }));
+  } catch {
+    return [];
+  }
 }
 
-export default async function EleverPage({
+function classLabel(enrollments: StudentRow["enrollments"]) {
+  if (!enrollments || enrollments.length === 0) return "-";
+  return (
+    enrollments
+      .map((e) => e.classes?.name_no)
+      .filter(Boolean)
+      .join(", ") || "-"
+  );
+}
+
+function paidTotal(payments: StudentRow["payments"]) {
+  return (payments ?? [])
+    .filter((p) => p.status === "fanget")
+    .reduce((sum, p) => sum + p.amount, 0);
+}
+
+function pendingTotal(payments: StudentRow["payments"]) {
+  return (payments ?? [])
+    .filter((p) => p.status === "opprettet" || p.status === "autorisert")
+    .reduce((sum, p) => sum + p.amount, 0);
+}
+
+function payState(payments: StudentRow["payments"]): "betalt" | "venter" | "ubetalt" {
+  if ((payments ?? []).some((p) => p.status === "fanget")) return "betalt";
+  if (
+    (payments ?? []).some(
+      (p) => p.status === "opprettet" || p.status === "autorisert",
+    )
+  )
+    return "venter";
+  return "ubetalt";
+}
+
+function formatNok(ore: number) {
+  return `${(ore / 100).toLocaleString("nb-NO")} kr`;
+}
+
+export default async function RegistrertePage({
   params,
   searchParams,
-}: PageProps<"/[locale]/admin/elever">) {
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const { locale } = await params;
-  const basePath = adminBasePath(locale);
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q : "";
-  const status = typeof sp.status === "string" ? sp.status : "";
-  const [applications, registered] = await Promise.all([
-    getApplications(q, status),
-    getRegisteredMap(),
+  const classFilter = typeof sp.class === "string" ? sp.class : "";
+  const payFilter = typeof sp.pay === "string" ? sp.pay : "";
+  const yearFilter = typeof sp.year === "string" ? sp.year : "";
+  const basePath = adminBasePath(locale);
+
+  const [allStudents, classes, schoolYears] = await Promise.all([
+    getStudents(q),
+    getClasses(),
+    getSchoolYears(),
   ]);
-  const filtered = Boolean(q || status);
+
+  const students = allStudents.filter((student) => {
+    if (yearFilter) {
+      const inYear = (student.enrollments ?? []).some(
+        (e) => e.school_year_id === yearFilter,
+      );
+      if (!inYear) return false;
+    }
+    if (classFilter) {
+      const inClass = (student.enrollments ?? []).some(
+        (e) => e.classes?.id === classFilter,
+      );
+      if (!inClass) return false;
+    }
+    if (payFilter && payFilter !== "alle") {
+      if (payState(student.payments) !== payFilter) return false;
+    }
+    return true;
+  });
+
+  const totalPaid = students.reduce((s, st) => s + paidTotal(st.payments), 0);
+  const totalPending = students.reduce(
+    (s, st) => s + pendingTotal(st.payments),
+    0,
+  );
+
+  const filtered = Boolean(q || classFilter || payFilter || yearFilter);
 
   return (
     <div>
       <PageHeader
-        title="Påmeldinger"
-        description="Påmeldinger av elever fra foresatte."
+        title="Elever"
+        description="Registrerte elever, klasseplassering og betaling."
+        newHref={`${basePath}/elever/ny`}
+        newLabel="Ny elev"
       />
 
-      <StudentFilters />
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Antall elever</p>
+            <p className="text-2xl font-bold">{students.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Betalt</p>
+            <p className="text-2xl font-bold">{formatNok(totalPaid)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Utestående</p>
+            <p className="text-2xl font-bold">{formatNok(totalPending)}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <EleverFilters classes={classes} schoolYears={schoolYears} />
 
       <Card>
         <CardContent className="p-0">
-          {applications.length === 0 ? (
+          {students.length === 0 ? (
             <p className="p-6 text-sm text-muted-foreground">
               {filtered
-                ? "Ingen påmeldinger samsvarer med søket."
-                : "Ingen påmeldinger ennå."}
+                ? "Ingen elever samsvarer med søket."
+                : "Ingen registrerte elever ennå."}
             </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Barn</TableHead>
+                  <TableHead>Navn</TableHead>
                   <TableHead>Alder</TableHead>
                   <TableHead>Foresatt</TableHead>
-                  <TableHead>E-post</TableHead>
-                  <TableHead>Telefon</TableHead>
-                  <TableHead>Ønsket klasse</TableHead>
-                  <TableHead>Nivå (Koran / Arabisk / Islam)</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Dato</TableHead>
-                  <TableHead className="text-right">Handlinger</TableHead>
+                  <TableHead>Klasse</TableHead>
+                  <TableHead>Betalt</TableHead>
+                  <TableHead>Betaling</TableHead>
+                  <TableHead className="w-8" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {applications.map((application) => (
-                  <TableRow key={application.id}>
-                    <TableCell className="font-medium">
-                      {application.child_name ?? "-"}
-                    </TableCell>
-                    <TableCell>{application.child_age ?? "-"}</TableCell>
-                    <TableCell>{application.guardian_name ?? "-"}</TableCell>
-                    <TableCell>
-                      {application.email ? (
-                        <a
-                          href={`mailto:${application.email}`}
-                          className="underline-offset-2 hover:underline"
-                        >
-                          {application.email}
-                        </a>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell>{application.phone ?? "-"}</TableCell>
-                    <TableCell>{application.desired_class ?? "-"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {levelLabel(application.level_quran)} /{" "}
-                      {levelLabel(application.level_arabic)} /{" "}
-                      {levelLabel(application.level_islam)}
-                    </TableCell>
-                    <TableCell>
-                      <StudentStatusSelect
-                        id={application.id}
-                        status={application.status ?? "ny"}
-                      />
-                    </TableCell>
-                    <TableCell>{formatDate(application.created_at)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {registered.has(application.id) ? (
-                          <Link
-                            href={`${basePath}/registrerte/${registered.get(
-                              application.id,
-                            )}`}
-                          >
-                            <Badge variant="secondary">Registrert</Badge>
-                          </Link>
+                {students.map((student) => {
+                  const state = payState(student.payments);
+                  return (
+                    <ClickableRow
+                      key={student.id}
+                      href={`${basePath}/elever/${student.id}`}
+                    >
+                      <TableCell className="font-medium">
+                        {student.full_name ?? "-"}
+                      </TableCell>
+                      <TableCell>{student.child_age ?? "-"}</TableCell>
+                      <TableCell>{student.guardian_name ?? "-"}</TableCell>
+                      <TableCell>{classLabel(student.enrollments)}</TableCell>
+                      <TableCell>{formatNok(paidTotal(student.payments))}</TableCell>
+                      <TableCell>
+                        {state === "betalt" ? (
+                          <Badge>Betalt</Badge>
+                        ) : state === "venter" ? (
+                          <Badge variant="secondary">Venter</Badge>
                         ) : (
-                          <RegisterStudentButton
-                            applicationId={application.id}
-                            basePath={basePath}
-                          />
+                          <Badge variant="outline">Ingen</Badge>
                         )}
-                        <DeleteButton
-                          id={application.id}
-                          label="påmelding"
-                          action={deleteStudentApplication}
-                        />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        <ChevronRight className="size-4" />
+                      </TableCell>
+                    </ClickableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

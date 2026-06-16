@@ -8,7 +8,7 @@ export default async function NyElevPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const listHref = `${adminBasePath(locale)}/registrerte`;
+  const listHref = `${adminBasePath(locale)}/elever`;
 
   return (
     <div>

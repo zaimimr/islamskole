@@ -22,7 +22,7 @@ export function RegisterStudentButton({
       const result = await createStudentFromApplication(applicationId);
       if (result.ok && result.id) {
         toast.success("Eleven er registrert");
-        router.push(`${basePath}/registrerte/${result.id}`);
+        router.push(`${basePath}/elever/${result.id}`);
         router.refresh();
       } else if (!result.ok) {
         toast.error(result.error);

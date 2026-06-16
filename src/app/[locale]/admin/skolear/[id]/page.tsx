@@ -42,24 +42,28 @@ export default async function SkolearDetailPage({
   const listHref = `${basePath}/skolear`;
   const supabase = await createClient();
 
-  const { data: yearData } = await supabase
-    .from("school_years")
-    .select("id, label, starts_on, ends_on, is_active")
-    .eq("id", id)
-    .maybeSingle();
+  const [{ data: yearData }, { data: enrollmentData }, { data: paymentData }] =
+    await Promise.all([
+      supabase
+        .from("school_years")
+        .select("id, label, starts_on, ends_on, is_active")
+        .eq("id", id)
+        .maybeSingle(),
+      supabase
+        .from("enrollments")
+        .select(
+          "student_id, students(full_name, guardian_name), classes(name_no)",
+        )
+        .eq("school_year_id", id),
+      supabase.from("payments").select("student_id, amount, status").eq(
+        "school_year_id",
+        id,
+      ),
+    ]);
   const year = yearData as SchoolYearRecord | null;
   if (!year) notFound();
 
-  const { data: enrollmentData } = await supabase
-    .from("enrollments")
-    .select("student_id, students(full_name, guardian_name), classes(name_no)")
-    .eq("school_year_id", id);
   const enrollments = (enrollmentData as EnrollmentRow[] | null) ?? [];
-
-  const { data: paymentData } = await supabase
-    .from("payments")
-    .select("student_id, amount, status")
-    .eq("school_year_id", id);
   const payments = (paymentData as PaymentRow[] | null) ?? [];
 
   const paidByStudent = new Map<string, number>();
@@ -145,7 +149,7 @@ export default async function SkolearDetailPage({
                     <TableRow key={`${e.student_id}-${e.classes?.name_no}`}>
                       <TableCell className="font-medium">
                         <Link
-                          href={`${basePath}/registrerte/${e.student_id}`}
+                          href={`${basePath}/elever/${e.student_id}`}
                           className="underline-offset-2 hover:underline"
                         >
                           {e.students?.full_name ?? "-"}
