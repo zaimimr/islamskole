@@ -46,10 +46,22 @@
     "title": "Våre verdier",
     "subtitle": "Verdiene som former hverdagen vår.",
     "items": {
-      "openness": { "title": "Åpenhet", "body": "Alle barn og familier er velkomne, uansett bakgrunn." },
-      "respect": { "title": "Respekt", "body": "Vi møter hverandre med vennlighet og omtanke." },
-      "tolerance": { "title": "Takhøyde", "body": "Det er rom for spørsmål, undring og ulike meninger." },
-      "clarity": { "title": "Tydelighet", "body": "Klare rammer som gir barna trygghet og forutsigbarhet." }
+      "openness": {
+        "title": "Åpenhet",
+        "body": "Alle barn og familier er velkomne, uansett bakgrunn."
+      },
+      "respect": {
+        "title": "Respekt",
+        "body": "Vi møter hverandre med vennlighet og omtanke."
+      },
+      "tolerance": {
+        "title": "Takhøyde",
+        "body": "Det er rom for spørsmål, undring og ulike meninger."
+      },
+      "clarity": {
+        "title": "Tydelighet",
+        "body": "Klare rammer som gir barna trygghet og forutsigbarhet."
+      }
     }
   },
   "classes": {
@@ -148,7 +160,8 @@
     "submit": "Send påmelding",
     "toastSuccess": "Takk! Vi har mottatt påmeldingen din.",
     "thanksTitle": "Tusen takk!",
-    "thanksBody": "Vi har mottatt påmeldingen din og tar kontakt så snart vi kan."
+    "thanksBody": "Vi har mottatt påmeldingen din og tar kontakt så snart vi kan.",
+    "fieldChildBirthDate": "Barnets fødselsdato"
   },
   "about": {
     "title": "Om oss",

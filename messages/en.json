@@ -46,10 +46,22 @@
     "title": "Our values",
     "subtitle": "The values that shape our everyday life.",
     "items": {
-      "openness": { "title": "Openness", "body": "All children and families are welcome, whatever their background." },
-      "respect": { "title": "Respect", "body": "We treat one another with kindness and care." },
-      "tolerance": { "title": "Tolerance", "body": "There is room for questions, wonder and different views." },
-      "clarity": { "title": "Clarity", "body": "Clear structure that gives children safety and predictability." }
+      "openness": {
+        "title": "Openness",
+        "body": "All children and families are welcome, whatever their background."
+      },
+      "respect": {
+        "title": "Respect",
+        "body": "We treat one another with kindness and care."
+      },
+      "tolerance": {
+        "title": "Tolerance",
+        "body": "There is room for questions, wonder and different views."
+      },
+      "clarity": {
+        "title": "Clarity",
+        "body": "Clear structure that gives children safety and predictability."
+      }
     }
   },
   "classes": {
@@ -148,7 +160,8 @@
     "submit": "Send enrollment",
     "toastSuccess": "Thank you! We have received your enrollment.",
     "thanksTitle": "Thank you!",
-    "thanksBody": "We have received your enrollment and will be in touch as soon as we can."
+    "thanksBody": "We have received your enrollment and will be in touch as soon as we can.",
+    "fieldChildBirthDate": "Child's date of birth"
   },
   "about": {
     "title": "About us",

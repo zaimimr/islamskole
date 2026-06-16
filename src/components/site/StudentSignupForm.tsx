@@ -54,15 +54,8 @@ export function StudentSignupForm() {
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="child_age">{t("fieldChildAge")}</Label>
-          <Input
-            id="child_age"
-            name="child_age"
-            type="number"
-            min={4}
-            max={20}
-            placeholder={t("placeholderChildAge")}
-          />
+          <Label htmlFor="birth_date">{t("fieldChildBirthDate")}</Label>
+          <Input id="birth_date" name="birth_date" type="date" />
         </div>
       </div>
 

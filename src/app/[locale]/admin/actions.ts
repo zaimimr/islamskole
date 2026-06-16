@@ -432,7 +432,7 @@ export async function createStudentApplication(
 
   const payload = {
     child_name: childName,
-    child_age: readNumber(formData, "child_age"),
+    birth_date: readOptionalString(formData, "birth_date"),
     guardian_name: guardianName,
     email,
     phone: readOptionalString(formData, "phone"),
@@ -458,7 +458,7 @@ export async function createStudentApplication(
       replyTo: email,
       rows: [
         ["Barnets navn", childName],
-        ["Alder", payload.child_age ? String(payload.child_age) : null],
+        ["Fødselsdato", payload.birth_date],
         ["Foresatt", guardianName],
         ["E-post", email],
         ["Telefon", payload.phone],

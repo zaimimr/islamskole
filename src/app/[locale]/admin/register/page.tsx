@@ -20,6 +20,7 @@ type StudentApplicationRow = {
   id: string;
   child_name: string | null;
   child_age: number | null;
+  birth_date: string | null;
   guardian_name: string | null;
   email: string | null;
   phone: string | null;
@@ -31,6 +32,22 @@ type StudentApplicationRow = {
   status: string | null;
   created_at: string | null;
 };
+
+function ageFromBirthDate(value: string | null): number | null {
+  if (!value) return null;
+  const b = new Date(value);
+  if (Number.isNaN(b.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age--;
+  return age >= 0 ? age : null;
+}
+
+function displayAge(app: StudentApplicationRow): string {
+  const age = ageFromBirthDate(app.birth_date) ?? app.child_age;
+  return age != null ? String(age) : "-";
+}
 
 const levelLabels: Record<string, string> = {
   nybegynner: "Nybegynner",
@@ -53,7 +70,7 @@ async function getApplications(
     let query = supabase
       .from("student_applications")
       .select(
-        "id, child_name, child_age, guardian_name, email, phone, desired_class, level_quran, level_arabic, level_islam, message, status, created_at",
+        "id, child_name, child_age, birth_date, guardian_name, email, phone, desired_class, level_quran, level_arabic, level_islam, message, status, created_at",
       )
       .order("created_at", { ascending: false });
 
@@ -188,7 +205,7 @@ export default async function PameldingerPage({
                     <TableCell className="font-medium">
                       {application.child_name ?? "-"}
                     </TableCell>
-                    <TableCell>{application.child_age ?? "-"}</TableCell>
+                    <TableCell>{displayAge(application)}</TableCell>
                     <TableCell>{application.guardian_name ?? "-"}</TableCell>
                     <TableCell>
                       {application.email ? (

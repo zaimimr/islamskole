@@ -119,7 +119,7 @@ export async function createStudentFromApplication(
   const { data: application, error: appError } = await supabase
     .from("student_applications")
     .select(
-      "id, child_name, child_age, guardian_name, email, phone, level_quran, level_arabic, level_islam, message",
+      "id, child_name, child_age, birth_date, guardian_name, email, phone, level_quran, level_arabic, level_islam, message",
     )
     .eq("id", applicationId)
     .maybeSingle();
@@ -130,6 +130,7 @@ export async function createStudentFromApplication(
   const app = application as unknown as {
     child_name: string;
     child_age: number | null;
+    birth_date: string | null;
     guardian_name: string;
     email: string | null;
     phone: string | null;
@@ -143,6 +144,7 @@ export async function createStudentFromApplication(
     application_id: applicationId,
     full_name: app.child_name,
     child_age: app.child_age,
+    birth_date: app.birth_date,
     guardian_name: app.guardian_name,
     email: app.email,
     phone: app.phone,

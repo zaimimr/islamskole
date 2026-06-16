@@ -240,6 +240,7 @@ export type Database = {
       }
       student_applications: {
         Row: {
+          birth_date: string | null
           child_age: number | null
           child_name: string
           created_at: string
@@ -255,6 +256,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          birth_date?: string | null
           child_age?: number | null
           child_name: string
           created_at?: string
@@ -270,6 +272,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          birth_date?: string | null
           child_age?: number | null
           child_name?: string
           created_at?: string
