@@ -34,6 +34,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          metadata: Json | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          metadata?: Json | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       classes: {
         Row: {
           age_max: number | null
@@ -58,7 +91,6 @@ export type Database = {
           age_max?: number | null
           age_min?: number | null
           capacity?: number | null
-          price?: number | null
           created_at?: string
           curriculum_en?: string | null
           curriculum_no?: string | null
@@ -68,6 +100,7 @@ export type Database = {
           image_url?: string | null
           name_en: string
           name_no: string
+          price?: number | null
           published?: boolean
           slug: string
           sort_order?: number
@@ -93,6 +126,61 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      enrollments: {
+        Row: {
+          class_id: string
+          created_at: string
+          id: string
+          price_snapshot: number | null
+          school_year_id: string
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          id?: string
+          price_snapshot?: number | null
+          school_year_id: string
+          status?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          id?: string
+          price_snapshot?: number | null
+          school_year_id?: string
+          status?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollments_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollments_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       events: {
         Row: {
@@ -184,6 +272,79 @@ export type Database = {
         }
         Relationships: []
       }
+      payments: {
+        Row: {
+          amount: number
+          captured_at: string | null
+          created_at: string
+          currency: string
+          description: string | null
+          enrollment_id: string | null
+          id: string
+          redirect_url: string | null
+          reference: string
+          school_year_id: string | null
+          status: string
+          student_id: string
+          updated_at: string
+          vipps_state: string | null
+        }
+        Insert: {
+          amount: number
+          captured_at?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          enrollment_id?: string | null
+          id?: string
+          redirect_url?: string | null
+          reference: string
+          school_year_id?: string | null
+          status?: string
+          student_id: string
+          updated_at?: string
+          vipps_state?: string | null
+        }
+        Update: {
+          amount?: number
+          captured_at?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          enrollment_id?: string | null
+          id?: string
+          redirect_url?: string | null
+          reference?: string
+          school_year_id?: string | null
+          status?: string
+          student_id?: string
+          updated_at?: string
+          vipps_state?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -202,6 +363,39 @@ export type Database = {
           full_name?: string | null
           id?: string
           role?: string
+        }
+        Relationships: []
+      }
+      school_years: {
+        Row: {
+          created_at: string
+          ends_on: string | null
+          fee: number | null
+          id: string
+          is_active: boolean
+          label: string
+          starts_on: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          ends_on?: string | null
+          fee?: number | null
+          id?: string
+          is_active?: boolean
+          label: string
+          starts_on?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          ends_on?: string | null
+          fee?: number | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          starts_on?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -297,10 +491,10 @@ export type Database = {
           created_at: string
           email: string | null
           full_name: string
+          guardian_name: string
           guardian2_email: string | null
           guardian2_name: string | null
           guardian2_phone: string | null
-          guardian_name: string
           id: string
           level_arabic: string | null
           level_islam: string | null
@@ -318,10 +512,10 @@ export type Database = {
           created_at?: string
           email?: string | null
           full_name: string
+          guardian_name: string
           guardian2_email?: string | null
           guardian2_name?: string | null
           guardian2_phone?: string | null
-          guardian_name: string
           id?: string
           level_arabic?: string | null
           level_islam?: string | null
@@ -339,10 +533,10 @@ export type Database = {
           created_at?: string
           email?: string | null
           full_name?: string
+          guardian_name?: string
           guardian2_email?: string | null
           guardian2_name?: string | null
           guardian2_phone?: string | null
-          guardian_name?: string
           id?: string
           level_arabic?: string | null
           level_islam?: string | null
@@ -359,164 +553,6 @@ export type Database = {
             columns: ["application_id"]
             isOneToOne: false
             referencedRelation: "student_applications"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      school_years: {
-        Row: {
-          created_at: string
-          ends_on: string | null
-          fee: number | null
-          id: string
-          is_active: boolean
-          label: string
-          starts_on: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          ends_on?: string | null
-          fee?: number | null
-          id?: string
-          is_active?: boolean
-          label: string
-          starts_on?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          ends_on?: string | null
-          fee?: number | null
-          id?: string
-          is_active?: boolean
-          label?: string
-          starts_on?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      enrollments: {
-        Row: {
-          class_id: string
-          created_at: string
-          id: string
-          school_year_id: string
-          status: string
-          student_id: string
-          updated_at: string
-        }
-        Insert: {
-          class_id: string
-          created_at?: string
-          id?: string
-          school_year_id: string
-          status?: string
-          student_id: string
-          updated_at?: string
-        }
-        Update: {
-          class_id?: string
-          created_at?: string
-          id?: string
-          school_year_id?: string
-          status?: string
-          student_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "enrollments_class_id_fkey"
-            columns: ["class_id"]
-            isOneToOne: false
-            referencedRelation: "classes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "enrollments_school_year_id_fkey"
-            columns: ["school_year_id"]
-            isOneToOne: false
-            referencedRelation: "school_years"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "enrollments_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      payments: {
-        Row: {
-          amount: number
-          captured_at: string | null
-          created_at: string
-          currency: string
-          description: string | null
-          enrollment_id: string | null
-          id: string
-          reference: string
-          redirect_url: string | null
-          school_year_id: string | null
-          status: string
-          student_id: string
-          updated_at: string
-          vipps_state: string | null
-        }
-        Insert: {
-          amount: number
-          captured_at?: string | null
-          created_at?: string
-          currency?: string
-          description?: string | null
-          enrollment_id?: string | null
-          id?: string
-          reference: string
-          redirect_url?: string | null
-          school_year_id?: string | null
-          status?: string
-          student_id: string
-          updated_at?: string
-          vipps_state?: string | null
-        }
-        Update: {
-          amount?: number
-          captured_at?: string | null
-          created_at?: string
-          currency?: string
-          description?: string | null
-          enrollment_id?: string | null
-          id?: string
-          reference?: string
-          redirect_url?: string | null
-          school_year_id?: string | null
-          status?: string
-          student_id?: string
-          updated_at?: string
-          vipps_state?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payments_enrollment_id_fkey"
-            columns: ["enrollment_id"]
-            isOneToOne: false
-            referencedRelation: "enrollments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payments_school_year_id_fkey"
-            columns: ["school_year_id"]
-            isOneToOne: false
-            referencedRelation: "school_years"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payments_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]

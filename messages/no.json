@@ -161,7 +161,8 @@
     "toastSuccess": "Takk! Vi har mottatt påmeldingen din.",
     "thanksTitle": "Tusen takk!",
     "thanksBody": "Vi har mottatt påmeldingen din og tar kontakt så snart vi kan.",
-    "fieldChildBirthDate": "Barnets fødselsdato"
+    "fieldChildBirthDate": "Barnets fødselsdato",
+    "submitAnother": "Meld på et barn til"
   },
   "about": {
     "title": "Om oss",
@@ -229,7 +230,8 @@
     "submit": "Send inn",
     "toastSuccess": "Takk! Vi har mottatt henvendelsen din.",
     "thanksTitle": "Tusen takk!",
-    "thanksBody": "Vi har mottatt interessen din og tar kontakt så snart vi kan. Vi setter stor pris på at du vil bidra."
+    "thanksBody": "Vi har mottatt interessen din og tar kontakt så snart vi kan. Vi setter stor pris på at du vil bidra.",
+    "submitAnother": "Send en ny søknad"
   },
   "footer": {
     "tagline": "Søndagsskole for muslimske barn i Bærum.",
