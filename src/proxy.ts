@@ -7,6 +7,13 @@ const handleI18n = createMiddleware(routing);
 
 export default async function proxy(request: NextRequest) {
   const response = handleI18n(request) ?? NextResponse.next();
+
+  const isPrefetch =
+    request.headers.get("next-router-prefetch") === "1" ||
+    request.headers.get("purpose") === "prefetch" ||
+    (request.headers.get("sec-purpose") ?? "").includes("prefetch");
+  if (isPrefetch) return response;
+
   return updateSession(request, response);
 }
 
