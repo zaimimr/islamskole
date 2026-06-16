@@ -87,9 +87,12 @@ export async function syncPaymentByReference(
     .eq("reference", reference);
 
   const receiptRecipients = [
-    payment?.students?.email,
-    payment?.students?.guardian2_email,
-  ].filter((e): e is string => Boolean(e));
+    ...new Set(
+      [payment?.students?.email, payment?.students?.guardian2_email]
+        .filter((e): e is string => Boolean(e && e.trim()))
+        .map((e) => e.trim().toLowerCase()),
+    ),
+  ];
   if (
     status === "fanget" &&
     previousStatus !== "fanget" &&

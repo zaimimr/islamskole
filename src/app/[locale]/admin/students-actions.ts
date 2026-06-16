@@ -48,6 +48,16 @@ function revalidate() {
   revalidatePath("/", "layout");
 }
 
+function uniqueEmails(...values: (string | null | undefined)[]): string[] {
+  return [
+    ...new Set(
+      values
+        .filter((v): v is string => Boolean(v && v.trim()))
+        .map((v) => v.trim().toLowerCase()),
+    ),
+  ];
+}
+
 const studentSchema = z.object({
   full_name: z.string().min(1, "Navn er påkrevd"),
   guardian_name: z.string().min(1, "Foresattes navn er påkrevd"),
@@ -323,8 +333,9 @@ export async function createVippsPayment(
     guardian2_email: string | null;
   } | null;
   const phone = studentRow?.phone;
-  const recipients = [studentRow?.email, studentRow?.guardian2_email].filter(
-    (e): e is string => Boolean(e),
+  const recipients = uniqueEmails(
+    studentRow?.email,
+    studentRow?.guardian2_email,
   );
 
   const { data: year } = await supabase
@@ -480,9 +491,7 @@ export async function batchSendPaymentLinks(
       alreadyPaid++;
       continue;
     }
-    const recipients = [st?.email, st?.guardian2_email].filter(
-      (x): x is string => Boolean(x),
-    );
+    const recipients = uniqueEmails(st?.email, st?.guardian2_email);
     if (recipients.length === 0) {
       noEmail++;
       continue;
@@ -788,10 +797,10 @@ export async function sendPaymentLink(
   } | null;
 
   if (!payment) return { ok: false, error: "Fant ikke betalingen" };
-  const recipients = [
+  const recipients = uniqueEmails(
     payment.students?.email,
     payment.students?.guardian2_email,
-  ].filter((e): e is string => Boolean(e));
+  );
   if (recipients.length === 0) {
     return { ok: false, error: "Foresatt mangler e-postadresse" };
   }
