@@ -22,6 +22,7 @@ type StudentRow = {
   child_age: number | null;
   enrollments: {
     school_year_id: string;
+    school_years: { label: string } | null;
     classes: { id: string; name_no: string | null } | null;
   }[];
   payments: { status: string; amount: number }[];
@@ -33,7 +34,7 @@ async function getStudents(q: string): Promise<StudentRow[]> {
     let query = supabase
       .from("students")
       .select(
-        "id, full_name, guardian_name, child_age, enrollments(school_year_id, classes(id, name_no)), payments(status, amount)",
+        "id, full_name, guardian_name, child_age, enrollments(school_year_id, school_years(label), classes(id, name_no)), payments(status, amount)",
       )
       .order("created_at", { ascending: false });
 
@@ -71,12 +72,11 @@ async function getSchoolYears() {
     const supabase = await createClient();
     const { data } = await supabase
       .from("school_years")
-      .select("id, label")
+      .select("id, label, is_active")
       .order("label", { ascending: false });
-    return ((data as { id: string; label: string }[] | null) ?? []).map((y) => ({
-      id: y.id,
-      label: y.label,
-    }));
+    return (
+      (data as { id: string; label: string; is_active: boolean }[] | null) ?? []
+    ).map((y) => ({ id: y.id, label: y.label, is_active: y.is_active }));
   } catch {
     return [];
   }
@@ -90,6 +90,17 @@ function classLabel(enrollments: StudentRow["enrollments"]) {
       .filter(Boolean)
       .join(", ") || "-"
   );
+}
+
+function yearLabels(enrollments: StudentRow["enrollments"]) {
+  if (!enrollments || enrollments.length === 0) return [];
+  return [
+    ...new Set(
+      enrollments
+        .map((e) => e.school_years?.label)
+        .filter((l): l is string => Boolean(l)),
+    ),
+  ].sort().reverse();
 }
 
 function paidTotal(payments: StudentRow["payments"]) {
@@ -139,6 +150,9 @@ export default async function RegistrertePage({
     getClasses(),
     getSchoolYears(),
   ]);
+
+  const activeYearLabel =
+    schoolYears.find((y) => y.is_active)?.label ?? null;
 
   const students = allStudents.filter((student) => {
     if (yearFilter) {
@@ -215,6 +229,7 @@ export default async function RegistrertePage({
                   <TableHead>Alder</TableHead>
                   <TableHead>Foresatt</TableHead>
                   <TableHead>Klasse</TableHead>
+                  <TableHead>Skoleår</TableHead>
                   <TableHead>Betalt</TableHead>
                   <TableHead>Betaling</TableHead>
                   <TableHead className="w-8" />
@@ -234,6 +249,30 @@ export default async function RegistrertePage({
                       <TableCell>{student.child_age ?? "-"}</TableCell>
                       <TableCell>{student.guardian_name ?? "-"}</TableCell>
                       <TableCell>{classLabel(student.enrollments)}</TableCell>
+                      <TableCell>
+                        {(() => {
+                          const years = yearLabels(student.enrollments);
+                          if (years.length === 0)
+                            return <span className="text-muted-foreground">-</span>;
+                          const missingActive =
+                            activeYearLabel != null &&
+                            !years.includes(activeYearLabel);
+                          return (
+                            <div className="flex flex-wrap items-center gap-1">
+                              {years.map((y) => (
+                                <Badge key={y} variant="outline">
+                                  {y}
+                                </Badge>
+                              ))}
+                              {missingActive ? (
+                                <Badge variant="secondary" title={`Ikke i ${activeYearLabel}`}>
+                                  Ny termin?
+                                </Badge>
+                              ) : null}
+                            </div>
+                          );
+                        })()}
+                      </TableCell>
                       <TableCell>{formatNok(paidTotal(student.payments))}</TableCell>
                       <TableCell>
                         {state === "betalt" ? (

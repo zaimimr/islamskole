@@ -16,7 +16,10 @@ import { sendPaymentLinkEmail } from "@/lib/email";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 type PaymentResult =
-  | { ok: true; redirectUrl: string; reference: string }
+  | { ok: true; redirectUrl: string; reference: string; emailed?: boolean }
+  | { ok: false; error: string };
+type BatchResult =
+  | { ok: true; sent: number; skipped: number; note?: string }
   | { ok: false; error: string };
 
 async function requireAdmin() {
@@ -251,10 +254,16 @@ export async function createVippsPayment(
   const supabase = await createClient();
   const { data: student } = await supabase
     .from("students")
-    .select("phone")
+    .select("phone, email, full_name, guardian_name")
     .eq("id", studentId)
     .maybeSingle();
-  const phone = (student as unknown as { phone: string | null } | null)?.phone;
+  const studentRow = student as unknown as {
+    phone: string | null;
+    email: string | null;
+    full_name: string | null;
+    guardian_name: string | null;
+  } | null;
+  const phone = studentRow?.phone;
 
   let yearLabel: string | null = null;
   if (schoolYearId) {
@@ -305,8 +314,167 @@ export async function createVippsPayment(
 
   if (insertError) return { ok: false, error: insertError.message };
 
+  let emailed = false;
+  if (studentRow?.email) {
+    await sendPaymentLinkEmail({
+      to: studentRow.email,
+      guardianName: studentRow.guardian_name ?? "",
+      childName: studentRow.full_name ?? "",
+      amount,
+      schoolYear: yearLabel,
+      url: redirectUrl,
+    });
+    emailed = true;
+  }
+
   revalidate();
-  return { ok: true, redirectUrl, reference };
+  return { ok: true, redirectUrl, reference, emailed };
+}
+
+type BatchEnrollment = {
+  id: string;
+  student_id: string;
+  classes: { name_no: string | null; price: number | null } | null;
+  students: {
+    full_name: string | null;
+    guardian_name: string | null;
+    email: string | null;
+    phone: string | null;
+  } | null;
+};
+type BatchPayment = {
+  student_id: string;
+  status: string;
+  redirect_url: string | null;
+  amount: number;
+};
+
+export async function batchSendPaymentLinks(
+  schoolYearId: string,
+): Promise<BatchResult> {
+  await requireAdmin();
+  if (!schoolYearId) return { ok: false, error: "Mangler skoleår" };
+
+  const supabase = await createClient();
+
+  const { data: yr } = await supabase
+    .from("school_years")
+    .select("label")
+    .eq("id", schoolYearId)
+    .maybeSingle();
+  const yearLabel = (yr as unknown as { label: string } | null)?.label ?? null;
+  const description = `Skolepenger${yearLabel ? ` ${yearLabel}` : ""}`;
+
+  const { data: enr } = await supabase
+    .from("enrollments")
+    .select(
+      "id, student_id, classes(name_no, price), students(full_name, guardian_name, email, phone)",
+    )
+    .eq("school_year_id", schoolYearId)
+    .eq("status", "aktiv");
+  const enrollments = (enr as unknown as BatchEnrollment[] | null) ?? [];
+
+  const { data: pays } = await supabase
+    .from("payments")
+    .select("student_id, status, redirect_url, amount")
+    .eq("school_year_id", schoolYearId);
+  const payments = (pays as unknown as BatchPayment[] | null) ?? [];
+
+  const paidStudents = new Set(
+    payments.filter((p) => p.status === "fanget").map((p) => p.student_id),
+  );
+  const pendingByStudent = new Map<string, BatchPayment>();
+  for (const p of payments) {
+    if (
+      (p.status === "opprettet" || p.status === "autorisert") &&
+      p.redirect_url &&
+      !pendingByStudent.has(p.student_id)
+    ) {
+      pendingByStudent.set(p.student_id, p);
+    }
+  }
+
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
+  let sent = 0;
+  let skipped = 0;
+  const seen = new Set<string>();
+
+  for (const e of enrollments) {
+    if (seen.has(e.student_id)) continue;
+    seen.add(e.student_id);
+
+    const st = e.students;
+    if (paidStudents.has(e.student_id)) {
+      skipped++;
+      continue;
+    }
+    if (!st?.email) {
+      skipped++;
+      continue;
+    }
+
+    const pending = pendingByStudent.get(e.student_id);
+    if (pending?.redirect_url) {
+      await sendPaymentLinkEmail({
+        to: st.email,
+        guardianName: st.guardian_name ?? "",
+        childName: st.full_name ?? "",
+        amount: pending.amount,
+        schoolYear: yearLabel,
+        url: pending.redirect_url,
+      });
+      sent++;
+      continue;
+    }
+
+    const price = e.classes?.price;
+    if (price == null) {
+      skipped++;
+      continue;
+    }
+    const amount = Math.round(price * 100);
+    const reference = `isk-${randomUUID()}`;
+    const returnUrl = `${siteUrl}/api/vipps/return?reference=${reference}`;
+
+    try {
+      const result = await createPayment({
+        reference,
+        amount,
+        description,
+        returnUrl,
+        phoneNumber: st.phone,
+      });
+      await supabase.from("payments").insert({
+        student_id: e.student_id,
+        enrollment_id: e.id,
+        school_year_id: schoolYearId,
+        reference,
+        amount,
+        description,
+        status: "opprettet",
+        vipps_state: "CREATED",
+        redirect_url: result.redirectUrl,
+      } as never);
+      await sendPaymentLinkEmail({
+        to: st.email,
+        guardianName: st.guardian_name ?? "",
+        childName: st.full_name ?? "",
+        amount,
+        schoolYear: yearLabel,
+        url: result.redirectUrl,
+      });
+      sent++;
+    } catch {
+      skipped++;
+    }
+  }
+
+  revalidate();
+  const note =
+    skipped > 0
+      ? `${skipped} hoppet over (allerede betalt, mangler e-post, eller klasse uten pris)`
+      : undefined;
+  return { ok: true, sent, skipped, note };
 }
 
 async function getPaymentReference(

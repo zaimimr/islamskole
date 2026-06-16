@@ -98,14 +98,11 @@ export function PaymentManager({
     startTransition(async () => {
       const result = await createVippsPayment(formData);
       if (result.ok) {
-        toast.success("Betaling opprettet");
-        try {
-          await navigator.clipboard.writeText(result.redirectUrl);
-          toast.success("Betalingslenke kopiert");
-        } catch {
-          void 0;
-        }
-        window.open(result.redirectUrl, "_blank", "noopener");
+        toast.success(
+          result.emailed
+            ? "Betaling opprettet og sendt til foresatt på e-post"
+            : "Betaling opprettet (foresatt mangler e-post - bruk Kopier/Send-knappene)",
+        );
         router.refresh();
       } else {
         toast.error(result.error);

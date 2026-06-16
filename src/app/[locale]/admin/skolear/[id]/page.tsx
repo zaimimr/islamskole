@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { adminBasePath } from "@/components/admin/paths";
 import { PageHeader } from "@/components/admin/page-header";
 import { DeleteButton } from "@/components/admin/delete-button";
+import { BatchSendButton } from "@/components/admin/batch-send-button";
 import {
   SchoolYearForm,
   type SchoolYearRecord,
@@ -97,7 +98,13 @@ export default async function SkolearDetailPage({
         title={year.label ?? "Skoleår"}
         description="Elever og betaling for skoleåret."
         action={
-          <DeleteButton id={year.id} label="skoleår" action={deleteSchoolYear} />
+          <div className="flex items-center gap-2">
+            <BatchSendButton
+              schoolYearId={year.id}
+              yearLabel={year.label ?? "skoleåret"}
+            />
+            <DeleteButton id={year.id} label="skoleår" action={deleteSchoolYear} />
+          </div>
         }
       />
 
