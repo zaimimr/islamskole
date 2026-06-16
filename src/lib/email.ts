@@ -76,9 +76,9 @@ async function send(opts: {
   cta?: { label: string; url: string };
 }) {
   const resend = getClient();
-  if (!resend) return;
+  if (!resend) return false;
   try {
-    await resend.emails.send({
+    const { error } = await resend.emails.send({
       from: FROM,
       to: opts.to,
       subject: opts.subject,
@@ -91,8 +91,14 @@ async function send(opts: {
         cta: opts.cta,
       }),
     });
+    if (error) {
+      console.error("Resend email failed", error);
+      return false;
+    }
+    return true;
   } catch (error) {
     console.error("Resend email failed", error);
+    return false;
   }
 }
 
@@ -107,8 +113,8 @@ export async function sendPaymentLinkEmail(opts: {
   amount: number;
   schoolYear: string | null;
   url: string;
-}) {
-  await send({
+}): Promise<boolean> {
+  return await send({
     to: opts.to,
     subject: `Betaling for ${opts.childName}`,
     badge: "Betaling",

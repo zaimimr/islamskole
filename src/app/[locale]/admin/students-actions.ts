@@ -252,6 +252,24 @@ export async function createVippsPayment(
   const amount = Math.round((amountNok as number) * 100);
 
   const supabase = await createClient();
+
+  if (schoolYearId) {
+    const { data: existing } = await supabase
+      .from("payments")
+      .select("id, status")
+      .eq("student_id", studentId)
+      .eq("school_year_id", schoolYearId)
+      .not("status", "in", "(avbrutt,feilet,refundert)")
+      .limit(1);
+    if ((existing as unknown[] | null)?.length) {
+      return {
+        ok: false,
+        error:
+          "Det finnes allerede en aktiv betaling for denne eleven dette skoleåret. Bruk Send-knappen for å sende lenken på nytt, eller avbryt den gamle først.",
+      };
+    }
+  }
+
   const { data: student } = await supabase
     .from("students")
     .select("phone, email, full_name, guardian_name")
@@ -316,7 +334,7 @@ export async function createVippsPayment(
 
   let emailed = false;
   if (studentRow?.email) {
-    await sendPaymentLinkEmail({
+    emailed = await sendPaymentLinkEmail({
       to: studentRow.email,
       guardianName: studentRow.guardian_name ?? "",
       childName: studentRow.full_name ?? "",
@@ -324,7 +342,6 @@ export async function createVippsPayment(
       schoolYear: yearLabel,
       url: redirectUrl,
     });
-    emailed = true;
   }
 
   revalidate();
@@ -396,7 +413,10 @@ export async function batchSendPaymentLinks(
 
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
   let sent = 0;
-  let skipped = 0;
+  let alreadyPaid = 0;
+  let noEmail = 0;
+  let noPrice = 0;
+  let failed = 0;
   const seen = new Set<string>();
 
   for (const e of enrollments) {
@@ -405,17 +425,17 @@ export async function batchSendPaymentLinks(
 
     const st = e.students;
     if (paidStudents.has(e.student_id)) {
-      skipped++;
+      alreadyPaid++;
       continue;
     }
     if (!st?.email) {
-      skipped++;
+      noEmail++;
       continue;
     }
 
     const pending = pendingByStudent.get(e.student_id);
     if (pending?.redirect_url) {
-      await sendPaymentLinkEmail({
+      const ok = await sendPaymentLinkEmail({
         to: st.email,
         guardianName: st.guardian_name ?? "",
         childName: st.full_name ?? "",
@@ -423,13 +443,14 @@ export async function batchSendPaymentLinks(
         schoolYear: yearLabel,
         url: pending.redirect_url,
       });
-      sent++;
+      if (ok) sent++;
+      else failed++;
       continue;
     }
 
     const price = e.classes?.price;
     if (price == null) {
-      skipped++;
+      noPrice++;
       continue;
     }
     const amount = Math.round(price * 100);
@@ -444,7 +465,7 @@ export async function batchSendPaymentLinks(
         returnUrl,
         phoneNumber: st.phone,
       });
-      await supabase.from("payments").insert({
+      const { error: insertError } = await supabase.from("payments").insert({
         student_id: e.student_id,
         enrollment_id: e.id,
         school_year_id: schoolYearId,
@@ -455,7 +476,11 @@ export async function batchSendPaymentLinks(
         vipps_state: "CREATED",
         redirect_url: result.redirectUrl,
       } as never);
-      await sendPaymentLinkEmail({
+      if (insertError) {
+        failed++;
+        continue;
+      }
+      const ok = await sendPaymentLinkEmail({
         to: st.email,
         guardianName: st.guardian_name ?? "",
         childName: st.full_name ?? "",
@@ -463,18 +488,113 @@ export async function batchSendPaymentLinks(
         schoolYear: yearLabel,
         url: result.redirectUrl,
       });
-      sent++;
+      if (ok) sent++;
+      else failed++;
     } catch {
-      skipped++;
+      failed++;
     }
   }
 
   revalidate();
-  const note =
-    skipped > 0
-      ? `${skipped} hoppet over (allerede betalt, mangler e-post, eller klasse uten pris)`
-      : undefined;
+  const parts: string[] = [];
+  if (alreadyPaid) parts.push(`${alreadyPaid} allerede betalt`);
+  if (noEmail) parts.push(`${noEmail} mangler e-post`);
+  if (noPrice) parts.push(`${noPrice} klasse uten pris`);
+  if (failed) parts.push(`${failed} feilet`);
+  const skipped = alreadyPaid + noEmail + noPrice + failed;
+  const note = parts.length ? parts.join(", ") : undefined;
   return { ok: true, sent, skipped, note };
+}
+
+export async function syncAllPaymentsForYear(
+  schoolYearId: string,
+): Promise<{ ok: true; synced: number } | { ok: false; error: string }> {
+  await requireAdmin();
+  if (!schoolYearId) return { ok: false, error: "Mangler skoleår" };
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("payments")
+    .select("reference")
+    .eq("school_year_id", schoolYearId)
+    .in("status", ["opprettet", "autorisert"]);
+  const refs = (data as unknown as { reference: string }[] | null) ?? [];
+  let synced = 0;
+  for (const r of refs) {
+    try {
+      await syncPaymentByReference(r.reference);
+      synced++;
+    } catch {
+      void 0;
+    }
+  }
+  revalidate();
+  return { ok: true, synced };
+}
+
+export async function copyEnrollmentsToActiveYear(
+  fromYearId: string,
+): Promise<
+  { ok: true; moved: number; skipped: number; note?: string } | { ok: false; error: string }
+> {
+  await requireAdmin();
+  if (!fromYearId) return { ok: false, error: "Mangler skoleår" };
+  const supabase = await createClient();
+
+  const { data: active } = await supabase
+    .from("school_years")
+    .select("id, label")
+    .eq("is_active", true)
+    .maybeSingle();
+  const activeYear = active as unknown as { id: string; label: string } | null;
+  if (!activeYear) return { ok: false, error: "Ingen aktivt skoleår er satt" };
+  if (activeYear.id === fromYearId) {
+    return { ok: false, error: "Dette er allerede det aktive skoleåret" };
+  }
+
+  const { data: src } = await supabase
+    .from("enrollments")
+    .select("student_id, class_id")
+    .eq("school_year_id", fromYearId)
+    .eq("status", "aktiv");
+  const source =
+    (src as unknown as { student_id: string; class_id: string }[] | null) ?? [];
+
+  const { data: existing } = await supabase
+    .from("enrollments")
+    .select("student_id, class_id")
+    .eq("school_year_id", activeYear.id);
+  const existingPairs = new Set(
+    (
+      (existing as unknown as { student_id: string; class_id: string }[] | null) ??
+      []
+    ).map((e) => `${e.student_id}:${e.class_id}`),
+  );
+
+  let moved = 0;
+  let skipped = 0;
+  for (const s of source) {
+    const key = `${s.student_id}:${s.class_id}`;
+    if (existingPairs.has(key)) {
+      skipped++;
+      continue;
+    }
+    const { error } = await supabase.from("enrollments").insert({
+      student_id: s.student_id,
+      class_id: s.class_id,
+      school_year_id: activeYear.id,
+      status: "aktiv",
+    } as never);
+    if (error) {
+      skipped++;
+      continue;
+    }
+    existingPairs.add(key);
+    moved++;
+  }
+
+  revalidate();
+  const note = skipped > 0 ? `${skipped} var allerede plassert` : undefined;
+  return { ok: true, moved, skipped, note };
 }
 
 async function getPaymentReference(

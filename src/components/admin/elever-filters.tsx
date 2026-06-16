@@ -15,9 +15,10 @@ import {
 
 const paymentStatuses = [
   { value: "alle", label: "All betaling" },
+  { value: "ikke_betalt", label: "Ikke betalt" },
   { value: "betalt", label: "Betalt" },
-  { value: "venter", label: "Venter på betaling" },
-  { value: "ubetalt", label: "Ingen betaling" },
+  { value: "venter", label: "Lenke sendt, venter" },
+  { value: "ubetalt", label: "Ingen lenke sendt" },
 ];
 
 export function EleverFilters({
@@ -47,7 +48,9 @@ export function EleverFilters({
   const yearLabel = (v: string) =>
     v === "alle"
       ? "Alle skoleår"
-      : (schoolYears.find((y) => y.id === v)?.label ?? "Alle skoleår");
+      : v === "needs_rollover"
+        ? "Mangler i aktivt skoleår"
+        : (schoolYears.find((y) => y.id === v)?.label ?? "Alle skoleår");
   const classLabel = (v: string) =>
     v === "alle"
       ? "Alle klasser"
@@ -82,6 +85,7 @@ export function EleverFilters({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="alle">Alle skoleår</SelectItem>
+            <SelectItem value="needs_rollover">Mangler i aktivt skoleår</SelectItem>
             {schoolYears.map((y) => (
               <SelectItem key={y.id} value={y.id}>
                 {y.label}

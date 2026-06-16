@@ -25,7 +25,7 @@ type StudentRow = {
     school_years: { label: string } | null;
     classes: { id: string; name_no: string | null } | null;
   }[];
-  payments: { status: string; amount: number }[];
+  payments: { status: string; amount: number; school_year_id: string | null }[];
 };
 
 async function getStudents(q: string): Promise<StudentRow[]> {
@@ -34,7 +34,7 @@ async function getStudents(q: string): Promise<StudentRow[]> {
     let query = supabase
       .from("students")
       .select(
-        "id, full_name, guardian_name, child_age, enrollments(school_year_id, school_years(label), classes(id, name_no)), payments(status, amount)",
+        "id, full_name, guardian_name, child_age, enrollments(school_year_id, school_years(label), classes(id, name_no)), payments(status, amount, school_year_id)",
       )
       .order("created_at", { ascending: false });
 
@@ -151,13 +151,29 @@ export default async function RegistrertePage({
     getSchoolYears(),
   ]);
 
-  const activeYearLabel =
-    schoolYears.find((y) => y.is_active)?.label ?? null;
+  const activeYear = schoolYears.find((y) => y.is_active);
+  const activeYearId = activeYear?.id ?? null;
+  const activeYearLabel = activeYear?.label ?? null;
+
+  const realYear =
+    yearFilter && yearFilter !== "needs_rollover" ? yearFilter : null;
+  const scoped = (payments: StudentRow["payments"]) =>
+    realYear
+      ? payments.filter((p) => p.school_year_id === realYear)
+      : payments;
 
   const students = allStudents.filter((student) => {
-    if (yearFilter) {
+    if (yearFilter === "needs_rollover") {
+      const hasEnrollments = (student.enrollments ?? []).length > 0;
+      const inActive =
+        activeYearId != null &&
+        (student.enrollments ?? []).some(
+          (e) => e.school_year_id === activeYearId,
+        );
+      if (!hasEnrollments || inActive) return false;
+    } else if (realYear) {
       const inYear = (student.enrollments ?? []).some(
-        (e) => e.school_year_id === yearFilter,
+        (e) => e.school_year_id === realYear,
       );
       if (!inYear) return false;
     }
@@ -168,14 +184,22 @@ export default async function RegistrertePage({
       if (!inClass) return false;
     }
     if (payFilter && payFilter !== "alle") {
-      if (payState(student.payments) !== payFilter) return false;
+      const state = payState(scoped(student.payments));
+      if (payFilter === "ikke_betalt") {
+        if (state === "betalt") return false;
+      } else if (state !== payFilter) {
+        return false;
+      }
     }
     return true;
   });
 
-  const totalPaid = students.reduce((s, st) => s + paidTotal(st.payments), 0);
+  const totalPaid = students.reduce(
+    (s, st) => s + paidTotal(scoped(st.payments)),
+    0,
+  );
   const totalPending = students.reduce(
-    (s, st) => s + pendingTotal(st.payments),
+    (s, st) => s + pendingTotal(scoped(st.payments)),
     0,
   );
 
@@ -237,7 +261,8 @@ export default async function RegistrertePage({
               </TableHeader>
               <TableBody>
                 {students.map((student) => {
-                  const state = payState(student.payments);
+                  const studentPayments = scoped(student.payments);
+                  const state = payState(studentPayments);
                   return (
                     <ClickableRow
                       key={student.id}
@@ -273,14 +298,14 @@ export default async function RegistrertePage({
                           );
                         })()}
                       </TableCell>
-                      <TableCell>{formatNok(paidTotal(student.payments))}</TableCell>
+                      <TableCell>{formatNok(paidTotal(studentPayments))}</TableCell>
                       <TableCell>
                         {state === "betalt" ? (
                           <Badge>Betalt</Badge>
                         ) : state === "venter" ? (
-                          <Badge variant="secondary">Venter</Badge>
+                          <Badge variant="secondary">Lenke sendt</Badge>
                         ) : (
-                          <Badge variant="outline">Ingen</Badge>
+                          <Badge variant="outline">Ikke sendt</Badge>
                         )}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
