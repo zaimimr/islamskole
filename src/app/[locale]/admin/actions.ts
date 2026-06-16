@@ -387,6 +387,32 @@ export async function updateTeacherApplicationStatus(
   return { ok: true, id };
 }
 
+export async function bulkUpdateTeacherStatus(
+  ids: string[],
+  status: string,
+): Promise<ActionResult> {
+  await requireAdmin();
+
+  const parsed = teacherStatusSchema.safeParse(status);
+  if (!parsed.success) {
+    return { ok: false, error: "Ugyldig status" };
+  }
+  if (ids.length === 0) {
+    return { ok: false, error: "Ingen rader valgt" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("teacher_applications")
+    .update({ status: parsed.data } as never)
+    .in("id", ids);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
 export async function deleteTeacherApplication(
   id: string,
 ): Promise<ActionResult> {
@@ -494,6 +520,31 @@ export async function updateStudentApplicationStatus(
 
   revalidatePath("/", "layout");
   return { ok: true, id };
+}
+
+export async function bulkUpdateApplicationStatus(
+  ids: string[],
+  status: string,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const parsed = studentStatusSchema.safeParse(status);
+  if (!parsed.success) {
+    return { ok: false, error: "Ugyldig status" };
+  }
+  if (ids.length === 0) {
+    return { ok: false, error: "Ingen rader valgt" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("student_applications")
+    .update({ status: parsed.data } as never)
+    .in("id", ids);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 export async function deleteStudentApplication(

@@ -6,6 +6,13 @@ import { DeleteButton } from "@/components/admin/delete-button";
 import { RegisterStudentButton } from "@/components/admin/register-student-button";
 import { StudentStatusSelect } from "@/components/admin/student-status-select";
 import { StudentFilters } from "@/components/admin/student-filters";
+import { Pagination } from "@/components/admin/pagination";
+import { ExportButton } from "@/components/admin/export-button";
+import {
+  BulkActions,
+  BulkSelectAll,
+  BulkRowCheckbox,
+} from "@/components/admin/bulk-actions";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -147,6 +154,8 @@ function formatDate(value: string | null) {
   });
 }
 
+const PAGE_SIZE = 25;
+
 export default async function PameldingerPage({
   params,
   searchParams,
@@ -156,15 +165,20 @@ export default async function PameldingerPage({
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q : "";
   const status = typeof sp.status === "string" ? sp.status : "";
+  const page = Math.max(1, Number(sp.page) || 1);
   const [allApplications, registered, placement] = await Promise.all([
     getApplications(q, status),
     getRegisteredMap(),
     getPlacementOptions(),
   ]);
-  const applications = allApplications.filter((a) => !registered.has(a.id));
+  const unregistered = allApplications.filter((a) => !registered.has(a.id));
+  const total = unregistered.length;
+  const from = (page - 1) * PAGE_SIZE;
+  const applications = unregistered.slice(from, from + PAGE_SIZE);
   const defaultSchoolYearId =
     placement.schoolYears.find((y) => y.is_active)?.id ?? null;
   const filtered = Boolean(q || status);
+  const pageIds = applications.map((a) => a.id);
 
   return (
     <div>
@@ -173,7 +187,10 @@ export default async function PameldingerPage({
         description="Påmeldinger av elever fra foresatte."
       />
 
-      <StudentFilters />
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <StudentFilters />
+        <ExportButton entity="applications" />
+      </div>
 
       <Card>
         <CardContent className="p-0">
@@ -184,9 +201,13 @@ export default async function PameldingerPage({
                 : "Ingen påmeldinger ennå."}
             </p>
           ) : (
+            <BulkActions entity="applications" ids={pageIds}>
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8">
+                    <BulkSelectAll />
+                  </TableHead>
                   <TableHead>Barn</TableHead>
                   <TableHead>Alder</TableHead>
                   <TableHead>Foresatt</TableHead>
@@ -202,6 +223,9 @@ export default async function PameldingerPage({
               <TableBody>
                 {applications.map((application) => (
                   <TableRow key={application.id}>
+                    <TableCell className="w-8">
+                      <BulkRowCheckbox id={application.id} />
+                    </TableCell>
                     <TableCell className="font-medium">
                       {application.child_name ?? "-"}
                     </TableCell>
@@ -253,7 +277,17 @@ export default async function PameldingerPage({
                 ))}
               </TableBody>
             </Table>
+            </BulkActions>
           )}
+          {total > PAGE_SIZE ? (
+            <Pagination
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              basePath={`${basePath}/register`}
+              searchParams={sp}
+            />
+          ) : null}
         </CardContent>
       </Card>
     </div>

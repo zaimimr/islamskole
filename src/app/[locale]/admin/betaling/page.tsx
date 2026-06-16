@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { adminBasePath } from "@/components/admin/paths";
 import { PageHeader } from "@/components/admin/page-header";
 import { BatchSendButton } from "@/components/admin/batch-send-button";
+import { ExportButton } from "@/components/admin/export-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -70,6 +71,10 @@ export default async function BetalingPage({
         title="Betaling"
         description="Oversikt over betaling per skoleår."
       />
+
+      <div className="flex justify-end">
+        <ExportButton entity="payments" />
+      </div>
 
       {years.length === 0 ? (
         <Card>

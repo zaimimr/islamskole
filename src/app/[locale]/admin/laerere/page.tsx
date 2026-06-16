@@ -1,8 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
 import { deleteTeacherApplication } from "@/app/[locale]/admin/actions";
+import { adminBasePath } from "@/components/admin/paths";
 import { PageHeader } from "@/components/admin/page-header";
 import { DeleteButton } from "@/components/admin/delete-button";
 import { TeacherStatusSelect } from "@/components/admin/teacher-status-select";
+import { Pagination } from "@/components/admin/pagination";
+import { ExportButton } from "@/components/admin/export-button";
+import {
+  BulkActions,
+  BulkSelectAll,
+  BulkRowCheckbox,
+} from "@/components/admin/bulk-actions";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -24,16 +32,28 @@ type TeacherApplicationRow = {
   created_at: string | null;
 };
 
-async function getApplications(): Promise<TeacherApplicationRow[]> {
+const PAGE_SIZE = 25;
+
+async function getApplications(
+  page: number,
+): Promise<{ rows: TeacherApplicationRow[]; total: number }> {
   try {
     const supabase = await createClient();
-    const { data } = await supabase
+    const from = (page - 1) * PAGE_SIZE;
+    const { data, count } = await supabase
       .from("teacher_applications")
-      .select("id, full_name, email, phone, subjects, message, status, created_at")
-      .order("created_at", { ascending: false });
-    return (data as TeacherApplicationRow[] | null) ?? [];
+      .select(
+        "id, full_name, email, phone, subjects, message, status, created_at",
+        { count: "exact" },
+      )
+      .order("created_at", { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+    return {
+      rows: (data as TeacherApplicationRow[] | null) ?? [],
+      total: count ?? 0,
+    };
   } catch {
-    return [];
+    return { rows: [], total: 0 };
   }
 }
 
@@ -47,8 +67,19 @@ function formatDate(value: string | null) {
   });
 }
 
-export default async function LaererePage() {
-  const applications = await getApplications();
+export default async function LaererePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const { locale } = await params;
+  const basePath = adminBasePath(locale);
+  const sp = await searchParams;
+  const page = Math.max(1, Number(sp.page) || 1);
+  const { rows: applications, total } = await getApplications(page);
+  const pageIds = applications.map((a) => a.id);
 
   return (
     <div>
@@ -57,6 +88,10 @@ export default async function LaererePage() {
         description="Søknader fra de som vil bli lærer eller frivillig."
       />
 
+      <div className="mb-4 flex justify-end">
+        <ExportButton entity="teachers" />
+      </div>
+
       <Card>
         <CardContent className="p-0">
           {applications.length === 0 ? (
@@ -64,9 +99,13 @@ export default async function LaererePage() {
               Ingen søknader ennå.
             </p>
           ) : (
+            <BulkActions entity="teachers" ids={pageIds}>
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8">
+                    <BulkSelectAll />
+                  </TableHead>
                   <TableHead>Navn</TableHead>
                   <TableHead>E-post</TableHead>
                   <TableHead>Telefon</TableHead>
@@ -79,6 +118,9 @@ export default async function LaererePage() {
               <TableBody>
                 {applications.map((application) => (
                   <TableRow key={application.id}>
+                    <TableCell className="w-8">
+                      <BulkRowCheckbox id={application.id} />
+                    </TableCell>
                     <TableCell className="font-medium">
                       {application.full_name ?? "-"}
                     </TableCell>
@@ -116,7 +158,17 @@ export default async function LaererePage() {
                 ))}
               </TableBody>
             </Table>
+            </BulkActions>
           )}
+          {total > PAGE_SIZE ? (
+            <Pagination
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              basePath={`${basePath}/laerere`}
+              searchParams={sp}
+            />
+          ) : null}
         </CardContent>
       </Card>
     </div>
