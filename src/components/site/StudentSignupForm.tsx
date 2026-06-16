@@ -14,6 +14,12 @@ export function StudentSignupForm() {
   const t = useTranslations("enrollForm");
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
+  const [formKey, setFormKey] = useState(0);
+
+  function handleReset() {
+    setFormKey((key) => key + 1);
+    setDone(false);
+  }
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -37,12 +43,15 @@ export function StudentSignupForm() {
         <p className="max-w-md text-base text-muted-foreground">
           {t("thanksBody")}
         </p>
+        <Button variant="outline" onClick={handleReset}>
+          {t("submitAnother")}
+        </Button>
       </div>
     );
   }
 
   return (
-    <form action={handleSubmit} className="grid gap-5">
+    <form key={formKey} action={handleSubmit} className="grid gap-5">
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="grid gap-2">
           <Label htmlFor="child_name">{t("fieldChildName")}</Label>

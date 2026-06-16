@@ -161,7 +161,8 @@
     "toastSuccess": "Thank you! We have received your enrollment.",
     "thanksTitle": "Thank you!",
     "thanksBody": "We have received your enrollment and will be in touch as soon as we can.",
-    "fieldChildBirthDate": "Child's date of birth"
+    "fieldChildBirthDate": "Child's date of birth",
+    "submitAnother": "Register another child"
   },
   "about": {
     "title": "About us",
@@ -229,7 +230,8 @@
     "submit": "Submit",
     "toastSuccess": "Thank you! We have received your message.",
     "thanksTitle": "Thank you so much!",
-    "thanksBody": "We have received your interest and will be in touch as soon as we can. We really appreciate that you want to contribute."
+    "thanksBody": "We have received your interest and will be in touch as soon as we can. We really appreciate that you want to contribute.",
+    "submitAnother": "Submit another application"
   },
   "footer": {
     "tagline": "Sunday school for Muslim children in Bærum.",

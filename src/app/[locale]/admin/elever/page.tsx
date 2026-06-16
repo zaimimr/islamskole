@@ -4,6 +4,8 @@ import { adminBasePath } from "@/components/admin/paths";
 import { PageHeader } from "@/components/admin/page-header";
 import { EleverFilters } from "@/components/admin/elever-filters";
 import { ClickableRow } from "@/components/admin/clickable-row";
+import { Pagination } from "@/components/admin/pagination";
+import { ExportButton } from "@/components/admin/export-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -147,6 +149,8 @@ function formatNok(ore: number) {
   return `${(ore / 100).toLocaleString("nb-NO")} kr`;
 }
 
+const PAGE_SIZE = 25;
+
 export default async function RegistrertePage({
   params,
   searchParams,
@@ -160,6 +164,7 @@ export default async function RegistrertePage({
   const classFilter = typeof sp.class === "string" ? sp.class : "";
   const payFilter = typeof sp.pay === "string" ? sp.pay : "";
   const yearFilter = typeof sp.year === "string" ? sp.year : "";
+  const page = Math.max(1, Number(sp.page) || 1);
   const basePath = adminBasePath(locale);
 
   const [allStudents, classes, schoolYears] = await Promise.all([
@@ -220,6 +225,10 @@ export default async function RegistrertePage({
     0,
   );
 
+  const total = students.length;
+  const from = (page - 1) * PAGE_SIZE;
+  const pageStudents = students.slice(from, from + PAGE_SIZE);
+
   const filtered = Boolean(q || classFilter || payFilter || yearFilter);
 
   return (
@@ -252,11 +261,15 @@ export default async function RegistrertePage({
         </Card>
       </div>
 
+      <div className="mb-2 flex justify-end">
+        <ExportButton entity="students" />
+      </div>
+
       <EleverFilters classes={classes} schoolYears={schoolYears} />
 
       <Card>
         <CardContent className="p-0">
-          {students.length === 0 ? (
+          {pageStudents.length === 0 ? (
             <p className="p-6 text-sm text-muted-foreground">
               {filtered
                 ? "Ingen elever samsvarer med søket."
@@ -277,7 +290,7 @@ export default async function RegistrertePage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {students.map((student) => {
+                {pageStudents.map((student) => {
                   const studentPayments = scoped(student.payments);
                   const state = payState(studentPayments);
                   return (
@@ -334,6 +347,15 @@ export default async function RegistrertePage({
               </TableBody>
             </Table>
           )}
+          {total > PAGE_SIZE ? (
+            <Pagination
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              basePath={`${basePath}/elever`}
+              searchParams={sp}
+            />
+          ) : null}
         </CardContent>
       </Card>
     </div>

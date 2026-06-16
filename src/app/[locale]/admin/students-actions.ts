@@ -165,12 +165,29 @@ export async function createStudentFromApplication(
   const studentId = (data as unknown as { id: string }).id;
 
   if (placement?.classId && placement?.schoolYearId) {
-    await supabase.from("enrollments").insert({
-      student_id: studentId,
-      class_id: placement.classId,
-      school_year_id: placement.schoolYearId,
-      status: "aktiv",
-    } as never);
+    const { capacity, priceSnapshot } = await resolveEnrollmentPricing(
+      supabase,
+      placement.classId,
+      placement.schoolYearId,
+    );
+    let hasCapacity = true;
+    if (capacity != null) {
+      const enrolled = await countActiveEnrollments(
+        supabase,
+        placement.classId,
+        placement.schoolYearId,
+      );
+      hasCapacity = enrolled < capacity;
+    }
+    if (hasCapacity) {
+      await supabase.from("enrollments").insert({
+        student_id: studentId,
+        class_id: placement.classId,
+        school_year_id: placement.schoolYearId,
+        status: "aktiv",
+        price_snapshot: priceSnapshot,
+      } as never);
+    }
   }
 
   await supabase
@@ -220,6 +237,94 @@ const enrollmentSchema = z.object({
   school_year_id: z.string().min(1, "Velg et skoleår"),
 });
 
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+async function countActiveEnrollments(
+  supabase: SupabaseServerClient,
+  classId: string,
+  schoolYearId: string,
+): Promise<number> {
+  const { count } = await supabase
+    .from("enrollments")
+    .select("id", { count: "exact", head: true })
+    .eq("class_id", classId)
+    .eq("school_year_id", schoolYearId)
+    .eq("status", "aktiv");
+  return count ?? 0;
+}
+
+async function resolveEnrollmentPricing(
+  supabase: SupabaseServerClient,
+  classId: string,
+  schoolYearId: string,
+): Promise<{ capacity: number | null; priceSnapshot: number | null }> {
+  const [{ data: classRow }, { data: yearRow }] = await Promise.all([
+    supabase
+      .from("classes")
+      .select("capacity, price")
+      .eq("id", classId)
+      .maybeSingle(),
+    supabase
+      .from("school_years")
+      .select("fee")
+      .eq("id", schoolYearId)
+      .maybeSingle(),
+  ]);
+  const cls = classRow as unknown as {
+    capacity: number | null;
+    price: number | null;
+  } | null;
+  const year = yearRow as unknown as { fee: number | null } | null;
+  return {
+    capacity: cls?.capacity ?? null,
+    priceSnapshot: cls?.price ?? year?.fee ?? null,
+  };
+}
+
+function classFullError(enrolled: number, capacity: number): string {
+  return `Klassen er full (${enrolled}/${capacity} plasser)`;
+}
+
+export type ClassCapacityInfo = {
+  classId: string;
+  capacity: number | null;
+  enrolled: number;
+};
+
+export async function getClassCapacityInfo(
+  schoolYearId: string,
+): Promise<ClassCapacityInfo[]> {
+  await requireAdmin();
+  if (!schoolYearId) return [];
+  const supabase = await createClient();
+
+  const { data: classRows } = await supabase
+    .from("classes")
+    .select("id, capacity");
+  const classes =
+    (classRows as unknown as { id: string; capacity: number | null }[] | null) ??
+    [];
+
+  const { data: enrollmentRows } = await supabase
+    .from("enrollments")
+    .select("class_id")
+    .eq("school_year_id", schoolYearId)
+    .eq("status", "aktiv");
+  const enrollments =
+    (enrollmentRows as unknown as { class_id: string }[] | null) ?? [];
+
+  const counts = new Map<string, number>();
+  for (const e of enrollments) {
+    counts.set(e.class_id, (counts.get(e.class_id) ?? 0) + 1);
+  }
+
+  return classes.map((c) => ({
+    classId: c.id,
+    capacity: c.capacity,
+    enrolled: counts.get(c.id) ?? 0,
+  }));
+}
+
 export async function placeStudentInClass(
   formData: FormData,
 ): Promise<ActionResult> {
@@ -236,9 +341,26 @@ export async function placeStudentInClass(
   }
 
   const supabase = await createClient();
+
+  const { capacity, priceSnapshot } = await resolveEnrollmentPricing(
+    supabase,
+    payload.class_id,
+    payload.school_year_id,
+  );
+  if (capacity != null) {
+    const enrolled = await countActiveEnrollments(
+      supabase,
+      payload.class_id,
+      payload.school_year_id,
+    );
+    if (enrolled >= capacity) {
+      return { ok: false, error: classFullError(enrolled, capacity) };
+    }
+  }
+
   const { data, error } = await supabase
     .from("enrollments")
-    .insert(payload as never)
+    .insert({ ...payload, price_snapshot: priceSnapshot } as never)
     .select("id")
     .single();
 
@@ -283,8 +405,6 @@ export async function createVippsPayment(
     return { ok: false, error: parsed.error.issues[0].message };
   }
 
-  const amount = Math.round((amountNok as number) * 100);
-
   if (!schoolYearId) {
     return { ok: false, error: "Velg et skoleår for betalingen" };
   }
@@ -293,7 +413,7 @@ export async function createVippsPayment(
 
   const { data: enrollmentRow } = await supabase
     .from("enrollments")
-    .select("id, classes(name_no)")
+    .select("id, price_snapshot, classes(name_no)")
     .eq("student_id", studentId)
     .eq("school_year_id", schoolYearId)
     .eq("status", "aktiv")
@@ -301,6 +421,7 @@ export async function createVippsPayment(
     .maybeSingle();
   const enrollment = enrollmentRow as unknown as {
     id: string;
+    price_snapshot: number | null;
     classes: { name_no: string | null } | null;
   } | null;
   if (!enrollment) {
@@ -312,6 +433,11 @@ export async function createVippsPayment(
   }
   const className = enrollment.classes?.name_no ?? null;
   const enrollmentId = enrollment.id;
+
+  const amount =
+    enrollment.price_snapshot != null
+      ? Math.round(enrollment.price_snapshot * 100)
+      : Math.round((amountNok as number) * 100);
 
   const { data: existing } = await supabase
     .from("payments")
@@ -425,6 +551,7 @@ export async function createVippsPayment(
 type BatchEnrollment = {
   id: string;
   student_id: string;
+  price_snapshot: number | null;
   classes: { name_no: string | null; price: number | null } | null;
   students: {
     full_name: string | null;
@@ -463,7 +590,7 @@ export async function batchSendPaymentLinks(
   const { data: enr } = await supabase
     .from("enrollments")
     .select(
-      "id, student_id, classes(name_no, price), students(full_name, guardian_name, email, guardian2_email, phone)",
+      "id, student_id, price_snapshot, classes(name_no, price), students(full_name, guardian_name, email, guardian2_email, phone)",
     )
     .eq("school_year_id", schoolYearId)
     .eq("status", "aktiv");
@@ -528,7 +655,7 @@ export async function batchSendPaymentLinks(
       continue;
     }
 
-    const price = e.classes?.price ?? yearFee;
+    const price = e.price_snapshot ?? e.classes?.price ?? yearFee;
     if (price == null) {
       noPrice++;
       continue;
@@ -627,10 +754,14 @@ export async function copyEnrollmentsToActiveYear(
 
   const { data: active } = await supabase
     .from("school_years")
-    .select("id, label")
+    .select("id, label, fee")
     .eq("is_active", true)
     .maybeSingle();
-  const activeYear = active as unknown as { id: string; label: string } | null;
+  const activeYear = active as unknown as {
+    id: string;
+    label: string;
+    fee: number | null;
+  } | null;
   if (!activeYear) return { ok: false, error: "Ingen aktivt skoleår er satt" };
   if (activeYear.id === fromYearId) {
     return { ok: false, error: "Dette er allerede det aktive skoleåret" };
@@ -638,11 +769,15 @@ export async function copyEnrollmentsToActiveYear(
 
   const { data: src } = await supabase
     .from("enrollments")
-    .select("student_id, class_id")
+    .select("student_id, class_id, price_snapshot")
     .eq("school_year_id", fromYearId)
     .eq("status", "aktiv");
   const source =
-    (src as unknown as { student_id: string; class_id: string }[] | null) ?? [];
+    (src as unknown as {
+      student_id: string;
+      class_id: string;
+      price_snapshot: number | null;
+    }[] | null) ?? [];
 
   const { data: existing } = await supabase
     .from("enrollments")
@@ -655,31 +790,63 @@ export async function copyEnrollmentsToActiveYear(
     ).map((e) => `${e.student_id}:${e.class_id}`),
   );
 
+  const { data: classRows } = await supabase
+    .from("classes")
+    .select("id, capacity, price");
+  const classInfo = new Map(
+    (
+      (classRows as unknown as {
+        id: string;
+        capacity: number | null;
+        price: number | null;
+      }[] | null) ?? []
+    ).map((c) => [c.id, c]),
+  );
+
+  const targetCounts = new Map<string, number>();
+  for (const e of (existing as unknown as { class_id: string }[] | null) ?? []) {
+    targetCounts.set(e.class_id, (targetCounts.get(e.class_id) ?? 0) + 1);
+  }
+
   let moved = 0;
   let skipped = 0;
+  let full = 0;
   for (const s of source) {
     const key = `${s.student_id}:${s.class_id}`;
     if (existingPairs.has(key)) {
       skipped++;
       continue;
     }
+    const cls = classInfo.get(s.class_id);
+    const capacity = cls?.capacity ?? null;
+    if (capacity != null && (targetCounts.get(s.class_id) ?? 0) >= capacity) {
+      full++;
+      continue;
+    }
+    const priceSnapshot =
+      s.price_snapshot ?? cls?.price ?? activeYear.fee ?? null;
     const { error } = await supabase.from("enrollments").insert({
       student_id: s.student_id,
       class_id: s.class_id,
       school_year_id: activeYear.id,
       status: "aktiv",
+      price_snapshot: priceSnapshot,
     } as never);
     if (error) {
       skipped++;
       continue;
     }
     existingPairs.add(key);
+    targetCounts.set(s.class_id, (targetCounts.get(s.class_id) ?? 0) + 1);
     moved++;
   }
 
   revalidate();
-  const note = skipped > 0 ? `${skipped} var allerede plassert` : undefined;
-  return { ok: true, moved, skipped, note };
+  const parts: string[] = [];
+  if (skipped > 0) parts.push(`${skipped} var allerede plassert`);
+  if (full > 0) parts.push(`${full} hoppet over (klassen er full)`);
+  const note = parts.length ? parts.join(", ") : undefined;
+  return { ok: true, moved, skipped: skipped + full, note };
 }
 
 async function getPaymentReference(

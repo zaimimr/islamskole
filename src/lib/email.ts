@@ -4,6 +4,93 @@ import { Resend } from "resend";
 const FROM =
   process.env.RESEND_FROM || "Islamskole Bærum <onboarding@resend.dev>";
 
+export type EmailLang = "no" | "en";
+
+const STRINGS = {
+  no: {
+    footer: "Sendt automatisk fra islamskole.no",
+    rows: {
+      student: "Elev",
+      class: "Klasse",
+      schoolYear: "Skoleår",
+      amount: "Beløp",
+      amountPaid: "Beløp betalt",
+    },
+    paymentLink: {
+      subject: (child: string) => `Betaling for ${child}`,
+      badge: "Betaling",
+      title: "Betaling av skolepenger",
+      intro: (child: string) =>
+        `Hei, her er betalingslenken for ${child}. Trykk på knappen for å betale med Vipps.`,
+      cta: "Betal med Vipps",
+    },
+    receipt: {
+      subject: (child: string) => `Kvittering - betaling for ${child}`,
+      badge: "Kvittering",
+      title: "Betaling mottatt",
+      intro: (child: string) =>
+        `Hei, vi har mottatt betalingen for ${child}. Takk!`,
+    },
+    studentConfirmation: {
+      subject: "Vi har mottatt påmeldingen",
+      badge: "Påmelding",
+      title: "Takk for påmeldingen",
+      intro: (child: string) =>
+        `Hei, vi har mottatt påmeldingen for ${child}. Vi tar kontakt så snart vi har gått gjennom den.`,
+    },
+    teacherConfirmation: {
+      subject: "Vi har mottatt søknaden din",
+      badge: "Lærer",
+      title: "Takk for søknaden",
+      intro: (name: string) =>
+        `Hei ${name}, takk for interessen. Vi tar kontakt så snart vi har gått gjennom søknaden din.`,
+    },
+  },
+  en: {
+    footer: "Sent automatically from islamskole.no",
+    rows: {
+      student: "Student",
+      class: "Class",
+      schoolYear: "School year",
+      amount: "Amount",
+      amountPaid: "Amount paid",
+    },
+    paymentLink: {
+      subject: (child: string) => `Payment for ${child}`,
+      badge: "Payment",
+      title: "School fee payment",
+      intro: (child: string) =>
+        `Hi, here is the payment link for ${child}. Tap the button to pay with Vipps.`,
+      cta: "Pay with Vipps",
+    },
+    receipt: {
+      subject: (child: string) => `Receipt - payment for ${child}`,
+      badge: "Receipt",
+      title: "Payment received",
+      intro: (child: string) =>
+        `Hi, we have received the payment for ${child}. Thank you!`,
+    },
+    studentConfirmation: {
+      subject: "We have received your registration",
+      badge: "Registration",
+      title: "Thank you for registering",
+      intro: (child: string) =>
+        `Hi, we have received the registration for ${child}. We will be in touch once we have reviewed it.`,
+    },
+    teacherConfirmation: {
+      subject: "We have received your application",
+      badge: "Teacher",
+      title: "Thank you for applying",
+      intro: (name: string) =>
+        `Hi ${name}, thank you for your interest. We will be in touch once we have reviewed your application.`,
+    },
+  },
+} as const;
+
+function strings(lang: EmailLang) {
+  return STRINGS[lang] ?? STRINGS.no;
+}
+
 function getClient() {
   const key = process.env.RESEND_API_KEY;
   return key ? new Resend(key) : null;
@@ -20,6 +107,7 @@ function escapeHtml(value: string) {
 type Row = [label: string, value: string | null | undefined];
 
 function renderEmail(opts: {
+  lang: EmailLang;
   badge: string;
   title: string;
   intro: string;
@@ -43,7 +131,7 @@ function renderEmail(opts: {
     .join("");
 
   return `<!doctype html>
-<html lang="no">
+<html lang="${opts.lang}">
   <body style="margin:0;background:#f3f6ee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
     <div style="max-width:600px;margin:0 auto;padding:24px;">
       <div style="background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #e7eee0;">
@@ -57,7 +145,7 @@ function renderEmail(opts: {
           ${cta}
         </div>
         <div style="padding:16px 28px;background:#f8faf4;color:#7d8a73;font-size:12px;">
-          Sendt automatisk fra islamskole.no
+          ${escapeHtml(strings(opts.lang).footer)}
         </div>
       </div>
     </div>
@@ -66,6 +154,7 @@ function renderEmail(opts: {
 }
 
 async function send(opts: {
+  lang: EmailLang;
   to: string | string[];
   subject: string;
   replyTo?: string | null;
@@ -84,6 +173,7 @@ async function send(opts: {
       subject: opts.subject,
       replyTo: opts.replyTo ?? undefined,
       html: renderEmail({
+        lang: opts.lang,
         badge: opts.badge,
         title: opts.title,
         intro: opts.intro,
@@ -114,19 +204,23 @@ export async function sendPaymentLinkEmail(opts: {
   schoolYear: string | null;
   className: string | null;
   url: string;
+  lang?: EmailLang;
 }): Promise<boolean> {
+  const lang = opts.lang ?? "no";
+  const t = strings(lang);
   return await send({
+    lang,
     to: opts.to,
-    subject: `Betaling for ${opts.childName}`,
-    badge: "Betaling",
-    title: "Betaling av skolepenger",
-    intro: `Hei, her er betalingslenken for ${opts.childName}. Trykk på knappen for å betale med Vipps.`,
-    cta: { label: "Betal med Vipps", url: opts.url },
+    subject: t.paymentLink.subject(opts.childName),
+    badge: t.paymentLink.badge,
+    title: t.paymentLink.title,
+    intro: t.paymentLink.intro(opts.childName),
+    cta: { label: t.paymentLink.cta, url: opts.url },
     rows: [
-      ["Elev", opts.childName],
-      ["Klasse", opts.className],
-      ["Skoleår", opts.schoolYear],
-      ["Beløp", formatNok(opts.amount)],
+      [t.rows.student, opts.childName],
+      [t.rows.class, opts.className],
+      [t.rows.schoolYear, opts.schoolYear],
+      [t.rows.amount, formatNok(opts.amount)],
     ],
   });
 }
@@ -138,18 +232,22 @@ export async function sendPaymentReceiptEmail(opts: {
   amount: number;
   schoolYear: string | null;
   className: string | null;
+  lang?: EmailLang;
 }) {
+  const lang = opts.lang ?? "no";
+  const t = strings(lang);
   await send({
+    lang,
     to: opts.to,
-    subject: `Kvittering - betaling for ${opts.childName}`,
-    badge: "Kvittering",
-    title: "Betaling mottatt",
-    intro: `Hei, vi har mottatt betalingen for ${opts.childName}. Takk!`,
+    subject: t.receipt.subject(opts.childName),
+    badge: t.receipt.badge,
+    title: t.receipt.title,
+    intro: t.receipt.intro(opts.childName),
     rows: [
-      ["Elev", opts.childName],
-      ["Klasse", opts.className],
-      ["Skoleår", opts.schoolYear],
-      ["Beløp betalt", formatNok(opts.amount)],
+      [t.rows.student, opts.childName],
+      [t.rows.class, opts.className],
+      [t.rows.schoolYear, opts.schoolYear],
+      [t.rows.amountPaid, formatNok(opts.amount)],
     ],
   });
 }
@@ -161,6 +259,7 @@ export async function sendStudentApplicationEmail(opts: {
   replyTo?: string | null;
 }) {
   await send({
+    lang: "no",
     to: opts.to,
     subject: `Ny påmelding: ${opts.childName}`,
     replyTo: opts.replyTo,
@@ -178,6 +277,7 @@ export async function sendTeacherApplicationEmail(opts: {
   replyTo?: string | null;
 }) {
   await send({
+    lang: "no",
     to: opts.to,
     subject: `Ny lærersøknad: ${opts.fullName}`,
     replyTo: opts.replyTo,
@@ -185,5 +285,42 @@ export async function sendTeacherApplicationEmail(opts: {
     title: "Ny lærersøknad",
     intro: "Noen ønsker å bli lærer eller frivillig hos Islamskole Bærum.",
     rows: opts.rows,
+  });
+}
+
+export async function sendStudentApplicationConfirmationEmail(opts: {
+  to: string;
+  childName: string;
+  rows?: Row[];
+  lang?: EmailLang;
+}) {
+  const lang = opts.lang ?? "no";
+  const t = strings(lang);
+  await send({
+    lang,
+    to: opts.to,
+    subject: t.studentConfirmation.subject,
+    badge: t.studentConfirmation.badge,
+    title: t.studentConfirmation.title,
+    intro: t.studentConfirmation.intro(opts.childName),
+    rows: opts.rows ?? [],
+  });
+}
+
+export async function sendTeacherApplicationConfirmationEmail(opts: {
+  to: string;
+  fullName: string;
+  lang?: EmailLang;
+}) {
+  const lang = opts.lang ?? "no";
+  const t = strings(lang);
+  await send({
+    lang,
+    to: opts.to,
+    subject: t.teacherConfirmation.subject,
+    badge: t.teacherConfirmation.badge,
+    title: t.teacherConfirmation.title,
+    intro: t.teacherConfirmation.intro(opts.fullName),
+    rows: [],
   });
 }

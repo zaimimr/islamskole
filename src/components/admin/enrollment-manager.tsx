@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Trash2, Plus } from "lucide-react";
 import {
+  getClassCapacityInfo,
   placeStudentInClass,
   removeEnrollment,
+  type ClassCapacityInfo,
 } from "@/app/[locale]/admin/students-actions";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -43,6 +45,43 @@ export function EnrollmentManager({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [showForm, setShowForm] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(defaultSchoolYearId ?? "");
+  const [capacity, setCapacity] = useState<Map<string, ClassCapacityInfo>>(
+    new Map(),
+  );
+
+  useEffect(() => {
+    if (!showForm || !selectedYear) {
+      setCapacity(new Map());
+      return;
+    }
+    let active = true;
+    getClassCapacityInfo(selectedYear).then((info) => {
+      if (!active) return;
+      setCapacity(new Map(info.map((c) => [c.classId, c])));
+    });
+    return () => {
+      active = false;
+    };
+  }, [showForm, selectedYear]);
+
+  function classOptionLabel(option: ClassOption) {
+    const info = capacity.get(option.id);
+    const price = priceLabel(option.price);
+    const parts: string[] = [option.name];
+    if (price) parts.push(`(${price})`);
+    if (info && info.capacity != null) {
+      parts.push(`– ${info.enrolled}/${info.capacity} plasser`);
+    }
+    return parts.join(" ");
+  }
+
+  function isClassFull(option: ClassOption) {
+    const info = capacity.get(option.id);
+    return (
+      info != null && info.capacity != null && info.enrolled >= info.capacity
+    );
+  }
 
   function handleSubmit(formData: FormData) {
     formData.set("student_id", studentId);
@@ -152,11 +191,13 @@ export function EnrollmentManager({
                 className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
               >
                 {classes.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.name}
-                    {priceLabel(option.price)
-                      ? ` (${priceLabel(option.price)})`
-                      : ""}
+                  <option
+                    key={option.id}
+                    value={option.id}
+                    disabled={isClassFull(option)}
+                  >
+                    {classOptionLabel(option)}
+                    {isClassFull(option) ? " – full" : ""}
                   </option>
                 ))}
               </select>
@@ -167,7 +208,8 @@ export function EnrollmentManager({
                 id="school_year_id"
                 name="school_year_id"
                 required
-                defaultValue={defaultSchoolYearId ?? ""}
+                value={selectedYear}
+                onChange={(event) => setSelectedYear(event.target.value)}
                 className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
               >
                 {schoolYears.map((option) => (
