@@ -53,7 +53,9 @@ export function TeacherSignupForm() {
   return (
     <form key={formKey} action={handleSubmit} className="grid gap-5">
       <div className="grid gap-2">
-        <Label htmlFor="full_name">{t("fieldName")}</Label>
+        <Label htmlFor="full_name" required>
+          {t("fieldName")}
+        </Label>
         <Input
           id="full_name"
           name="full_name"
@@ -64,7 +66,9 @@ export function TeacherSignupForm() {
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="email">{t("fieldEmail")}</Label>
+        <Label htmlFor="email" required>
+          {t("fieldEmail")}
+        </Label>
         <Input
           id="email"
           name="email"

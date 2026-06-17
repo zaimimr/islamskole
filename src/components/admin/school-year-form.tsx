@@ -58,7 +58,7 @@ export function SchoolYearForm({
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2 sm:max-w-xs">
-            <Label htmlFor="label">Navn</Label>
+            <Label htmlFor="label" required>Navn</Label>
             <Input
               id="label"
               name="label"

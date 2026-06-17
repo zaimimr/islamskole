@@ -102,7 +102,7 @@ export function StudentForm({
         <CardContent className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="full_name">Navn</Label>
+              <Label htmlFor="full_name" required>Navn</Label>
               <Input
                 id="full_name"
                 name="full_name"
@@ -129,7 +129,7 @@ export function StudentForm({
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
-            <Label htmlFor="guardian_name">Navn</Label>
+            <Label htmlFor="guardian_name" required>Navn</Label>
             <Input
               id="guardian_name"
               name="guardian_name"

@@ -72,7 +72,7 @@ export function EventForm({
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
-            <Label htmlFor="title_no">Tittel</Label>
+            <Label htmlFor="title_no" required>Tittel</Label>
             <Input
               id="title_no"
               name="title_no"
@@ -140,7 +140,7 @@ export function EventForm({
         <CardContent className="grid gap-4">
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="starts_at">Starttidspunkt</Label>
+              <Label htmlFor="starts_at" required>Starttidspunkt</Label>
               <Input
                 id="starts_at"
                 name="starts_at"

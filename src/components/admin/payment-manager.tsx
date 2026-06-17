@@ -146,7 +146,7 @@ export function PaymentManager({
           className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
         >
           <div className="grid gap-2">
-            <Label htmlFor="amount_nok">Beløp (kr)</Label>
+            <Label htmlFor="amount_nok" required>Beløp (kr)</Label>
             <Input
               id="amount_nok"
               name="amount_nok"
@@ -158,10 +158,11 @@ export function PaymentManager({
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="payment_year">Skoleår</Label>
+            <Label htmlFor="payment_year" required>Skoleår</Label>
             <select
               id="payment_year"
               name="school_year_id"
+              required
               defaultValue={defaultSchoolYearId ?? ""}
               className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
             >

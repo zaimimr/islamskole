@@ -27,7 +27,7 @@ export function ChangePasswordForm() {
   return (
     <form ref={formRef} action={handleSubmit} className="grid max-w-sm gap-4">
       <div className="grid gap-2">
-        <Label htmlFor="password">Nytt passord</Label>
+        <Label htmlFor="password" required>Nytt passord</Label>
         <Input
           id="password"
           name="password"
@@ -38,7 +38,7 @@ export function ChangePasswordForm() {
         />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="confirm">Gjenta nytt passord</Label>
+        <Label htmlFor="confirm" required>Gjenta nytt passord</Label>
         <Input
           id="confirm"
           name="confirm"

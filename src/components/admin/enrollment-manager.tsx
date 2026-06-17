@@ -183,7 +183,7 @@ export function EnrollmentManager({
             className="grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end"
           >
             <div className="grid gap-2">
-              <Label htmlFor="class_id">Klasse</Label>
+              <Label htmlFor="class_id" required>Klasse</Label>
               <select
                 id="class_id"
                 name="class_id"
@@ -203,7 +203,7 @@ export function EnrollmentManager({
               </select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="school_year_id">Skoleår</Label>
+              <Label htmlFor="school_year_id" required>Skoleår</Label>
               <select
                 id="school_year_id"
                 name="school_year_id"

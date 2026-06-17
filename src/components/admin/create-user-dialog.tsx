@@ -119,7 +119,7 @@ export function CreateUserDialog() {
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="email">Brukernavn (e-post)</Label>
+                <Label htmlFor="email" required>Brukernavn (e-post)</Label>
                 <Input
                   id="email"
                   name="email"

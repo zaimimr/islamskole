@@ -62,11 +62,15 @@ export function StudentSignupForm() {
         </legend>
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="grid gap-2">
-            <Label htmlFor="child_first_name">{t("fieldFirstName")}</Label>
+            <Label htmlFor="child_first_name" required>
+              {t("fieldFirstName")}
+            </Label>
             <Input id="child_first_name" name="child_first_name" required />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="child_last_name">{t("fieldLastName")}</Label>
+            <Label htmlFor="child_last_name" required>
+              {t("fieldLastName")}
+            </Label>
             <Input id="child_last_name" name="child_last_name" required />
           </div>
         </div>
@@ -127,7 +131,9 @@ export function StudentSignupForm() {
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="grid gap-2">
-            <Label htmlFor="email">{t("fieldEmail")}</Label>
+            <Label htmlFor="email" required>
+              {t("fieldEmail")}
+            </Label>
             <Input
               id="email"
               name="email"

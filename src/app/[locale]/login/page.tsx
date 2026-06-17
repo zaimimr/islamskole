@@ -61,7 +61,9 @@ export default function LoginPage({ params }: PageProps<"/[locale]/login">) {
         <CardContent>
           <form action={handleSubmit} className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="email">E-post</Label>
+              <Label htmlFor="email" required>
+                E-post
+              </Label>
               <Input
                 id="email"
                 name="email"
@@ -71,7 +73,9 @@ export default function LoginPage({ params }: PageProps<"/[locale]/login">) {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="password">Passord</Label>
+              <Label htmlFor="password" required>
+                Passord
+              </Label>
               <Input
                 id="password"
                 name="password"

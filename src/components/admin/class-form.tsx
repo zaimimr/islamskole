@@ -66,7 +66,7 @@ export function ClassForm({
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
-            <Label htmlFor="name_no">Navn</Label>
+            <Label htmlFor="name_no" required>Navn</Label>
             <Input
               id="name_no"
               name="name_no"
