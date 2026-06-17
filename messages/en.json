@@ -148,7 +148,7 @@
     "fieldLastName": "Last name",
     "fieldGender": "Gender",
     "genderPlaceholder": "Select",
-    "gender": { "gutt": "Boy", "jente": "Girl", "annet": "Other" },
+    "gender": { "gutt": "Boy", "jente": "Girl" },
     "fieldAddress": "Address",
     "placeholderAddress": "Street address",
     "fieldPostalCode": "Postal code",

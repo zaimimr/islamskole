@@ -148,7 +148,7 @@
     "fieldLastName": "Etternavn",
     "fieldGender": "Kjønn",
     "genderPlaceholder": "Velg",
-    "gender": { "gutt": "Gutt", "jente": "Jente", "annet": "Annet" },
+    "gender": { "gutt": "Gutt", "jente": "Jente" },
     "fieldAddress": "Adresse",
     "placeholderAddress": "Gateadresse",
     "fieldPostalCode": "Postnummer",

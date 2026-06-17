@@ -85,7 +85,7 @@ export function StudentSignupForm() {
               className={selectClassName}
             >
               <option value="">{t("genderPlaceholder")}</option>
-              {(["gutt", "jente", "annet"] as const).map((v) => (
+              {(["gutt", "jente"] as const).map((v) => (
                 <option key={v} value={v}>
                   {t(`gender.${v}`)}
                 </option>

@@ -55,7 +55,6 @@ type StudentApplicationRow = {
 const genderLabels: Record<string, string> = {
   gutt: "Gutt",
   jente: "Jente",
-  annet: "Annet",
 };
 
 function genderLabel(value: string | null): string {
