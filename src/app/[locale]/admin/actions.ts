@@ -486,6 +486,8 @@ const studentApplicationSchema = z
   .object({
     child_first_name: z.string().min(1, "Barnets fornavn er påkrevd"),
     child_last_name: z.string().min(1, "Barnets etternavn er påkrevd"),
+    birth_date: z.string().min(1, "Fødselsdato er påkrevd"),
+    gender: z.string().min(1, "Kjønn er påkrevd"),
     email: z
       .string()
       .min(1, "E-post er påkrevd")
@@ -536,6 +538,8 @@ export async function createStudentApplication(
   const parsed = studentApplicationSchema.safeParse({
     child_first_name: childFirstName,
     child_last_name: childLastName,
+    birth_date: readString(formData, "birth_date"),
+    gender: readString(formData, "gender"),
     email,
     mother_name: motherName,
     father_name: fatherName,

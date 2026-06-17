@@ -77,15 +77,20 @@ export function StudentSignupForm() {
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="grid gap-2">
-            <Label htmlFor="birth_date">{t("fieldChildBirthDate")}</Label>
-            <Input id="birth_date" name="birth_date" type="date" />
+            <Label htmlFor="birth_date" required>
+              {t("fieldChildBirthDate")}
+            </Label>
+            <Input id="birth_date" name="birth_date" type="date" required />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="gender">{t("fieldGender")}</Label>
+            <Label htmlFor="gender" required>
+              {t("fieldGender")}
+            </Label>
             <select
               id="gender"
               name="gender"
               defaultValue=""
+              required
               className={selectClassName}
             >
               <option value="">{t("genderPlaceholder")}</option>
