@@ -137,10 +137,31 @@
     "placeholderChildAge": "F.eks. 8",
     "fieldGuardian": "Foresattes navn",
     "placeholderGuardian": "Fornavn og etternavn",
-    "fieldEmail": "Foresattes e-post",
+    "fieldEmail": "E-post (kontakt)",
     "placeholderEmail": "din@epost.no",
-    "fieldPhone": "Foresattes telefon",
+    "fieldPhone": "Mobil (kontakt)",
     "placeholderPhone": "Telefonnummer",
+    "sectionStudent": "Eleven",
+    "sectionMother": "Mor",
+    "sectionFather": "Far",
+    "fieldFirstName": "Fornavn",
+    "fieldLastName": "Etternavn",
+    "fieldGender": "Kjønn",
+    "genderPlaceholder": "Velg",
+    "gender": { "gutt": "Gutt", "jente": "Jente", "annet": "Annet" },
+    "fieldAddress": "Adresse",
+    "placeholderAddress": "Gateadresse",
+    "fieldPostalCode": "Postnummer",
+    "placeholderPostalCode": "F.eks. 1339",
+    "fieldCity": "Poststed",
+    "placeholderCity": "F.eks. Vøyenenga",
+    "fieldParentPhone": "Mobil (kontakt)",
+    "fieldParentEmail": "E-post (kontakt)",
+    "parentsHint": "Fyll ut minst én forelder.",
+    "feeNote": "Skoleavgift 5 000 kr per skoleår, betales ved påmelding.",
+    "termsLead": "Jeg bekrefter å ha lest reglementet og godtar",
+    "termsLink": "salgsbetingelsene",
+    "termsTail": ", og vil respektere innbetalingsplan og skoletider.",
     "fieldDesiredClass": "Ønsket klasse eller alderstrinn",
     "placeholderDesiredClass": "F.eks. L0 (6-7 år)",
     "levelsTitle": "Barnets nivå",
@@ -237,7 +258,80 @@
     "tagline": "Søndagsskole for muslimske barn i Bærum.",
     "rights": "Alle rettigheter forbeholdt.",
     "explore": "Utforsk",
-    "getInTouch": "Ta kontakt"
+    "getInTouch": "Ta kontakt",
+    "legal": "Salgsbetingelser"
+  },
+  "terms": {
+    "title": "Salgsbetingelser",
+    "subtitle": "Vilkår for påmelding og betaling hos Islamskole Bærum.",
+    "updatedLabel": "Sist oppdatert",
+    "updated": "17. juni 2026",
+    "sellerTitle": "Selger",
+    "seller": [
+      { "label": "Foretaksnavn", "value": "Islamskole Bærum" },
+      { "label": "Organisasjonsnummer", "value": "917 342 385" },
+      { "label": "Adresse", "value": "Skuiveien 40, 1339 Vøyenenga" },
+      { "label": "E-post", "value": "baerum@islamskole.no" }
+    ],
+    "sections": [
+      {
+        "heading": "Innledning",
+        "body": [
+          "Disse salgsbetingelsene gjelder for påmelding til undervisning og aktiviteter som Islamskole Bærum tilbyr gjennom islamskole.no.",
+          "Avtalen inngås mellom deg som forbruker og Islamskole Bærum som selger. For å melde på må du ha fylt 18 år eller ha samtykke fra en foresatt."
+        ]
+      },
+      {
+        "heading": "Priser",
+        "body": [
+          "Skoleavgiften er 5 000 NOK per skoleår og betales ved påmelding.",
+          "Alle priser er i norske kroner (NOK) og inkluderer alle avgifter. Eventuelle tilleggskostnader opplyses før du fullfører påmeldingen."
+        ]
+      },
+      {
+        "heading": "Betaling",
+        "body": [
+          "Betaling skjer med Vipps ved påmelding. Beløpet belastes når påmeldingen bekreftes.",
+          "Påmeldingen er bindende når betalingen er gjennomført. Du mottar en bekreftelse på e-post."
+        ]
+      },
+      {
+        "heading": "Levering",
+        "body": [
+          "Tjenesten leveres som undervisning på Skuiveien 40, 1339 Vøyenenga i det oppgitte skoleåret (august til juni).",
+          "Påmelding gir rett til deltakelse i det skoleåret det er betalt for."
+        ]
+      },
+      {
+        "heading": "Angrerett og avbestilling",
+        "body": [
+          "Du kan avbestille påmeldingen og få full refusjon når som helst før skoleåret starter.",
+          "Etter at undervisningen har startet, refunderes ikke betalt beløp.",
+          "Avbestilling sendes til baerum@islamskole.no. Refusjon utbetales til samme betalingsmiddel innen rimelig tid."
+        ]
+      },
+      {
+        "heading": "Reklamasjon",
+        "body": [
+          "Hvis det er feil eller mangler ved tjenesten, kan du klage (reklamere) ved å kontakte oss på baerum@islamskole.no.",
+          "Klagen bør sendes innen rimelig tid etter at du oppdaget feilen. Vi behandler henvendelsen så raskt som mulig."
+        ]
+      },
+      {
+        "heading": "Personvern",
+        "body": [
+          "Vi behandler personopplysninger i samsvar med personvernregelverket (GDPR), og bruker opplysningene kun til å administrere påmelding, betaling og undervisning.",
+          "Ønsker du innsyn, retting eller sletting av opplysninger, kontakt oss på baerum@islamskole.no."
+        ]
+      },
+      {
+        "heading": "Tvister og klageorgan",
+        "body": [
+          "Avtalen er underlagt norsk rett.",
+          "Dersom vi ikke blir enige, kan du kontakte Forbrukerrådet for mekling (forbrukerradet.no). Tvister kan bringes inn for de ordinære domstolene med Asker og Bærum tingrett som verneting."
+        ]
+      }
+    ]
   },
   "common": {
     "loading": "Laster…",

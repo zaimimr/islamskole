@@ -472,11 +472,37 @@ export async function deleteTeacherApplication(
   return { ok: true, id };
 }
 
-const studentApplicationSchema = z.object({
-  child_name: z.string().min(1, "Barnets navn er påkrevd"),
-  guardian_name: z.string().min(1, "Foresattes navn er påkrevd"),
-  email: z.string().min(1, "E-post er påkrevd").email("Ugyldig e-postadresse"),
-});
+const genderLabels: Record<string, string> = {
+  gutt: "Gutt",
+  jente: "Jente",
+  annet: "Annet",
+};
+
+function genderLabel(value: string | null) {
+  if (!value) return "-";
+  return genderLabels[value] ?? value;
+}
+
+const studentApplicationSchema = z
+  .object({
+    child_first_name: z.string().min(1, "Barnets fornavn er påkrevd"),
+    child_last_name: z.string().min(1, "Barnets etternavn er påkrevd"),
+    email: z
+      .string()
+      .min(1, "E-post er påkrevd")
+      .email("Ugyldig e-postadresse"),
+    mother_name: z.string(),
+    father_name: z.string(),
+    terms_accepted: z.boolean(),
+  })
+  .refine((v) => v.mother_name.length > 0 || v.father_name.length > 0, {
+    message: "Minst én forelder må fylles ut",
+    path: ["mother_name"],
+  })
+  .refine((v) => v.terms_accepted, {
+    message: "Du må godta salgsbetingelsene",
+    path: ["terms_accepted"],
+  });
 const studentStatusSchema = z.enum([
   "ny",
   "kontaktet",
@@ -496,30 +522,59 @@ export async function createStudentApplication(
     return { ok: false, error: "For mange forsøk, prøv igjen senere." };
   }
 
-  const childName = readString(formData, "child_name");
-  const guardianName = readString(formData, "guardian_name");
+  const childFirstName = readString(formData, "child_first_name");
+  const childLastName = readString(formData, "child_last_name");
   const email = readString(formData, "email");
+  const motherFirstName = readString(formData, "mother_first_name");
+  const motherLastName = readString(formData, "mother_last_name");
+  const fatherFirstName = readString(formData, "father_first_name");
+  const fatherLastName = readString(formData, "father_last_name");
+  const termsAccepted = formData.get("terms_accepted") != null;
+
+  const motherName = `${motherFirstName} ${motherLastName}`.trim();
+  const fatherName = `${fatherFirstName} ${fatherLastName}`.trim();
 
   const parsed = studentApplicationSchema.safeParse({
-    child_name: childName,
-    guardian_name: guardianName,
+    child_first_name: childFirstName,
+    child_last_name: childLastName,
     email,
+    mother_name: motherName,
+    father_name: fatherName,
+    terms_accepted: termsAccepted,
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0].message };
   }
 
+  const childName = `${childFirstName} ${childLastName}`.trim();
+  const guardianName = motherName || fatherName;
+
   const payload = {
     child_name: childName,
+    child_first_name: childFirstName,
+    child_last_name: childLastName,
     birth_date: readOptionalString(formData, "birth_date"),
+    gender: readOptionalString(formData, "gender"),
+    address: readOptionalString(formData, "address"),
+    postal_code: readOptionalString(formData, "postal_code"),
+    city: readOptionalString(formData, "city"),
     guardian_name: guardianName,
     email,
     phone: readOptionalString(formData, "phone"),
+    mother_first_name: readOptionalString(formData, "mother_first_name"),
+    mother_last_name: readOptionalString(formData, "mother_last_name"),
+    mother_phone: readOptionalString(formData, "mother_phone"),
+    mother_email: readOptionalString(formData, "mother_email"),
+    father_first_name: readOptionalString(formData, "father_first_name"),
+    father_last_name: readOptionalString(formData, "father_last_name"),
+    father_phone: readOptionalString(formData, "father_phone"),
+    father_email: readOptionalString(formData, "father_email"),
     desired_class: readOptionalString(formData, "desired_class"),
     level_quran: readOptionalString(formData, "level_quran"),
     level_arabic: readOptionalString(formData, "level_arabic"),
     level_islam: readOptionalString(formData, "level_islam"),
     message: readOptionalString(formData, "message"),
+    terms_accepted: termsAccepted,
   };
 
   const supabase = await createClient();
@@ -538,9 +593,18 @@ export async function createStudentApplication(
       rows: [
         ["Barnets navn", childName],
         ["Fødselsdato", payload.birth_date],
-        ["Foresatt", guardianName],
-        ["E-post", email],
-        ["Telefon", payload.phone],
+        ["Kjønn", genderLabel(payload.gender)],
+        ["Adresse", payload.address],
+        ["Postnummer", payload.postal_code],
+        ["Poststed", payload.city],
+        ["E-post (kontakt)", email],
+        ["Mobil (kontakt)", payload.phone],
+        ["Mor", motherName || "-"],
+        ["Mor - mobil", payload.mother_phone],
+        ["Mor - e-post", payload.mother_email],
+        ["Far", fatherName || "-"],
+        ["Far - mobil", payload.father_phone],
+        ["Far - e-post", payload.father_email],
         ["Ønsket klasse", payload.desired_class],
         ["Nivå - Koran", levelLabel(payload.level_quran)],
         ["Nivå - Arabisk", levelLabel(payload.level_arabic)],

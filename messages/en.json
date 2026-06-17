@@ -137,10 +137,31 @@
     "placeholderChildAge": "E.g. 8",
     "fieldGuardian": "Guardian's name",
     "placeholderGuardian": "First and last name",
-    "fieldEmail": "Guardian's email",
+    "fieldEmail": "Email (contact)",
     "placeholderEmail": "you@email.com",
-    "fieldPhone": "Guardian's phone",
+    "fieldPhone": "Mobile (contact)",
     "placeholderPhone": "Phone number",
+    "sectionStudent": "The student",
+    "sectionMother": "Mother",
+    "sectionFather": "Father",
+    "fieldFirstName": "First name",
+    "fieldLastName": "Last name",
+    "fieldGender": "Gender",
+    "genderPlaceholder": "Select",
+    "gender": { "gutt": "Boy", "jente": "Girl", "annet": "Other" },
+    "fieldAddress": "Address",
+    "placeholderAddress": "Street address",
+    "fieldPostalCode": "Postal code",
+    "placeholderPostalCode": "e.g. 1339",
+    "fieldCity": "City",
+    "placeholderCity": "e.g. Vøyenenga",
+    "fieldParentPhone": "Mobile (contact)",
+    "fieldParentEmail": "Email (contact)",
+    "parentsHint": "Fill in at least one parent.",
+    "feeNote": "School fee NOK 5,000 per school year, paid on enrollment.",
+    "termsLead": "I confirm I have read the rules and accept the",
+    "termsLink": "terms of sale",
+    "termsTail": ", and will respect the payment plan and school hours.",
     "fieldDesiredClass": "Preferred class or age group",
     "placeholderDesiredClass": "E.g. L0 (ages 6-7)",
     "levelsTitle": "Child's level",
@@ -237,7 +258,80 @@
     "tagline": "Sunday school for Muslim children in Bærum.",
     "rights": "All rights reserved.",
     "explore": "Explore",
-    "getInTouch": "Get in touch"
+    "getInTouch": "Get in touch",
+    "legal": "Terms of sale"
+  },
+  "terms": {
+    "title": "Terms of sale",
+    "subtitle": "Terms for enrollment and payment at Islamskole Bærum.",
+    "updatedLabel": "Last updated",
+    "updated": "17 June 2026",
+    "sellerTitle": "Seller",
+    "seller": [
+      { "label": "Company name", "value": "Islamskole Bærum" },
+      { "label": "Organisation number", "value": "917 342 385" },
+      { "label": "Address", "value": "Skuiveien 40, 1339 Vøyenenga" },
+      { "label": "Email", "value": "baerum@islamskole.no" }
+    ],
+    "sections": [
+      {
+        "heading": "Introduction",
+        "body": [
+          "These terms of sale apply to enrollment in the teaching and activities offered by Islamskole Bærum through islamskole.no.",
+          "The agreement is made between you as a consumer and Islamskole Bærum as the seller. To enroll you must be 18 or have consent from a guardian."
+        ]
+      },
+      {
+        "heading": "Prices",
+        "body": [
+          "The school fee is NOK 5,000 per school year and is paid on enrollment.",
+          "All prices are in Norwegian kroner (NOK) and include all charges. Any additional costs are stated before you complete your enrollment."
+        ]
+      },
+      {
+        "heading": "Payment",
+        "body": [
+          "Payment is made with Vipps on enrollment. The amount is charged when the enrollment is confirmed.",
+          "The enrollment is binding once payment is completed. You receive a confirmation by email."
+        ]
+      },
+      {
+        "heading": "Delivery",
+        "body": [
+          "The service is delivered as teaching at Skuiveien 40, 1339 Vøyenenga during the stated school year (August to June).",
+          "Enrollment grants the right to take part in the school year that has been paid for."
+        ]
+      },
+      {
+        "heading": "Right of withdrawal and cancellation",
+        "body": [
+          "You may cancel your enrollment and receive a full refund at any time before the school year starts.",
+          "After teaching has started, the amount paid is not refunded.",
+          "Cancellations are sent to baerum@islamskole.no. Refunds are paid to the same payment method within a reasonable time."
+        ]
+      },
+      {
+        "heading": "Complaints",
+        "body": [
+          "If there is a fault or defect in the service, you can complain by contacting us at baerum@islamskole.no.",
+          "The complaint should be sent within a reasonable time after you discovered the fault. We handle it as quickly as possible."
+        ]
+      },
+      {
+        "heading": "Privacy",
+        "body": [
+          "We process personal data in accordance with privacy law (GDPR), and use the data only to administer enrollment, payment and teaching.",
+          "To request access, correction or deletion of your data, contact us at baerum@islamskole.no."
+        ]
+      },
+      {
+        "heading": "Disputes and complaint body",
+        "body": [
+          "The agreement is governed by Norwegian law.",
+          "If we cannot reach agreement, you may contact the Norwegian Consumer Council (forbrukerradet.no) for mediation. Disputes may be brought before the ordinary courts, with Asker og Bærum district court as legal venue."
+        ]
+      }
+    ]
   },
   "common": {
     "loading": "Loading…",

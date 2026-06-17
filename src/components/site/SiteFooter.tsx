@@ -137,9 +137,15 @@ export async function SiteFooter({
           <div className="section-shell flex flex-col items-center justify-between gap-2 py-5 text-sm text-primary-foreground/70 sm:flex-row">
             <p>
               &copy; {new Date().getFullYear()} Islamskole Bærum.{" "}
-              {t("footer.rights")}
+              {t("footer.rights")} Org.nr 917 342 385.
             </p>
             <div className="flex items-center gap-4">
+              <Link
+                href="/salgsbetingelser"
+                className="font-semibold transition-colors hover:text-primary-foreground focus-visible:underline outline-none"
+              >
+                {t("footer.legal")}
+              </Link>
               <span>Skuiveien 40, 1339 Vøyenenga</span>
               <NextLink
                 href={accountHref}

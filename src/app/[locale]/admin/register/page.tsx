@@ -28,9 +28,21 @@ type StudentApplicationRow = {
   child_name: string | null;
   child_age: number | null;
   birth_date: string | null;
+  gender: string | null;
+  address: string | null;
+  postal_code: string | null;
+  city: string | null;
   guardian_name: string | null;
   email: string | null;
   phone: string | null;
+  mother_first_name: string | null;
+  mother_last_name: string | null;
+  mother_phone: string | null;
+  mother_email: string | null;
+  father_first_name: string | null;
+  father_last_name: string | null;
+  father_phone: string | null;
+  father_email: string | null;
   desired_class: string | null;
   level_quran: string | null;
   level_arabic: string | null;
@@ -39,6 +51,29 @@ type StudentApplicationRow = {
   status: string | null;
   created_at: string | null;
 };
+
+const genderLabels: Record<string, string> = {
+  gutt: "Gutt",
+  jente: "Jente",
+  annet: "Annet",
+};
+
+function genderLabel(value: string | null): string {
+  if (!value) return "-";
+  return genderLabels[value] ?? value;
+}
+
+function fullName(first: string | null, last: string | null): string {
+  return `${first ?? ""} ${last ?? ""}`.trim();
+}
+
+function addressLine(app: StudentApplicationRow): string {
+  const parts = [
+    app.address,
+    [app.postal_code, app.city].filter(Boolean).join(" "),
+  ].filter((p) => p && p.length > 0);
+  return parts.length ? parts.join(", ") : "-";
+}
 
 function ageFromBirthDate(value: string | null): number | null {
   if (!value) return null;
@@ -77,7 +112,7 @@ async function getApplications(
     let query = supabase
       .from("student_applications")
       .select(
-        "id, child_name, child_age, birth_date, guardian_name, email, phone, desired_class, level_quran, level_arabic, level_islam, message, status, created_at",
+        "id, child_name, child_age, birth_date, gender, address, postal_code, city, guardian_name, email, phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, desired_class, level_quran, level_arabic, level_islam, message, status, created_at",
       )
       .order("created_at", { ascending: false });
 
@@ -210,9 +245,12 @@ export default async function PameldingerPage({
                   </TableHead>
                   <TableHead>Barn</TableHead>
                   <TableHead>Alder</TableHead>
-                  <TableHead>Foresatt</TableHead>
+                  <TableHead>Kjønn</TableHead>
+                  <TableHead>Adresse</TableHead>
                   <TableHead>E-post</TableHead>
                   <TableHead>Telefon</TableHead>
+                  <TableHead>Mor</TableHead>
+                  <TableHead>Far</TableHead>
                   <TableHead>Ønsket klasse</TableHead>
                   <TableHead>Nivå (Koran / Arabisk / Islam)</TableHead>
                   <TableHead>Status</TableHead>
@@ -230,7 +268,10 @@ export default async function PameldingerPage({
                       {application.child_name ?? "-"}
                     </TableCell>
                     <TableCell>{displayAge(application)}</TableCell>
-                    <TableCell>{application.guardian_name ?? "-"}</TableCell>
+                    <TableCell>{genderLabel(application.gender)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {addressLine(application)}
+                    </TableCell>
                     <TableCell>
                       {application.email ? (
                         <a
@@ -244,6 +285,24 @@ export default async function PameldingerPage({
                       )}
                     </TableCell>
                     <TableCell>{application.phone ?? "-"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {fullName(
+                        application.mother_first_name,
+                        application.mother_last_name,
+                      ) || "-"}
+                      {application.mother_phone
+                        ? ` · ${application.mother_phone}`
+                        : ""}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {fullName(
+                        application.father_first_name,
+                        application.father_last_name,
+                      ) || "-"}
+                      {application.father_phone
+                        ? ` · ${application.father_phone}`
+                        : ""}
+                    </TableCell>
                     <TableCell>{application.desired_class ?? "-"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {levelLabel(application.level_quran)} /{" "}
