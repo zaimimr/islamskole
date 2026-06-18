@@ -74,7 +74,7 @@ export default async function ElevDetailPage({
     supabase
       .from("payments")
       .select(
-        "id, amount, currency, description, status, redirect_url, created_at, school_years(label)",
+        "id, amount, currency, description, status, method, paid_at, redirect_url, created_at, school_years(label)",
       )
       .eq("student_id", id)
       .order("created_at", { ascending: false }),
@@ -139,15 +139,19 @@ export default async function ElevDetailPage({
     currency: p.currency,
     description: p.description,
     status: p.status,
+    method: p.method,
+    paid_at: p.paid_at,
     redirect_url: p.redirect_url,
     created_at: p.created_at,
     schoolYear: p.school_years?.label ?? null,
   }));
 
-  const enrollmentOptions = enrollments.map((e) => ({
-    id: e.id,
-    label: `${e.className} · ${e.schoolYear}`,
-  }));
+  const classByYear: Record<string, string> = {};
+  for (const e of enrollmentRaw) {
+    if (e.status === "aktiv" && !classByYear[e.school_year_id]) {
+      classByYear[e.school_year_id] = e.classes?.name_no ?? "(uten navn)";
+    }
+  }
 
   return (
     <div className="grid gap-6">
@@ -169,7 +173,7 @@ export default async function ElevDetailPage({
 
       <PaymentManager
         studentId={student.id}
-        enrollments={enrollmentOptions}
+        classByYear={classByYear}
         schoolYears={schoolYears}
         defaultSchoolYearId={defaultSchoolYearId}
         defaultAmount={defaultAmount}

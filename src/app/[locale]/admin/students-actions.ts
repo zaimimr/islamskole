@@ -64,23 +64,50 @@ function uniqueEmails(...values: (string | null | undefined)[]): string[] {
   ];
 }
 
+const required = (message: string) =>
+  z.preprocess((v) => v ?? "", z.string().min(1, message));
+
 const studentSchema = z.object({
-  full_name: z.string().min(1, "Navn er påkrevd"),
-  guardian_name: z.string().min(1, "Foresattes navn er påkrevd"),
+  child_first_name: required("Barnets fornavn er påkrevd"),
+  child_last_name: required("Barnets etternavn er påkrevd"),
+  guardian_name: required("Minst én forelder må fylles ut"),
 });
 
+function joinName(first: string | null, last: string | null): string {
+  return [first, last].filter((p) => p && p.trim()).join(" ").trim();
+}
+
 function readStudentPayload(formData: FormData) {
+  const childFirstName = readOptionalString(formData, "child_first_name");
+  const childLastName = readOptionalString(formData, "child_last_name");
+  const motherFirstName = readOptionalString(formData, "mother_first_name");
+  const motherLastName = readOptionalString(formData, "mother_last_name");
+  const fatherFirstName = readOptionalString(formData, "father_first_name");
+  const fatherLastName = readOptionalString(formData, "father_last_name");
+
+  const motherName = joinName(motherFirstName, motherLastName);
+  const fatherName = joinName(fatherFirstName, fatherLastName);
+
   return {
-    full_name: readString(formData, "full_name"),
+    full_name: joinName(childFirstName, childLastName),
+    child_first_name: childFirstName,
+    child_last_name: childLastName,
     birth_date: readOptionalString(formData, "birth_date"),
-    guardian_name: readString(formData, "guardian_name"),
+    gender: readOptionalString(formData, "gender"),
+    address: readOptionalString(formData, "address"),
+    postal_code: readOptionalString(formData, "postal_code"),
+    city: readOptionalString(formData, "city"),
+    guardian_name: motherName || fatherName,
     email: readOptionalString(formData, "email"),
     phone: readOptionalString(formData, "phone"),
-    guardian2_name: readOptionalString(formData, "guardian2_name"),
-    guardian2_email: readOptionalString(formData, "guardian2_email"),
-    guardian2_phone: readOptionalString(formData, "guardian2_phone"),
-    student_email: readOptionalString(formData, "student_email"),
-    student_phone: readOptionalString(formData, "student_phone"),
+    mother_first_name: motherFirstName,
+    mother_last_name: motherLastName,
+    mother_phone: readOptionalString(formData, "mother_phone"),
+    mother_email: readOptionalString(formData, "mother_email"),
+    father_first_name: fatherFirstName,
+    father_last_name: fatherLastName,
+    father_phone: readOptionalString(formData, "father_phone"),
+    father_email: readOptionalString(formData, "father_email"),
     level_quran: readOptionalString(formData, "level_quran"),
     level_arabic: readOptionalString(formData, "level_arabic"),
     level_islam: readOptionalString(formData, "level_islam"),
@@ -546,6 +573,109 @@ export async function createVippsPayment(
     emailed,
     emailedTo: emailed ? recipients.length : 0,
   };
+}
+
+const manualPaymentSchema = z.object({
+  student_id: z.string().min(1),
+  school_year_id: z.string().min(1, "Velg et skoleår"),
+  amount_nok: z.number().positive("Beløp må være større enn 0"),
+  paid_at: z.string().min(1, "Velg dato for betalingen"),
+  method: z.enum(["kontant", "bank", "annet"], {
+    message: "Velg betalingsmåte",
+  }),
+});
+
+export async function registerManualPayment(
+  formData: FormData,
+): Promise<ActionResult> {
+  await requireAdmin();
+
+  const payload = {
+    student_id: readString(formData, "student_id"),
+    school_year_id: readString(formData, "school_year_id"),
+    amount_nok: readNumber(formData, "amount_nok") ?? 0,
+    paid_at: readString(formData, "paid_at"),
+    method: readString(formData, "method"),
+  };
+
+  const parsed = manualPaymentSchema.safeParse(payload);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message };
+  }
+
+  const supabase = await createClient();
+
+  const { data: enrollmentRow } = await supabase
+    .from("enrollments")
+    .select("id, classes(name_no)")
+    .eq("student_id", payload.student_id)
+    .eq("school_year_id", payload.school_year_id)
+    .eq("status", "aktiv")
+    .limit(1)
+    .maybeSingle();
+  const enrollment = enrollmentRow as unknown as {
+    id: string;
+    classes: { name_no: string | null } | null;
+  } | null;
+  if (!enrollment) {
+    return {
+      ok: false,
+      error:
+        "Eleven må plasseres i en klasse for dette skoleåret før du kan registrere betaling.",
+    };
+  }
+
+  const { data: alreadyPaid } = await supabase
+    .from("payments")
+    .select("id")
+    .eq("student_id", payload.student_id)
+    .eq("school_year_id", payload.school_year_id)
+    .eq("status", "fanget")
+    .limit(1);
+  if ((alreadyPaid as unknown[] | null)?.length) {
+    return {
+      ok: false,
+      error: "Eleven er allerede registrert som betalt for dette skoleåret.",
+    };
+  }
+
+  const { data: year } = await supabase
+    .from("school_years")
+    .select("label")
+    .eq("id", payload.school_year_id)
+    .maybeSingle();
+  const yearLabel = (year as unknown as { label: string } | null)?.label ?? null;
+  const className = enrollment.classes?.name_no ?? null;
+
+  const methodLabels: Record<string, string> = {
+    kontant: "Kontant",
+    bank: "Bankoverføring",
+    annet: "Annet",
+  };
+  const note = readOptionalString(formData, "note");
+  const descriptionParts = [
+    `Skolepenger${yearLabel ? ` ${yearLabel}` : ""}`,
+    className,
+    methodLabels[payload.method],
+    note,
+  ].filter(Boolean);
+
+  const { error } = await supabase.from("payments").insert({
+    student_id: payload.student_id,
+    enrollment_id: enrollment.id,
+    school_year_id: payload.school_year_id,
+    reference: `manual-${randomUUID()}`,
+    amount: Math.round(payload.amount_nok * 100),
+    description: descriptionParts.join(" · "),
+    status: "fanget",
+    method: payload.method,
+    paid_at: payload.paid_at,
+    captured_at: payload.paid_at,
+  } as never);
+
+  if (error) return { ok: false, error: error.message };
+  revalidate();
+  return { ok: true };
 }
 
 type BatchEnrollment = {

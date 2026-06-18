@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import {
   createVippsPayment,
+  registerManualPayment,
   syncPaymentStatus,
   captureVippsPayment,
   refundVippsPayment,
@@ -36,7 +37,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export type EnrollmentOption = { id: string; label: string };
 export type SchoolYearOption = { id: string; label: string };
 export type PaymentRow = {
   id: string;
@@ -45,6 +45,8 @@ export type PaymentRow = {
   schoolYear: string | null;
   description: string | null;
   status: string;
+  method: string;
+  paid_at: string | null;
   redirect_url: string | null;
   created_at: string | null;
 };
@@ -56,6 +58,13 @@ const statusLabels: Record<string, string> = {
   avbrutt: "Avbrutt",
   refundert: "Refundert",
   feilet: "Feilet",
+};
+
+const methodLabels: Record<string, string> = {
+  vipps: "Vipps",
+  kontant: "Kontant",
+  bank: "Bankoverføring",
+  annet: "Annet",
 };
 
 function statusVariant(status: string): "default" | "secondary" | "destructive" {
@@ -77,14 +86,14 @@ function formatDate(value: string | null) {
 
 export function PaymentManager({
   studentId,
-  enrollments,
+  classByYear,
   schoolYears,
   defaultSchoolYearId,
   defaultAmount,
   payments,
 }: {
   studentId: string;
-  enrollments: EnrollmentOption[];
+  classByYear: Record<string, string>;
   schoolYears: SchoolYearOption[];
   defaultSchoolYearId: string | null;
   defaultAmount: number | null;
@@ -92,9 +101,15 @@ export function PaymentManager({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [year, setYear] = useState(
+    defaultSchoolYearId ?? schoolYears[0]?.id ?? "",
+  );
+
+  const currentClass = classByYear[year] ?? null;
 
   function handleCreate(formData: FormData) {
     formData.set("student_id", studentId);
+    formData.set("school_year_id", year);
     startTransition(async () => {
       const result = await createVippsPayment(formData);
       if (result.ok) {
@@ -105,6 +120,20 @@ export function PaymentManager({
               } på e-post`
             : "Betaling opprettet (ingen foresatt har e-post - bruk Kopier/Send-knappene)",
         );
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
+
+  function handleManual(formData: FormData) {
+    formData.set("student_id", studentId);
+    formData.set("school_year_id", year);
+    startTransition(async () => {
+      const result = await registerManualPayment(formData);
+      if (result.ok) {
+        toast.success("Betaling registrert");
         router.refresh();
       } else {
         toast.error(result.error);
@@ -138,13 +167,46 @@ export function PaymentManager({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Betaling (Vipps)</CardTitle>
+        <CardTitle>Betaling</CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-5">
+      <CardContent className="grid gap-6">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+          <div className="grid gap-2">
+            <Label htmlFor="payment_year" required>Skoleår</Label>
+            <select
+              id="payment_year"
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+              className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
+            >
+              {schoolYears.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid gap-2">
+            <Label>Klasse</Label>
+            {currentClass ? (
+              <p className="flex h-9 items-center text-sm font-medium">
+                {currentClass}
+              </p>
+            ) : (
+              <p className="flex h-9 items-center text-sm text-destructive">
+                Ikke plassert i en klasse dette skoleåret
+              </p>
+            )}
+          </div>
+        </div>
+
         <form
           action={handleCreate}
-          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
+          className="grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
         >
+          <p className="text-sm font-medium sm:col-span-2 lg:col-span-4">
+            Vipps-betaling
+          </p>
           <div className="grid gap-2">
             <Label htmlFor="amount_nok" required>Beløp (kr)</Label>
             <Input
@@ -157,40 +219,71 @@ export function PaymentManager({
               defaultValue={defaultAmount ?? ""}
             />
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="payment_year" required>Skoleår</Label>
-            <select
-              id="payment_year"
-              name="school_year_id"
-              required
-              defaultValue={defaultSchoolYearId ?? ""}
-              className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
-            >
-              {schoolYears.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="enrollment_id">Klasse (valgfritt)</Label>
-            <select
-              id="enrollment_id"
-              name="enrollment_id"
-              className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
-            >
-              <option value="">Ingen</option>
-              {enrollments.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" disabled={pending || !currentClass}>
             {pending ? <Loader2 className="size-4 animate-spin" /> : null}
             Opprett betaling
+          </Button>
+        </form>
+
+        <form
+          action={handleManual}
+          className="grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
+        >
+          <p className="text-sm font-medium sm:col-span-2 lg:col-span-4">
+            Registrer betaling fra annen kilde
+          </p>
+          <div className="grid gap-2">
+            <Label htmlFor="manual_amount" required>Beløp (kr)</Label>
+            <Input
+              id="manual_amount"
+              name="amount_nok"
+              type="number"
+              min="1"
+              step="1"
+              required
+              defaultValue={defaultAmount ?? ""}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="manual_paid_at" required>Betalt dato</Label>
+            <Input
+              id="manual_paid_at"
+              name="paid_at"
+              type="date"
+              required
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="manual_method" required>Betalingsmåte</Label>
+            <select
+              id="manual_method"
+              name="method"
+              required
+              defaultValue="kontant"
+              className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
+            >
+              <option value="kontant">Kontant</option>
+              <option value="bank">Bankoverføring</option>
+              <option value="annet">Annet</option>
+            </select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="manual_note">Notat</Label>
+            <Input
+              id="manual_note"
+              name="note"
+              type="text"
+              placeholder="Valgfritt"
+            />
+          </div>
+          <Button
+            type="submit"
+            variant="secondary"
+            disabled={pending || !currentClass}
+            className="lg:col-start-4"
+          >
+            {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+            Registrer betaling
           </Button>
         </form>
 
@@ -204,140 +297,173 @@ export function PaymentManager({
               <TableRow>
                 <TableHead>Beløp</TableHead>
                 <TableHead>Skoleår</TableHead>
+                <TableHead>Måte</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Dato</TableHead>
                 <TableHead className="text-right">Handlinger</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {payments.map((payment) => (
-                <TableRow key={payment.id}>
-                  <TableCell className="font-medium">
-                    {formatAmount(payment.amount, payment.currency)}
-                  </TableCell>
-                  <TableCell>{payment.schoolYear ?? "-"}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant(payment.status)}>
-                      {statusLabels[payment.status] ?? payment.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{formatDate(payment.created_at)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Kopier betalingslenke"
-                        title="Kopier betalingslenke"
-                        onClick={() => copyLink(payment.id)}
-                      >
-                        <Link2 className="size-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Send lenke på e-post"
-                        title="Send betalingslenke til foresatte på e-post"
-                        disabled={pending}
-                        onClick={() =>
-                          run(
-                            () => sendPaymentLink(payment.id),
-                            "Betalingslenke sendt",
-                          )
-                        }
-                      >
-                        <Mail className="size-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Synkroniser status"
-                        title="Hent oppdatert status fra Vipps"
-                        disabled={pending}
-                        onClick={() =>
-                          run(
-                            () => syncPaymentStatus(payment.id),
-                            "Status oppdatert",
-                          )
-                        }
-                      >
-                        <RefreshCw className="size-4" />
-                      </Button>
-                      {payment.status === "autorisert" ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Kapre betaling"
-                          title="Kapre betaling – trekk de reserverte pengene (gjør den til Betalt)"
-                          disabled={pending}
-                          onClick={() =>
-                            run(
-                              () => captureVippsPayment(payment.id),
-                              "Betaling kapret",
-                            )
-                          }
-                        >
-                          <Check className="size-4" />
-                        </Button>
-                      ) : null}
-                      {payment.status === "opprettet" ||
-                      payment.status === "autorisert" ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Avbryt betaling"
-                          title="Avbryt betaling (kanseller før den er trukket)"
-                          disabled={pending}
-                          onClick={() =>
-                            run(
-                              () => cancelVippsPayment(payment.id),
-                              "Betaling avbrutt",
-                            )
-                          }
-                        >
-                          <Ban className="size-4" />
-                        </Button>
-                      ) : null}
-                      {payment.status === "fanget" ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Refunder betaling"
-                          title="Refunder betaling (betal tilbake til foresatt)"
-                          disabled={pending}
-                          onClick={() =>
-                            run(
-                              () => refundVippsPayment(payment.id),
-                              "Betaling refundert",
-                            )
-                          }
-                        >
-                          <Undo2 className="size-4" />
-                        </Button>
-                      ) : null}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Slett betaling"
-                        title="Slett betalingen fra listen"
-                        disabled={pending}
-                        onClick={() =>
-                          run(() => deletePayment(payment.id), "Betaling slettet")
-                        }
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {payments.map((payment) => {
+                const isManual = payment.method !== "vipps";
+                return (
+                  <TableRow key={payment.id}>
+                    <TableCell className="font-medium">
+                      {formatAmount(payment.amount, payment.currency)}
+                    </TableCell>
+                    <TableCell>{payment.schoolYear ?? "-"}</TableCell>
+                    <TableCell>
+                      {methodLabels[payment.method] ?? payment.method}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusVariant(payment.status)}>
+                        {statusLabels[payment.status] ?? payment.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {formatDate(payment.paid_at ?? payment.created_at)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        {isManual ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Slett betaling"
+                            title="Slett betalingen fra listen"
+                            disabled={pending}
+                            onClick={() =>
+                              run(
+                                () => deletePayment(payment.id),
+                                "Betaling slettet",
+                              )
+                            }
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        ) : (
+                          <>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Kopier betalingslenke"
+                              title="Kopier betalingslenke"
+                              onClick={() => copyLink(payment.id)}
+                            >
+                              <Link2 className="size-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Send lenke på e-post"
+                              title="Send betalingslenke til foresatte på e-post"
+                              disabled={pending}
+                              onClick={() =>
+                                run(
+                                  () => sendPaymentLink(payment.id),
+                                  "Betalingslenke sendt",
+                                )
+                              }
+                            >
+                              <Mail className="size-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Synkroniser status"
+                              title="Hent oppdatert status fra Vipps"
+                              disabled={pending}
+                              onClick={() =>
+                                run(
+                                  () => syncPaymentStatus(payment.id),
+                                  "Status oppdatert",
+                                )
+                              }
+                            >
+                              <RefreshCw className="size-4" />
+                            </Button>
+                            {payment.status === "autorisert" ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Kapre betaling"
+                                title="Kapre betaling – trekk de reserverte pengene (gjør den til Betalt)"
+                                disabled={pending}
+                                onClick={() =>
+                                  run(
+                                    () => captureVippsPayment(payment.id),
+                                    "Betaling kapret",
+                                  )
+                                }
+                              >
+                                <Check className="size-4" />
+                              </Button>
+                            ) : null}
+                            {payment.status === "opprettet" ||
+                            payment.status === "autorisert" ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Avbryt betaling"
+                                title="Avbryt betaling (kanseller før den er trukket)"
+                                disabled={pending}
+                                onClick={() =>
+                                  run(
+                                    () => cancelVippsPayment(payment.id),
+                                    "Betaling avbrutt",
+                                  )
+                                }
+                              >
+                                <Ban className="size-4" />
+                              </Button>
+                            ) : null}
+                            {payment.status === "fanget" ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Refunder betaling"
+                                title="Refunder betaling (betal tilbake til foresatt)"
+                                disabled={pending}
+                                onClick={() =>
+                                  run(
+                                    () => refundVippsPayment(payment.id),
+                                    "Betaling refundert",
+                                  )
+                                }
+                              >
+                                <Undo2 className="size-4" />
+                              </Button>
+                            ) : null}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Slett betaling"
+                              title="Slett betalingen fra listen"
+                              disabled={pending}
+                              onClick={() =>
+                                run(
+                                  () => deletePayment(payment.id),
+                                  "Betaling slettet",
+                                )
+                              }
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}
