@@ -33,6 +33,8 @@ type PaymentWithStudent = {
     guardian_name: string | null;
     email: string | null;
     guardian2_email: string | null;
+    mother_email: string | null;
+    father_email: string | null;
   } | null;
 };
 
@@ -68,7 +70,7 @@ export async function syncPaymentByReference(
   const { data: existing } = await admin
     .from("payments")
     .select(
-      "status, amount, school_years(label), enrollments(classes(name_no)), students(full_name, guardian_name, email, guardian2_email)",
+      "status, amount, school_years(label), enrollments(classes(name_no)), students(full_name, guardian_name, email, guardian2_email, mother_email, father_email)",
     )
     .eq("reference", reference)
     .maybeSingle();
@@ -88,7 +90,12 @@ export async function syncPaymentByReference(
 
   const receiptRecipients = [
     ...new Set(
-      [payment?.students?.email, payment?.students?.guardian2_email]
+      [
+        payment?.students?.email,
+        payment?.students?.mother_email,
+        payment?.students?.father_email,
+        payment?.students?.guardian2_email,
+      ]
         .filter((e): e is string => Boolean(e && e.trim()))
         .map((e) => e.trim().toLowerCase()),
     ),

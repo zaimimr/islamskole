@@ -17,20 +17,31 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export type StudentRecord = {
   id: string;
   full_name: string | null;
+  child_first_name: string | null;
+  child_last_name: string | null;
   birth_date: string | null;
-  guardian_name: string | null;
+  gender: string | null;
+  address: string | null;
+  postal_code: string | null;
+  city: string | null;
   email: string | null;
   phone: string | null;
-  guardian2_name: string | null;
-  guardian2_email: string | null;
-  guardian2_phone: string | null;
-  student_email: string | null;
-  student_phone: string | null;
+  mother_first_name: string | null;
+  mother_last_name: string | null;
+  mother_phone: string | null;
+  mother_email: string | null;
+  father_first_name: string | null;
+  father_last_name: string | null;
+  father_phone: string | null;
+  father_email: string | null;
   level_quran: string | null;
   level_arabic: string | null;
   level_islam: string | null;
   notes: string | null;
 };
+
+const selectClassName =
+  "h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs";
 
 const levelOptions = [
   { value: "", label: "Ikke satt" },
@@ -38,6 +49,12 @@ const levelOptions = [
   { value: "litt", label: "Litt erfaring" },
   { value: "middels", label: "Middels" },
   { value: "god", label: "God" },
+];
+
+const genderOptions = [
+  { value: "", label: "Ikke satt" },
+  { value: "gutt", label: "Gutt" },
+  { value: "jente", label: "Jente" },
 ];
 
 function LevelSelect({
@@ -56,7 +73,7 @@ function LevelSelect({
         id={name}
         name={name}
         defaultValue={defaultValue ?? ""}
-        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
+        className={selectClassName}
       >
         {levelOptions.map((option) => (
           <option key={option.value} value={option.value}>
@@ -102,14 +119,29 @@ export function StudentForm({
         <CardContent className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="full_name" required>Navn</Label>
+              <Label htmlFor="child_first_name" required>
+                Fornavn
+              </Label>
               <Input
-                id="full_name"
-                name="full_name"
+                id="child_first_name"
+                name="child_first_name"
                 required
-                defaultValue={student?.full_name ?? ""}
+                defaultValue={student?.child_first_name ?? ""}
               />
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="child_last_name" required>
+                Etternavn
+              </Label>
+              <Input
+                id="child_last_name"
+                name="child_last_name"
+                required
+                defaultValue={student?.child_last_name ?? ""}
+              />
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="birth_date">Fødselsdato</Label>
               <Input
@@ -119,27 +151,51 @@ export function StudentForm({
                 defaultValue={student?.birth_date ?? ""}
               />
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="gender">Kjønn</Label>
+              <select
+                id="gender"
+                name="gender"
+                defaultValue={student?.gender ?? ""}
+                className={selectClassName}
+              >
+                {genderOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Foresatt 1</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4">
           <div className="grid gap-2">
-            <Label htmlFor="guardian_name" required>Navn</Label>
+            <Label htmlFor="address">Adresse</Label>
             <Input
-              id="guardian_name"
-              name="guardian_name"
-              required
-              defaultValue={student?.guardian_name ?? ""}
+              id="address"
+              name="address"
+              defaultValue={student?.address ?? ""}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="email">E-post</Label>
+              <Label htmlFor="postal_code">Postnummer</Label>
+              <Input
+                id="postal_code"
+                name="postal_code"
+                defaultValue={student?.postal_code ?? ""}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="city">Poststed</Label>
+              <Input
+                id="city"
+                name="city"
+                defaultValue={student?.city ?? ""}
+              />
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="email">E-post (kontakt)</Label>
               <Input
                 id="email"
                 name="email"
@@ -148,10 +204,11 @@ export function StudentForm({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="phone">Telefon</Label>
+              <Label htmlFor="phone">Telefon (kontakt)</Label>
               <Input
                 id="phone"
                 name="phone"
+                type="tel"
                 defaultValue={student?.phone ?? ""}
               />
             </div>
@@ -161,33 +218,90 @@ export function StudentForm({
 
       <Card>
         <CardHeader>
-          <CardTitle>Foresatt 2 (valgfritt)</CardTitle>
+          <CardTitle>Mor</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="guardian2_name">Navn</Label>
-            <Input
-              id="guardian2_name"
-              name="guardian2_name"
-              defaultValue={student?.guardian2_name ?? ""}
-            />
-          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="guardian2_email">E-post</Label>
+              <Label htmlFor="mother_first_name">Fornavn</Label>
               <Input
-                id="guardian2_email"
-                name="guardian2_email"
-                type="email"
-                defaultValue={student?.guardian2_email ?? ""}
+                id="mother_first_name"
+                name="mother_first_name"
+                defaultValue={student?.mother_first_name ?? ""}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="guardian2_phone">Telefon</Label>
+              <Label htmlFor="mother_last_name">Etternavn</Label>
               <Input
-                id="guardian2_phone"
-                name="guardian2_phone"
-                defaultValue={student?.guardian2_phone ?? ""}
+                id="mother_last_name"
+                name="mother_last_name"
+                defaultValue={student?.mother_last_name ?? ""}
+              />
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="mother_phone">Telefon</Label>
+              <Input
+                id="mother_phone"
+                name="mother_phone"
+                type="tel"
+                defaultValue={student?.mother_phone ?? ""}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="mother_email">E-post</Label>
+              <Input
+                id="mother_email"
+                name="mother_email"
+                type="email"
+                defaultValue={student?.mother_email ?? ""}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Far</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="father_first_name">Fornavn</Label>
+              <Input
+                id="father_first_name"
+                name="father_first_name"
+                defaultValue={student?.father_first_name ?? ""}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="father_last_name">Etternavn</Label>
+              <Input
+                id="father_last_name"
+                name="father_last_name"
+                defaultValue={student?.father_last_name ?? ""}
+              />
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="father_phone">Telefon</Label>
+              <Input
+                id="father_phone"
+                name="father_phone"
+                type="tel"
+                defaultValue={student?.father_phone ?? ""}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="father_email">E-post</Label>
+              <Input
+                id="father_email"
+                name="father_email"
+                type="email"
+                defaultValue={student?.father_email ?? ""}
               />
             </div>
           </div>
@@ -195,31 +309,6 @@ export function StudentForm({
             Betalingslenken sendes til e-posten til begge foresatte. Når én har
             betalt, ser den andre kvitteringssiden.
           </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Elevens kontakt (valgfritt)</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
-          <div className="grid gap-2">
-            <Label htmlFor="student_email">E-post</Label>
-            <Input
-              id="student_email"
-              name="student_email"
-              type="email"
-              defaultValue={student?.student_email ?? ""}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="student_phone">Telefon</Label>
-            <Input
-              id="student_phone"
-              name="student_phone"
-              defaultValue={student?.student_phone ?? ""}
-            />
-          </div>
         </CardContent>
       </Card>
 

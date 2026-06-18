@@ -146,7 +146,7 @@ export async function createStudentFromApplication(
   const { data: application, error: appError } = await supabase
     .from("student_applications")
     .select(
-      "id, child_name, child_age, birth_date, guardian_name, email, phone, level_quran, level_arabic, level_islam, message",
+      "id, child_name, child_first_name, child_last_name, child_age, birth_date, gender, address, postal_code, city, guardian_name, email, phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, level_quran, level_arabic, level_islam, message",
     )
     .eq("id", applicationId)
     .maybeSingle();
@@ -156,25 +156,56 @@ export async function createStudentFromApplication(
 
   const app = application as unknown as {
     child_name: string;
+    child_first_name: string | null;
+    child_last_name: string | null;
     child_age: number | null;
     birth_date: string | null;
+    gender: string | null;
+    address: string | null;
+    postal_code: string | null;
+    city: string | null;
     guardian_name: string;
     email: string | null;
     phone: string | null;
+    mother_first_name: string | null;
+    mother_last_name: string | null;
+    mother_phone: string | null;
+    mother_email: string | null;
+    father_first_name: string | null;
+    father_last_name: string | null;
+    father_phone: string | null;
+    father_email: string | null;
     level_quran: string | null;
     level_arabic: string | null;
     level_islam: string | null;
     message: string | null;
   };
 
+  const motherName = joinName(app.mother_first_name, app.mother_last_name);
+  const fatherName = joinName(app.father_first_name, app.father_last_name);
+
   const payload = {
     application_id: applicationId,
-    full_name: app.child_name,
+    full_name: joinName(app.child_first_name, app.child_last_name) || app.child_name,
+    child_first_name: app.child_first_name,
+    child_last_name: app.child_last_name,
     child_age: app.child_age,
     birth_date: app.birth_date,
-    guardian_name: app.guardian_name,
+    gender: app.gender,
+    address: app.address,
+    postal_code: app.postal_code,
+    city: app.city,
+    guardian_name: motherName || fatherName || app.guardian_name,
     email: app.email,
     phone: app.phone,
+    mother_first_name: app.mother_first_name,
+    mother_last_name: app.mother_last_name,
+    mother_phone: app.mother_phone,
+    mother_email: app.mother_email,
+    father_first_name: app.father_first_name,
+    father_last_name: app.father_last_name,
+    father_phone: app.father_phone,
+    father_email: app.father_email,
     level_quran: app.level_quran,
     level_arabic: app.level_arabic,
     level_islam: app.level_islam,
@@ -483,7 +514,9 @@ export async function createVippsPayment(
 
   const { data: student } = await supabase
     .from("students")
-    .select("phone, email, full_name, guardian_name, guardian2_email")
+    .select(
+      "phone, email, full_name, guardian_name, guardian2_email, mother_email, father_email",
+    )
     .eq("id", studentId)
     .maybeSingle();
   const studentRow = student as unknown as {
@@ -492,10 +525,14 @@ export async function createVippsPayment(
     full_name: string | null;
     guardian_name: string | null;
     guardian2_email: string | null;
+    mother_email: string | null;
+    father_email: string | null;
   } | null;
   const phone = studentRow?.phone;
   const recipients = uniqueEmails(
     studentRow?.email,
+    studentRow?.mother_email,
+    studentRow?.father_email,
     studentRow?.guardian2_email,
   );
 
@@ -688,6 +725,8 @@ type BatchEnrollment = {
     guardian_name: string | null;
     email: string | null;
     guardian2_email: string | null;
+    mother_email: string | null;
+    father_email: string | null;
     phone: string | null;
   } | null;
 };
@@ -720,7 +759,7 @@ export async function batchSendPaymentLinks(
   const { data: enr } = await supabase
     .from("enrollments")
     .select(
-      "id, student_id, price_snapshot, classes(name_no, price), students(full_name, guardian_name, email, guardian2_email, phone)",
+      "id, student_id, price_snapshot, classes(name_no, price), students(full_name, guardian_name, email, guardian2_email, mother_email, father_email, phone)",
     )
     .eq("school_year_id", schoolYearId)
     .eq("status", "aktiv");
@@ -762,7 +801,12 @@ export async function batchSendPaymentLinks(
       alreadyPaid++;
       continue;
     }
-    const recipients = uniqueEmails(st?.email, st?.guardian2_email);
+    const recipients = uniqueEmails(
+      st?.email,
+      st?.mother_email,
+      st?.father_email,
+      st?.guardian2_email,
+    );
     if (recipients.length === 0) {
       noEmail++;
       continue;
@@ -1090,7 +1134,7 @@ export async function sendPaymentLink(
   const { data } = await supabase
     .from("payments")
     .select(
-      "amount, school_years(label), enrollments(classes(name_no)), students(full_name, guardian_name, email, guardian2_email)",
+      "amount, school_years(label), enrollments(classes(name_no)), students(full_name, guardian_name, email, guardian2_email, mother_email, father_email)",
     )
     .eq("id", paymentId)
     .maybeSingle();
@@ -1104,12 +1148,16 @@ export async function sendPaymentLink(
       guardian_name: string | null;
       email: string | null;
       guardian2_email: string | null;
+      mother_email: string | null;
+      father_email: string | null;
     } | null;
   } | null;
 
   if (!payment) return { ok: false, error: "Fant ikke betalingen" };
   const recipients = uniqueEmails(
     payment.students?.email,
+    payment.students?.mother_email,
+    payment.students?.father_email,
     payment.students?.guardian2_email,
   );
   if (recipients.length === 0) {

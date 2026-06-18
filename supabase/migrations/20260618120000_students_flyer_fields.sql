@@ -1,0 +1,15 @@
+alter table public.students
+  add column if not exists child_first_name text,
+  add column if not exists child_last_name text,
+  add column if not exists gender text,
+  add column if not exists address text,
+  add column if not exists postal_code text,
+  add column if not exists city text,
+  add column if not exists mother_first_name text,
+  add column if not exists mother_last_name text,
+  add column if not exists mother_phone text,
+  add column if not exists mother_email text,
+  add column if not exists father_first_name text,
+  add column if not exists father_last_name text,
+  add column if not exists father_phone text,
+  add column if not exists father_email text;

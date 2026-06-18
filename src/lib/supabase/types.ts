@@ -7,30 +7,10 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -281,6 +261,8 @@ export type Database = {
           description: string | null
           enrollment_id: string | null
           id: string
+          method: string
+          paid_at: string | null
           redirect_url: string | null
           reference: string
           school_year_id: string | null
@@ -297,6 +279,8 @@ export type Database = {
           description?: string | null
           enrollment_id?: string | null
           id?: string
+          method?: string
+          paid_at?: string | null
           redirect_url?: string | null
           reference: string
           school_year_id?: string | null
@@ -313,6 +297,8 @@ export type Database = {
           description?: string | null
           enrollment_id?: string | null
           id?: string
+          method?: string
+          paid_at?: string | null
           redirect_url?: string | null
           reference?: string
           school_year_id?: string | null
@@ -530,12 +516,21 @@ export type Database = {
       }
       students: {
         Row: {
+          address: string | null
           application_id: string | null
           birth_date: string | null
           child_age: number | null
+          child_first_name: string | null
+          child_last_name: string | null
+          city: string | null
           created_at: string
           email: string | null
+          father_email: string | null
+          father_first_name: string | null
+          father_last_name: string | null
+          father_phone: string | null
           full_name: string
+          gender: string | null
           guardian_name: string
           guardian2_email: string | null
           guardian2_name: string | null
@@ -544,19 +539,33 @@ export type Database = {
           level_arabic: string | null
           level_islam: string | null
           level_quran: string | null
+          mother_email: string | null
+          mother_first_name: string | null
+          mother_last_name: string | null
+          mother_phone: string | null
           notes: string | null
           phone: string | null
+          postal_code: string | null
           student_email: string | null
           student_phone: string | null
           updated_at: string
         }
         Insert: {
+          address?: string | null
           application_id?: string | null
           birth_date?: string | null
           child_age?: number | null
+          child_first_name?: string | null
+          child_last_name?: string | null
+          city?: string | null
           created_at?: string
           email?: string | null
+          father_email?: string | null
+          father_first_name?: string | null
+          father_last_name?: string | null
+          father_phone?: string | null
           full_name: string
+          gender?: string | null
           guardian_name: string
           guardian2_email?: string | null
           guardian2_name?: string | null
@@ -565,19 +574,33 @@ export type Database = {
           level_arabic?: string | null
           level_islam?: string | null
           level_quran?: string | null
+          mother_email?: string | null
+          mother_first_name?: string | null
+          mother_last_name?: string | null
+          mother_phone?: string | null
           notes?: string | null
           phone?: string | null
+          postal_code?: string | null
           student_email?: string | null
           student_phone?: string | null
           updated_at?: string
         }
         Update: {
+          address?: string | null
           application_id?: string | null
           birth_date?: string | null
           child_age?: number | null
+          child_first_name?: string | null
+          child_last_name?: string | null
+          city?: string | null
           created_at?: string
           email?: string | null
+          father_email?: string | null
+          father_first_name?: string | null
+          father_last_name?: string | null
+          father_phone?: string | null
           full_name?: string
+          gender?: string | null
           guardian_name?: string
           guardian2_email?: string | null
           guardian2_name?: string | null
@@ -586,8 +609,13 @@ export type Database = {
           level_arabic?: string | null
           level_islam?: string | null
           level_quran?: string | null
+          mother_email?: string | null
+          mother_first_name?: string | null
+          mother_last_name?: string | null
+          mother_phone?: string | null
           notes?: string | null
           phone?: string | null
+          postal_code?: string | null
           student_email?: string | null
           student_phone?: string | null
           updated_at?: string
@@ -769,11 +797,7 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },
 } as const
-
