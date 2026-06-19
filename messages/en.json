@@ -5,6 +5,7 @@
     "classes": "Classes",
     "events": "Activities",
     "enroll": "Enrollment",
+    "enrollCta": "Enroll your child",
     "teacher": "Become a teacher",
     "contact": "Contact",
     "admin": "Log in",
@@ -13,6 +14,14 @@
     "menuDescription": "Navigate the site",
     "localeLabel": "Language",
     "skipToContent": "Skip to content"
+  },
+  "notFound": {
+    "eyebrow": "Error 404",
+    "title": "This page could not be found",
+    "subtitle": "We couldn't find the page you were looking for. It may have been moved, removed, or the link could be wrong.",
+    "home": "Back to home",
+    "enroll": "Enroll your child",
+    "imageAlt": "Illustration of a child looking for the way"
   },
   "hero": {
     "eyebrow": "Sunday school in Bærum",

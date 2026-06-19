@@ -5,6 +5,7 @@
     "classes": "Klasser",
     "events": "Aktiviteter",
     "enroll": "Påmelding",
+    "enrollCta": "Meld barnet ditt her",
     "teacher": "Bli lærer",
     "contact": "Kontakt",
     "admin": "Logg inn",
@@ -13,6 +14,14 @@
     "menuDescription": "Naviger på nettstedet",
     "localeLabel": "Språk",
     "skipToContent": "Hopp til innhold"
+  },
+  "notFound": {
+    "eyebrow": "Feil 404",
+    "title": "Denne siden finnes ikke",
+    "subtitle": "Vi fant ikke siden du lette etter. Den kan ha blitt flyttet, fjernet, eller lenken kan være feil.",
+    "home": "Til forsiden",
+    "enroll": "Meld barnet ditt",
+    "imageAlt": "Illustrasjon av et barn som leter etter veien"
   },
   "hero": {
     "eyebrow": "Søndagsskole i Bærum",

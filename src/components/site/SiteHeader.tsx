@@ -66,6 +66,12 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <Link
+            href="/pamelding"
+            className="btn-pill-primary hidden lg:inline-flex"
+          >
+            {t("enrollCta")}
+          </Link>
           <div className="hidden sm:block">
             <LocaleSwitcher />
           </div>
@@ -114,6 +120,18 @@ export function SiteHeader() {
                   );
                 })}
               </nav>
+              <div className="px-4 pb-2">
+                <SheetClose
+                  render={
+                    <Link
+                      href="/pamelding"
+                      className="btn-pill-primary w-full justify-center"
+                    >
+                      {t("enrollCta")}
+                    </Link>
+                  }
+                />
+              </div>
               <div className="mt-auto flex items-center border-t border-foreground/8 p-5">
                 <LocaleSwitcher />
               </div>
