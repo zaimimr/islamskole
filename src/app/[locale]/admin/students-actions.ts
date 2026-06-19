@@ -492,10 +492,7 @@ export async function createVippsPayment(
   const className = enrollment.classes?.name_no ?? null;
   const enrollmentId = enrollment.id;
 
-  const amount =
-    enrollment.price_snapshot != null
-      ? Math.round(enrollment.price_snapshot * 100)
-      : Math.round((amountNok as number) * 100);
+  const amount = Math.round((amountNok as number) * 100);
 
   const { data: existing } = await supabase
     .from("payments")
