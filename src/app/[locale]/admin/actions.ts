@@ -482,6 +482,10 @@ function genderLabel(value: string | null) {
   return genderLabels[value] ?? value;
 }
 
+type SignupResult =
+  | { ok: true }
+  | { ok: false; error?: string; fieldErrors?: Record<string, string> };
+
 const studentApplicationSchema = z
   .object({
     child_first_name: z.string().min(1, "Barnets fornavn er påkrevd"),
@@ -492,14 +496,18 @@ const studentApplicationSchema = z
       .string()
       .min(1, "E-post er påkrevd")
       .email("Ugyldig e-postadresse"),
-    mother_name: z.string(),
-    father_name: z.string(),
+    mother_first_name: z.string(),
+    father_first_name: z.string(),
     terms_accepted: z.boolean(),
   })
-  .refine((v) => v.mother_name.length > 0 || v.father_name.length > 0, {
-    message: "Minst én forelder må fylles ut",
-    path: ["mother_name"],
-  })
+  .refine(
+    (v) =>
+      v.mother_first_name.length > 0 || v.father_first_name.length > 0,
+    {
+      message: "Minst én forelder må fylles ut",
+      path: ["parents"],
+    },
+  )
   .refine((v) => v.terms_accepted, {
     message: "Du må godta salgsbetingelsene",
     path: ["terms_accepted"],
@@ -514,7 +522,7 @@ const studentStatusSchema = z.enum([
 
 export async function createStudentApplication(
   formData: FormData,
-): Promise<ActionResult> {
+): Promise<SignupResult> {
   const ip =
     (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ??
     "unknown";
@@ -541,19 +549,24 @@ export async function createStudentApplication(
     birth_date: readString(formData, "birth_date"),
     gender: readString(formData, "gender"),
     email,
-    mother_name: motherName,
-    father_name: fatherName,
+    mother_first_name: motherFirstName,
+    father_first_name: fatherFirstName,
     terms_accepted: termsAccepted,
   });
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0].message };
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      const key = String(issue.path[0] ?? "");
+      if (key && !(key in fieldErrors)) {
+        fieldErrors[key] = issue.message;
+      }
+    }
+    return { ok: false, fieldErrors };
   }
 
   const childName = `${childFirstName} ${childLastName}`.trim();
-  const guardianName = motherName || fatherName;
 
   const payload = {
-    child_name: childName,
     child_first_name: childFirstName,
     child_last_name: childLastName,
     birth_date: readOptionalString(formData, "birth_date"),
@@ -561,7 +574,6 @@ export async function createStudentApplication(
     address: readOptionalString(formData, "address"),
     postal_code: readOptionalString(formData, "postal_code"),
     city: readOptionalString(formData, "city"),
-    guardian_name: guardianName,
     email,
     phone: readOptionalString(formData, "phone"),
     mother_first_name: readOptionalString(formData, "mother_first_name"),
@@ -585,7 +597,14 @@ export async function createStudentApplication(
     .from("student_applications")
     .insert(payload as never);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    console.error("createStudentApplication insert error", error);
+    return {
+      ok: false,
+      error:
+        "Noe gikk galt under registreringen. Prøv igjen senere.",
+    };
+  }
 
   {
     const settings = await getSiteSettings();

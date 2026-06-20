@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { adminBasePath } from "@/components/admin/paths";
+import { studentDisplayName } from "@/lib/student-name";
 import {
   Card,
   CardContent,
@@ -65,7 +66,9 @@ async function getDashboard() {
       supabase.from("classes").select("id", { count: "exact", head: true }),
       supabase
         .from("student_applications")
-        .select("id, child_name, email, status, created_at")
+        .select(
+          "id, child_first_name, child_last_name, email, status, created_at",
+        )
         .order("created_at", { ascending: false })
         .limit(5),
       supabase
@@ -86,7 +89,8 @@ async function getDashboard() {
         (recentStudents.data as
           | {
               id: string;
-              child_name: string | null;
+              child_first_name: string | null;
+              child_last_name: string | null;
               email: string | null;
               status: string | null;
               created_at: string | null;
@@ -94,7 +98,7 @@ async function getDashboard() {
           | null) ?? []
       ).map((r) => ({
         id: r.id,
-        name: r.child_name ?? "-",
+        name: studentDisplayName(r) || "-",
         email: r.email,
         status: r.status,
         created_at: r.created_at,

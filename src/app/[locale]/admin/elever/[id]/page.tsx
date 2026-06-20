@@ -13,10 +13,10 @@ import {
   type PaymentRow,
 } from "@/components/admin/payment-manager";
 import { deleteStudent } from "@/app/[locale]/admin/students-actions";
+import { studentDisplayName } from "@/lib/student-name";
 
 type StudentData = {
   id: string;
-  full_name: string | null;
   child_first_name: string | null;
   child_last_name: string | null;
   birth_date: string | null;
@@ -60,7 +60,7 @@ export default async function ElevDetailPage({
     supabase
       .from("students")
       .select(
-        "id, full_name, child_first_name, child_last_name, birth_date, gender, address, postal_code, city, email, phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, level_quran, level_arabic, level_islam, notes",
+        "id, child_first_name, child_last_name, birth_date, gender, address, postal_code, city, email, phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, level_quran, level_arabic, level_islam, notes",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -164,7 +164,7 @@ export default async function ElevDetailPage({
   return (
     <div className="grid gap-6">
       <PageHeader
-        title={student.full_name ?? "Elev"}
+        title={studentDisplayName(student) || "Elev"}
         description="Rediger elev, plassering og betaling."
         action={
           <DeleteButton id={student.id} label="elev" action={deleteStudent} />

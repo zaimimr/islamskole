@@ -1,5 +1,6 @@
 import { ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { guardianName, studentDisplayName } from "@/lib/student-name";
 import { adminBasePath } from "@/components/admin/paths";
 import { PageHeader } from "@/components/admin/page-header";
 import { EleverFilters } from "@/components/admin/elever-filters";
@@ -19,9 +20,12 @@ import {
 
 type StudentRow = {
   id: string;
-  full_name: string | null;
-  guardian_name: string | null;
-  child_age: number | null;
+  child_first_name: string | null;
+  child_last_name: string | null;
+  mother_first_name: string | null;
+  mother_last_name: string | null;
+  father_first_name: string | null;
+  father_last_name: string | null;
   birth_date: string | null;
   enrollments: {
     school_year_id: string;
@@ -43,7 +47,7 @@ function ageFromBirthDate(value: string | null): number | null {
 }
 
 function displayAge(student: StudentRow): string {
-  const age = ageFromBirthDate(student.birth_date) ?? student.child_age;
+  const age = ageFromBirthDate(student.birth_date);
   return age != null ? String(age) : "-";
 }
 
@@ -53,14 +57,14 @@ async function getStudents(q: string): Promise<StudentRow[]> {
     let query = supabase
       .from("students")
       .select(
-        "id, full_name, guardian_name, child_age, birth_date, enrollments(school_year_id, school_years(label), classes(id, name_no)), payments(status, amount, school_year_id)",
+        "id, child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name, birth_date, enrollments(school_year_id, school_years(label), classes(id, name_no)), payments(status, amount, school_year_id)",
       )
       .order("created_at", { ascending: false });
 
     const term = q.replace(/[%,()]/g, " ").trim();
     if (term) {
       query = query.or(
-        `full_name.ilike.%${term}%,guardian_name.ilike.%${term}%,email.ilike.%${term}%`,
+        `child_first_name.ilike.%${term}%,child_last_name.ilike.%${term}%,mother_first_name.ilike.%${term}%,mother_last_name.ilike.%${term}%,father_first_name.ilike.%${term}%,father_last_name.ilike.%${term}%,email.ilike.%${term}%`,
       );
     }
 
@@ -299,10 +303,10 @@ export default async function RegistrertePage({
                       href={`${basePath}/elever/${student.id}`}
                     >
                       <TableCell className="font-medium">
-                        {student.full_name ?? "-"}
+                        {studentDisplayName(student) || "-"}
                       </TableCell>
                       <TableCell>{displayAge(student)}</TableCell>
-                      <TableCell>{student.guardian_name ?? "-"}</TableCell>
+                      <TableCell>{guardianName(student) ?? "-"}</TableCell>
                       <TableCell>{classLabel(student.enrollments)}</TableCell>
                       <TableCell>
                         {(() => {

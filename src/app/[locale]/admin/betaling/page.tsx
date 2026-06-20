@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { studentDisplayName, type NamedRecord } from "@/lib/student-name";
 import { adminBasePath } from "@/components/admin/paths";
 import { PageHeader } from "@/components/admin/page-header";
 import { BatchSendButton } from "@/components/admin/batch-send-button";
@@ -19,7 +20,12 @@ type YearRow = { id: string; label: string; is_active: boolean };
 type EnrollmentRow = {
   student_id: string;
   school_year_id: string;
-  students: { full_name: string | null; guardian_name: string | null } | null;
+  students:
+    | (NamedRecord & {
+        child_first_name: string | null;
+        child_last_name: string | null;
+      })
+    | null;
   classes: { name_no: string | null } | null;
 };
 type PaymentRow = {
@@ -44,7 +50,7 @@ async function getData() {
       supabase
         .from("enrollments")
         .select(
-          "student_id, school_year_id, students(full_name, guardian_name), classes(name_no)",
+          "student_id, school_year_id, students(child_first_name, child_last_name), classes(name_no)",
         )
         .eq("status", "aktiv"),
       supabase.from("payments").select("student_id, school_year_id, status, amount"),
@@ -191,7 +197,9 @@ export default async function BetalingPage({
                                 href={`${basePath}/elever/${e.student_id}`}
                                 className="underline-offset-2 hover:underline"
                               >
-                                {e.students?.full_name ?? "-"}
+                                {e.students
+                                  ? studentDisplayName(e.students) || "-"
+                                  : "-"}
                               </Link>
                             </TableCell>
                             <TableCell>{e.classes?.name_no ?? "-"}</TableCell>

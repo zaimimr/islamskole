@@ -13,6 +13,11 @@ import {
 } from "@/lib/vipps";
 import { syncPaymentByReference } from "@/lib/payments-sync";
 import { sendPaymentLinkEmail } from "@/lib/email";
+import {
+  guardianEmails,
+  guardianName,
+  studentDisplayName,
+} from "@/lib/student-name";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 type PaymentResult =
@@ -54,58 +59,46 @@ function revalidate() {
   revalidatePath("/", "layout");
 }
 
-function uniqueEmails(...values: (string | null | undefined)[]): string[] {
-  return [
-    ...new Set(
-      values
-        .filter((v): v is string => Boolean(v && v.trim()))
-        .map((v) => v.trim().toLowerCase()),
-    ),
-  ];
-}
-
 const required = (message: string) =>
   z.preprocess((v) => v ?? "", z.string().min(1, message));
 
-const studentSchema = z.object({
-  child_first_name: required("Barnets fornavn er påkrevd"),
-  child_last_name: required("Barnets etternavn er påkrevd"),
-  guardian_name: required("Minst én forelder må fylles ut"),
-});
-
-function joinName(first: string | null, last: string | null): string {
-  return [first, last].filter((p) => p && p.trim()).join(" ").trim();
-}
+const studentSchema = z
+  .object({
+    child_first_name: required("Barnets fornavn er påkrevd"),
+    child_last_name: required("Barnets etternavn er påkrevd"),
+    mother_first_name: z.string().nullable(),
+    mother_last_name: z.string().nullable(),
+    father_first_name: z.string().nullable(),
+    father_last_name: z.string().nullable(),
+  })
+  .refine(
+    (value) =>
+      guardianName({
+        mother_first_name: value.mother_first_name,
+        mother_last_name: value.mother_last_name,
+        father_first_name: value.father_first_name,
+        father_last_name: value.father_last_name,
+      }) != null,
+    { message: "Minst én forelder må fylles ut" },
+  );
 
 function readStudentPayload(formData: FormData) {
-  const childFirstName = readOptionalString(formData, "child_first_name");
-  const childLastName = readOptionalString(formData, "child_last_name");
-  const motherFirstName = readOptionalString(formData, "mother_first_name");
-  const motherLastName = readOptionalString(formData, "mother_last_name");
-  const fatherFirstName = readOptionalString(formData, "father_first_name");
-  const fatherLastName = readOptionalString(formData, "father_last_name");
-
-  const motherName = joinName(motherFirstName, motherLastName);
-  const fatherName = joinName(fatherFirstName, fatherLastName);
-
   return {
-    full_name: joinName(childFirstName, childLastName),
-    child_first_name: childFirstName,
-    child_last_name: childLastName,
+    child_first_name: readOptionalString(formData, "child_first_name"),
+    child_last_name: readOptionalString(formData, "child_last_name"),
     birth_date: readOptionalString(formData, "birth_date"),
     gender: readOptionalString(formData, "gender"),
     address: readOptionalString(formData, "address"),
     postal_code: readOptionalString(formData, "postal_code"),
     city: readOptionalString(formData, "city"),
-    guardian_name: motherName || fatherName,
     email: readOptionalString(formData, "email"),
     phone: readOptionalString(formData, "phone"),
-    mother_first_name: motherFirstName,
-    mother_last_name: motherLastName,
+    mother_first_name: readOptionalString(formData, "mother_first_name"),
+    mother_last_name: readOptionalString(formData, "mother_last_name"),
     mother_phone: readOptionalString(formData, "mother_phone"),
     mother_email: readOptionalString(formData, "mother_email"),
-    father_first_name: fatherFirstName,
-    father_last_name: fatherLastName,
+    father_first_name: readOptionalString(formData, "father_first_name"),
+    father_last_name: readOptionalString(formData, "father_last_name"),
     father_phone: readOptionalString(formData, "father_phone"),
     father_email: readOptionalString(formData, "father_email"),
     level_quran: readOptionalString(formData, "level_quran"),
@@ -146,7 +139,7 @@ export async function createStudentFromApplication(
   const { data: application, error: appError } = await supabase
     .from("student_applications")
     .select(
-      "id, child_name, child_first_name, child_last_name, child_age, birth_date, gender, address, postal_code, city, guardian_name, email, phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, level_quran, level_arabic, level_islam, message",
+      "id, child_first_name, child_last_name, birth_date, gender, address, postal_code, city, email, phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, level_quran, level_arabic, level_islam, message",
     )
     .eq("id", applicationId)
     .maybeSingle();
@@ -155,16 +148,13 @@ export async function createStudentFromApplication(
   if (!application) return { ok: false, error: "Fant ikke påmeldingen" };
 
   const app = application as unknown as {
-    child_name: string;
     child_first_name: string | null;
     child_last_name: string | null;
-    child_age: number | null;
     birth_date: string | null;
     gender: string | null;
     address: string | null;
     postal_code: string | null;
     city: string | null;
-    guardian_name: string;
     email: string | null;
     phone: string | null;
     mother_first_name: string | null;
@@ -181,21 +171,15 @@ export async function createStudentFromApplication(
     message: string | null;
   };
 
-  const motherName = joinName(app.mother_first_name, app.mother_last_name);
-  const fatherName = joinName(app.father_first_name, app.father_last_name);
-
   const payload = {
     application_id: applicationId,
-    full_name: joinName(app.child_first_name, app.child_last_name) || app.child_name,
     child_first_name: app.child_first_name,
     child_last_name: app.child_last_name,
-    child_age: app.child_age,
     birth_date: app.birth_date,
     gender: app.gender,
     address: app.address,
     postal_code: app.postal_code,
     city: app.city,
-    guardian_name: motherName || fatherName || app.guardian_name,
     email: app.email,
     phone: app.phone,
     mother_first_name: app.mother_first_name,
@@ -512,26 +496,24 @@ export async function createVippsPayment(
   const { data: student } = await supabase
     .from("students")
     .select(
-      "phone, email, full_name, guardian_name, guardian2_email, mother_email, father_email",
+      "phone, email, child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name, mother_email, father_email",
     )
     .eq("id", studentId)
     .maybeSingle();
   const studentRow = student as unknown as {
     phone: string | null;
     email: string | null;
-    full_name: string | null;
-    guardian_name: string | null;
-    guardian2_email: string | null;
+    child_first_name: string | null;
+    child_last_name: string | null;
+    mother_first_name: string | null;
+    mother_last_name: string | null;
+    father_first_name: string | null;
+    father_last_name: string | null;
     mother_email: string | null;
     father_email: string | null;
   } | null;
   const phone = studentRow?.phone;
-  const recipients = uniqueEmails(
-    studentRow?.email,
-    studentRow?.mother_email,
-    studentRow?.father_email,
-    studentRow?.guardian2_email,
-  );
+  const recipients = studentRow ? guardianEmails(studentRow) : [];
 
   const { data: year } = await supabase
     .from("school_years")
@@ -590,8 +572,8 @@ export async function createVippsPayment(
   if (recipients.length) {
     emailed = await sendPaymentLinkEmail({
       to: recipients,
-      guardianName: studentRow?.guardian_name ?? "",
-      childName: studentRow?.full_name ?? "",
+      guardianName: studentRow ? guardianName(studentRow) ?? "" : "",
+      childName: studentRow ? studentDisplayName(studentRow) : "",
       amount,
       schoolYear: yearLabel,
       className,
@@ -718,10 +700,13 @@ type BatchEnrollment = {
   price_snapshot: number | null;
   classes: { name_no: string | null; price: number | null } | null;
   students: {
-    full_name: string | null;
-    guardian_name: string | null;
+    child_first_name: string | null;
+    child_last_name: string | null;
+    mother_first_name: string | null;
+    mother_last_name: string | null;
+    father_first_name: string | null;
+    father_last_name: string | null;
     email: string | null;
-    guardian2_email: string | null;
     mother_email: string | null;
     father_email: string | null;
     phone: string | null;
@@ -756,7 +741,7 @@ export async function batchSendPaymentLinks(
   const { data: enr } = await supabase
     .from("enrollments")
     .select(
-      "id, student_id, price_snapshot, classes(name_no, price), students(full_name, guardian_name, email, guardian2_email, mother_email, father_email, phone)",
+      "id, student_id, price_snapshot, classes(name_no, price), students(child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name, email, mother_email, father_email, phone)",
     )
     .eq("school_year_id", schoolYearId)
     .eq("status", "aktiv");
@@ -798,12 +783,7 @@ export async function batchSendPaymentLinks(
       alreadyPaid++;
       continue;
     }
-    const recipients = uniqueEmails(
-      st?.email,
-      st?.mother_email,
-      st?.father_email,
-      st?.guardian2_email,
-    );
+    const recipients = st ? guardianEmails(st) : [];
     if (recipients.length === 0) {
       noEmail++;
       continue;
@@ -814,8 +794,8 @@ export async function batchSendPaymentLinks(
     if (pending) {
       const ok = await sendPaymentLinkEmail({
         to: recipients,
-        guardianName: st?.guardian_name ?? "",
-        childName: st?.full_name ?? "",
+        guardianName: st ? guardianName(st) ?? "" : "",
+        childName: st ? studentDisplayName(st) : "",
         amount: pending.amount,
         schoolYear: yearLabel,
         className,
@@ -864,8 +844,8 @@ export async function batchSendPaymentLinks(
       }
       const ok = await sendPaymentLinkEmail({
         to: recipients,
-        guardianName: st?.guardian_name ?? "",
-        childName: st?.full_name ?? "",
+        guardianName: st ? guardianName(st) ?? "" : "",
+        childName: st ? studentDisplayName(st) : "",
         amount,
         schoolYear: yearLabel,
         className,
@@ -1131,7 +1111,7 @@ export async function sendPaymentLink(
   const { data } = await supabase
     .from("payments")
     .select(
-      "amount, school_years(label), enrollments(classes(name_no)), students(full_name, guardian_name, email, guardian2_email, mother_email, father_email)",
+      "amount, school_years(label), enrollments(classes(name_no)), students(child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name, email, mother_email, father_email)",
     )
     .eq("id", paymentId)
     .maybeSingle();
@@ -1141,22 +1121,22 @@ export async function sendPaymentLink(
     school_years: { label: string } | null;
     enrollments: { classes: { name_no: string | null } | null } | null;
     students: {
-      full_name: string | null;
-      guardian_name: string | null;
+      child_first_name: string | null;
+      child_last_name: string | null;
+      mother_first_name: string | null;
+      mother_last_name: string | null;
+      father_first_name: string | null;
+      father_last_name: string | null;
       email: string | null;
-      guardian2_email: string | null;
       mother_email: string | null;
       father_email: string | null;
     } | null;
   } | null;
 
   if (!payment) return { ok: false, error: "Fant ikke betalingen" };
-  const recipients = uniqueEmails(
-    payment.students?.email,
-    payment.students?.mother_email,
-    payment.students?.father_email,
-    payment.students?.guardian2_email,
-  );
+  const recipients = payment.students
+    ? guardianEmails(payment.students)
+    : [];
   if (recipients.length === 0) {
     return { ok: false, error: "Foresatt mangler e-postadresse" };
   }
@@ -1164,8 +1144,10 @@ export async function sendPaymentLink(
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
   const ok = await sendPaymentLinkEmail({
     to: recipients,
-    guardianName: payment.students?.guardian_name ?? "",
-    childName: payment.students?.full_name ?? "",
+    guardianName: payment.students ? guardianName(payment.students) ?? "" : "",
+    childName: payment.students
+      ? studentDisplayName(payment.students)
+      : "",
     amount: payment.amount,
     schoolYear: payment.school_years?.label ?? null,
     className: payment.enrollments?.classes?.name_no ?? null,

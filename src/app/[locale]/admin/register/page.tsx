@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { studentDisplayName } from "@/lib/student-name";
 import { deleteStudentApplication } from "@/app/[locale]/admin/actions";
 import { adminBasePath } from "@/components/admin/paths";
 import { PageHeader } from "@/components/admin/page-header";
@@ -25,14 +26,13 @@ import {
 
 type StudentApplicationRow = {
   id: string;
-  child_name: string | null;
-  child_age: number | null;
+  child_first_name: string | null;
+  child_last_name: string | null;
   birth_date: string | null;
   gender: string | null;
   address: string | null;
   postal_code: string | null;
   city: string | null;
-  guardian_name: string | null;
   email: string | null;
   phone: string | null;
   mother_first_name: string | null;
@@ -86,7 +86,7 @@ function ageFromBirthDate(value: string | null): number | null {
 }
 
 function displayAge(app: StudentApplicationRow): string {
-  const age = ageFromBirthDate(app.birth_date) ?? app.child_age;
+  const age = ageFromBirthDate(app.birth_date);
   return age != null ? String(age) : "-";
 }
 
@@ -111,7 +111,7 @@ async function getApplications(
     let query = supabase
       .from("student_applications")
       .select(
-        "id, child_name, child_age, birth_date, gender, address, postal_code, city, guardian_name, email, phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, desired_class, level_quran, level_arabic, level_islam, message, status, created_at",
+        "id, child_first_name, child_last_name, birth_date, gender, address, postal_code, city, email, phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, desired_class, level_quran, level_arabic, level_islam, message, status, created_at",
       )
       .order("created_at", { ascending: false });
 
@@ -121,7 +121,7 @@ async function getApplications(
     const term = q.replace(/[%,()]/g, " ").trim();
     if (term) {
       query = query.or(
-        `child_name.ilike.%${term}%,guardian_name.ilike.%${term}%,email.ilike.%${term}%`,
+        `child_first_name.ilike.%${term}%,child_last_name.ilike.%${term}%,mother_first_name.ilike.%${term}%,mother_last_name.ilike.%${term}%,father_first_name.ilike.%${term}%,father_last_name.ilike.%${term}%,email.ilike.%${term}%`,
       );
     }
 
@@ -264,7 +264,7 @@ export default async function PameldingerPage({
                       <BulkRowCheckbox id={application.id} />
                     </TableCell>
                     <TableCell className="font-medium">
-                      {application.child_name ?? "-"}
+                      {studentDisplayName(application) || "-"}
                     </TableCell>
                     <TableCell>{displayAge(application)}</TableCell>
                     <TableCell>{genderLabel(application.gender)}</TableCell>

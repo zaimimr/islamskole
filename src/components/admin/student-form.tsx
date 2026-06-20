@@ -16,7 +16,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export type StudentRecord = {
   id: string;
-  full_name: string | null;
   child_first_name: string | null;
   child_last_name: string | null;
   birth_date: string | null;

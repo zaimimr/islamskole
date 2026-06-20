@@ -2,6 +2,11 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPayment, capturePayment, type VippsPaymentState } from "@/lib/vipps";
 import { sendPaymentReceiptEmail } from "@/lib/email";
+import {
+  guardianEmails,
+  guardianName,
+  studentDisplayName,
+} from "@/lib/student-name";
 import { emailNotifications } from "@/flags";
 
 export function mapVippsState(
@@ -29,10 +34,13 @@ type PaymentWithStudent = {
   school_years: { label: string } | null;
   enrollments: { classes: { name_no: string | null } | null } | null;
   students: {
-    full_name: string | null;
-    guardian_name: string | null;
+    child_first_name: string | null;
+    child_last_name: string | null;
+    mother_first_name: string | null;
+    mother_last_name: string | null;
+    father_first_name: string | null;
+    father_last_name: string | null;
     email: string | null;
-    guardian2_email: string | null;
     mother_email: string | null;
     father_email: string | null;
   } | null;
@@ -70,7 +78,7 @@ export async function syncPaymentByReference(
   const { data: existing } = await admin
     .from("payments")
     .select(
-      "status, amount, school_years(label), enrollments(classes(name_no)), students(full_name, guardian_name, email, guardian2_email, mother_email, father_email)",
+      "status, amount, school_years(label), enrollments(classes(name_no)), students(child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name, email, mother_email, father_email)",
     )
     .eq("reference", reference)
     .maybeSingle();
@@ -88,18 +96,9 @@ export async function syncPaymentByReference(
     .update(update as never)
     .eq("reference", reference);
 
-  const receiptRecipients = [
-    ...new Set(
-      [
-        payment?.students?.email,
-        payment?.students?.mother_email,
-        payment?.students?.father_email,
-        payment?.students?.guardian2_email,
-      ]
-        .filter((e): e is string => Boolean(e && e.trim()))
-        .map((e) => e.trim().toLowerCase()),
-    ),
-  ];
+  const receiptRecipients = payment?.students
+    ? guardianEmails(payment.students)
+    : [];
   if (
     status === "fanget" &&
     previousStatus !== "fanget" &&
@@ -108,8 +107,8 @@ export async function syncPaymentByReference(
   ) {
     await sendPaymentReceiptEmail({
       to: receiptRecipients,
-      guardianName: payment?.students?.guardian_name ?? "",
-      childName: payment?.students?.full_name ?? "",
+      guardianName: payment?.students ? guardianName(payment.students) ?? "" : "",
+      childName: payment?.students ? studentDisplayName(payment.students) : "",
       amount: payment?.amount ?? 0,
       schoolYear: payment?.school_years?.label ?? null,
       className: payment?.enrollments?.classes?.name_no ?? null,

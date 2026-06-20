@@ -32,7 +32,7 @@ const entityConfigs: Record<ExportEntity, EntityConfig> = {
   students: {
     table: "students",
     select:
-      "id, child_first_name, child_last_name, full_name, birth_date, gender, address, postal_code, city, email, phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, level_quran, level_arabic, level_islam, notes, created_at",
+      "id, child_first_name, child_last_name, birth_date, gender, address, postal_code, city, email, phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, level_quran, level_arabic, level_islam, notes, created_at",
     columns: [
       { key: "child_first_name", header: "Fornavn" },
       { key: "child_last_name", header: "Etternavn" },
@@ -61,11 +61,10 @@ const entityConfigs: Record<ExportEntity, EntityConfig> = {
   applications: {
     table: "student_applications",
     select:
-      "id, child_name, child_first_name, child_last_name, child_age, birth_date, gender, address, postal_code, city, guardian_name, email, phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, desired_class, level_quran, level_arabic, level_islam, message, status, created_at",
+      "id, child_first_name, child_last_name, birth_date, gender, address, postal_code, city, email, phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, desired_class, level_quran, level_arabic, level_islam, message, status, created_at",
     columns: [
       { key: "child_first_name", header: "Fornavn" },
       { key: "child_last_name", header: "Etternavn" },
-      { key: "child_age", header: "Alder" },
       { key: "birth_date", header: "Fødselsdato" },
       { key: "gender", header: "Kjønn" },
       { key: "address", header: "Adresse" },
@@ -164,13 +163,9 @@ export async function GET(
 
   const term = (searchParams.get("q") ?? "").replace(/[%,()]/g, " ").trim();
   if (term) {
-    if (entity === "applications") {
+    if (entity === "applications" || entity === "students") {
       query = query.or(
-        `child_name.ilike.%${term}%,guardian_name.ilike.%${term}%,email.ilike.%${term}%`,
-      );
-    } else if (entity === "students") {
-      query = query.or(
-        `full_name.ilike.%${term}%,guardian_name.ilike.%${term}%,email.ilike.%${term}%`,
+        `child_first_name.ilike.%${term}%,child_last_name.ilike.%${term}%,mother_first_name.ilike.%${term}%,mother_last_name.ilike.%${term}%,father_first_name.ilike.%${term}%,father_last_name.ilike.%${term}%,email.ilike.%${term}%`,
       );
     } else if (entity === "teachers") {
       query = query.or(

@@ -422,10 +422,8 @@ export type Database = {
         Row: {
           address: string | null
           birth_date: string | null
-          child_age: number | null
           child_first_name: string | null
           child_last_name: string | null
-          child_name: string
           city: string | null
           created_at: string
           desired_class: string | null
@@ -435,7 +433,6 @@ export type Database = {
           father_last_name: string | null
           father_phone: string | null
           gender: string | null
-          guardian_name: string
           id: string
           level_arabic: string | null
           level_islam: string | null
@@ -453,10 +450,8 @@ export type Database = {
         Insert: {
           address?: string | null
           birth_date?: string | null
-          child_age?: number | null
           child_first_name?: string | null
           child_last_name?: string | null
-          child_name: string
           city?: string | null
           created_at?: string
           desired_class?: string | null
@@ -466,7 +461,6 @@ export type Database = {
           father_last_name?: string | null
           father_phone?: string | null
           gender?: string | null
-          guardian_name: string
           id?: string
           level_arabic?: string | null
           level_islam?: string | null
@@ -484,10 +478,8 @@ export type Database = {
         Update: {
           address?: string | null
           birth_date?: string | null
-          child_age?: number | null
           child_first_name?: string | null
           child_last_name?: string | null
-          child_name?: string
           city?: string | null
           created_at?: string
           desired_class?: string | null
@@ -497,7 +489,6 @@ export type Database = {
           father_last_name?: string | null
           father_phone?: string | null
           gender?: string | null
-          guardian_name?: string
           id?: string
           level_arabic?: string | null
           level_islam?: string | null
@@ -519,7 +510,6 @@ export type Database = {
           address: string | null
           application_id: string | null
           birth_date: string | null
-          child_age: number | null
           child_first_name: string | null
           child_last_name: string | null
           city: string | null
@@ -529,12 +519,7 @@ export type Database = {
           father_first_name: string | null
           father_last_name: string | null
           father_phone: string | null
-          full_name: string
           gender: string | null
-          guardian_name: string
-          guardian2_email: string | null
-          guardian2_name: string | null
-          guardian2_phone: string | null
           id: string
           level_arabic: string | null
           level_islam: string | null
@@ -546,15 +531,12 @@ export type Database = {
           notes: string | null
           phone: string | null
           postal_code: string | null
-          student_email: string | null
-          student_phone: string | null
           updated_at: string
         }
         Insert: {
           address?: string | null
           application_id?: string | null
           birth_date?: string | null
-          child_age?: number | null
           child_first_name?: string | null
           child_last_name?: string | null
           city?: string | null
@@ -564,12 +546,7 @@ export type Database = {
           father_first_name?: string | null
           father_last_name?: string | null
           father_phone?: string | null
-          full_name: string
           gender?: string | null
-          guardian_name: string
-          guardian2_email?: string | null
-          guardian2_name?: string | null
-          guardian2_phone?: string | null
           id?: string
           level_arabic?: string | null
           level_islam?: string | null
@@ -581,15 +558,12 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           postal_code?: string | null
-          student_email?: string | null
-          student_phone?: string | null
           updated_at?: string
         }
         Update: {
           address?: string | null
           application_id?: string | null
           birth_date?: string | null
-          child_age?: number | null
           child_first_name?: string | null
           child_last_name?: string | null
           city?: string | null
@@ -599,12 +573,7 @@ export type Database = {
           father_first_name?: string | null
           father_last_name?: string | null
           father_phone?: string | null
-          full_name?: string
           gender?: string | null
-          guardian_name?: string
-          guardian2_email?: string | null
-          guardian2_name?: string | null
-          guardian2_phone?: string | null
           id?: string
           level_arabic?: string | null
           level_islam?: string | null
@@ -616,8 +585,6 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           postal_code?: string | null
-          student_email?: string | null
-          student_phone?: string | null
           updated_at?: string
         }
         Relationships: [
