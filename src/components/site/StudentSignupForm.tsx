@@ -121,7 +121,15 @@ export function StudentSignupForm() {
     const phone = value("phone");
     if (phone && !isValidPhone(phone)) errors.phone = t("errorPhone");
 
-    if (!value("mother_first_name") && !value("father_first_name")) {
+    const hasCompleteParent = ["mother", "father"].some((parent) => {
+      const name = value(`${parent}_first_name`);
+      const email = value(`${parent}_email`);
+      const phone = value(`${parent}_phone`);
+      return (
+        name && isValidEmail(email) && isValidPhone(phone)
+      );
+    });
+    if (!hasCompleteParent) {
       errors.parents = t("errorParents");
     }
 

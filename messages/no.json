@@ -166,7 +166,7 @@
     "placeholderCity": "F.eks. Vøyenenga",
     "fieldParentPhone": "Mobil (kontakt)",
     "fieldParentEmail": "E-post (kontakt)",
-    "parentsHint": "Fyll ut minst én forelder.",
+    "parentsHint": "Fyll ut navn, e-post og telefon for minst én forelder.",
     "feeNote": "Skoleavgift 5 000 kr per skoleår, betales ved påmelding.",
     "termsLead": "Jeg bekrefter å ha lest reglementet og godtar",
     "termsLink": "salgsbetingelsene",
@@ -201,7 +201,7 @@
     "errorEmail": "Skriv inn en gyldig e-postadresse",
     "errorPhone": "Skriv inn et gyldig telefonnummer (minst 8 sifre)",
     "errorTerms": "Du må godta salgsbetingelsene",
-    "errorParents": "Fyll ut minst én forelder",
+    "errorParents": "Fyll ut navn, e-post og telefon for minst én forelder",
     "formSummary": "Noen felt mangler eller er feil. Sjekk de markerte feltene og prøv igjen."
   },
   "about": {

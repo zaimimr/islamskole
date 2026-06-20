@@ -166,7 +166,7 @@
     "placeholderCity": "e.g. Vøyenenga",
     "fieldParentPhone": "Mobile (contact)",
     "fieldParentEmail": "Email (contact)",
-    "parentsHint": "Fill in at least one parent.",
+    "parentsHint": "Fill in name, email and phone for at least one parent.",
     "feeNote": "School fee NOK 5,000 per school year, paid on enrollment.",
     "termsLead": "I confirm I have read the rules and accept the",
     "termsLink": "terms of sale",
@@ -201,7 +201,7 @@
     "errorEmail": "Enter a valid email address",
     "errorPhone": "Enter a valid phone number (at least 8 digits)",
     "errorTerms": "You must accept the terms of sale",
-    "errorParents": "Fill in at least one parent",
+    "errorParents": "Fill in name, email and phone for at least one parent",
     "formSummary": "Some fields are missing or invalid. Check the highlighted fields and try again."
   },
   "about": {
