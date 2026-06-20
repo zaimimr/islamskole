@@ -192,7 +192,17 @@
     "thanksTitle": "Tusen takk!",
     "thanksBody": "Vi har mottatt påmeldingen din og tar kontakt så snart vi kan.",
     "fieldChildBirthDate": "Barnets fødselsdato",
-    "submitAnother": "Meld på et barn til"
+    "submitAnother": "Meld på et barn til",
+    "placeholderFirstName": "Fornavn",
+    "placeholderLastName": "Etternavn",
+    "placeholderParentEmail": "forelder@epost.no",
+    "placeholderParentPhone": "Telefonnummer",
+    "errorRequired": "Dette feltet er påkrevd",
+    "errorEmail": "Skriv inn en gyldig e-postadresse",
+    "errorPhone": "Skriv inn et gyldig telefonnummer (minst 8 sifre)",
+    "errorTerms": "Du må godta salgsbetingelsene",
+    "errorParents": "Fyll ut minst én forelder",
+    "formSummary": "Noen felt mangler eller er feil. Sjekk de markerte feltene og prøv igjen."
   },
   "about": {
     "title": "Om oss",

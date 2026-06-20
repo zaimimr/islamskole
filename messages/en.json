@@ -192,7 +192,17 @@
     "thanksTitle": "Thank you!",
     "thanksBody": "We have received your enrollment and will be in touch as soon as we can.",
     "fieldChildBirthDate": "Child's date of birth",
-    "submitAnother": "Register another child"
+    "submitAnother": "Register another child",
+    "placeholderFirstName": "First name",
+    "placeholderLastName": "Last name",
+    "placeholderParentEmail": "parent@email.com",
+    "placeholderParentPhone": "Phone number",
+    "errorRequired": "This field is required",
+    "errorEmail": "Enter a valid email address",
+    "errorPhone": "Enter a valid phone number (at least 8 digits)",
+    "errorTerms": "You must accept the terms of sale",
+    "errorParents": "Fill in at least one parent",
+    "formSummary": "Some fields are missing or invalid. Check the highlighted fields and try again."
   },
   "about": {
     "title": "About us",
