@@ -116,12 +116,10 @@ export function StudentSignupForm() {
     }
 
     const email = value("email");
-    if (!email) errors.email = t("errorRequired");
-    else if (!isValidEmail(email)) errors.email = t("errorEmail");
+    if (email && !isValidEmail(email)) errors.email = t("errorEmail");
 
     const phone = value("phone");
-    if (!phone) errors.phone = t("errorRequired");
-    else if (!isValidPhone(phone)) errors.phone = t("errorPhone");
+    if (phone && !isValidPhone(phone)) errors.phone = t("errorPhone");
 
     if (!value("mother_first_name") && !value("father_first_name")) {
       errors.parents = t("errorParents");
@@ -356,9 +354,7 @@ export function StudentSignupForm() {
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="grid gap-2">
-            <Label htmlFor="email" required>
-              {t("fieldEmail")}
-            </Label>
+            <Label htmlFor="email">{t("fieldEmail")}</Label>
             <Input
               id="email"
               name="email"
@@ -374,9 +370,7 @@ export function StudentSignupForm() {
             <FieldError id="email-error" message={fieldErrors.email} />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="phone" required>
-              {t("fieldPhone")}
-            </Label>
+            <Label htmlFor="phone">{t("fieldPhone")}</Label>
             <Input
               id="phone"
               name="phone"
