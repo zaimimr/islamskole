@@ -28,13 +28,13 @@ type StudentApplicationRow = {
   id: string;
   child_first_name: string | null;
   child_last_name: string | null;
-  birth_date: string | null;
-  gender: string | null;
-  address: string | null;
-  postal_code: string | null;
-  city: string | null;
-  email: string | null;
-  phone: string | null;
+  child_birth_date: string | null;
+  child_gender: string | null;
+  child_address: string | null;
+  child_postal_code: string | null;
+  child_city: string | null;
+  child_email: string | null;
+  child_phone: string | null;
   mother_first_name: string | null;
   mother_last_name: string | null;
   mother_phone: string | null;
@@ -44,9 +44,9 @@ type StudentApplicationRow = {
   father_phone: string | null;
   father_email: string | null;
   desired_class: string | null;
-  level_quran: string | null;
-  level_arabic: string | null;
-  level_islam: string | null;
+  child_level_quran: string | null;
+  child_level_arabic: string | null;
+  child_level_islam: string | null;
   message: string | null;
   status: string | null;
   created_at: string | null;
@@ -68,8 +68,8 @@ function fullName(first: string | null, last: string | null): string {
 
 function addressLine(app: StudentApplicationRow): string {
   const parts = [
-    app.address,
-    [app.postal_code, app.city].filter(Boolean).join(" "),
+    app.child_address,
+    [app.child_postal_code, app.child_city].filter(Boolean).join(" "),
   ].filter((p) => p && p.length > 0);
   return parts.length ? parts.join(", ") : "-";
 }
@@ -86,7 +86,7 @@ function ageFromBirthDate(value: string | null): number | null {
 }
 
 function displayAge(app: StudentApplicationRow): string {
-  const age = ageFromBirthDate(app.birth_date);
+  const age = ageFromBirthDate(app.child_birth_date);
   return age != null ? String(age) : "-";
 }
 
@@ -111,7 +111,7 @@ async function getApplications(
     let query = supabase
       .from("student_applications")
       .select(
-        "id, child_first_name, child_last_name, birth_date, gender, address, postal_code, city, email, phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, desired_class, level_quran, level_arabic, level_islam, message, status, created_at",
+        "id, child_first_name, child_last_name, child_birth_date, child_gender, child_address, child_postal_code, child_city, child_email, child_phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, desired_class, child_level_quran, child_level_arabic, child_level_islam, message, status, created_at",
       )
       .order("created_at", { ascending: false });
 
@@ -121,7 +121,7 @@ async function getApplications(
     const term = q.replace(/[%,()]/g, " ").trim();
     if (term) {
       query = query.or(
-        `child_first_name.ilike.%${term}%,child_last_name.ilike.%${term}%,mother_first_name.ilike.%${term}%,mother_last_name.ilike.%${term}%,father_first_name.ilike.%${term}%,father_last_name.ilike.%${term}%,email.ilike.%${term}%`,
+        `child_first_name.ilike.%${term}%,child_last_name.ilike.%${term}%,mother_first_name.ilike.%${term}%,mother_last_name.ilike.%${term}%,father_first_name.ilike.%${term}%,father_last_name.ilike.%${term}%,child_email.ilike.%${term}%`,
       );
     }
 
@@ -267,23 +267,23 @@ export default async function PameldingerPage({
                       {studentDisplayName(application) || "-"}
                     </TableCell>
                     <TableCell>{displayAge(application)}</TableCell>
-                    <TableCell>{genderLabel(application.gender)}</TableCell>
+                    <TableCell>{genderLabel(application.child_gender)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {addressLine(application)}
                     </TableCell>
                     <TableCell>
-                      {application.email ? (
+                      {application.child_email ? (
                         <a
-                          href={`mailto:${application.email}`}
+                          href={`mailto:${application.child_email}`}
                           className="underline-offset-2 hover:underline"
                         >
-                          {application.email}
+                          {application.child_email}
                         </a>
                       ) : (
                         "-"
                       )}
                     </TableCell>
-                    <TableCell>{application.phone ?? "-"}</TableCell>
+                    <TableCell>{application.child_phone ?? "-"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {fullName(
                         application.mother_first_name,
@@ -304,9 +304,9 @@ export default async function PameldingerPage({
                     </TableCell>
                     <TableCell>{application.desired_class ?? "-"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {levelLabel(application.level_quran)} /{" "}
-                      {levelLabel(application.level_arabic)} /{" "}
-                      {levelLabel(application.level_islam)}
+                      {levelLabel(application.child_level_quran)} /{" "}
+                      {levelLabel(application.child_level_arabic)} /{" "}
+                      {levelLabel(application.child_level_islam)}
                     </TableCell>
                     <TableCell>
                       <StudentStatusSelect

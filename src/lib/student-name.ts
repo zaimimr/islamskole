@@ -5,7 +5,7 @@ export type NamedRecord = Partial<{
   mother_last_name: string | null;
   father_first_name: string | null;
   father_last_name: string | null;
-  email: string | null;
+  child_email: string | null;
   mother_email: string | null;
   father_email: string | null;
 }>;
@@ -40,7 +40,7 @@ export function guardianName(record: NamedRecord): string | null {
 export function guardianEmails(record: NamedRecord): string[] {
   return [
     ...new Set(
-      [record.email, record.mother_email, record.father_email]
+      [record.child_email, record.mother_email, record.father_email]
         .filter((value): value is string => Boolean(value && value.trim()))
         .map((value) => value.trim().toLowerCase()),
     ),

@@ -19,13 +19,13 @@ type StudentData = {
   id: string;
   child_first_name: string | null;
   child_last_name: string | null;
-  birth_date: string | null;
-  gender: string | null;
-  address: string | null;
-  postal_code: string | null;
-  city: string | null;
-  email: string | null;
-  phone: string | null;
+  child_birth_date: string | null;
+  child_gender: string | null;
+  child_address: string | null;
+  child_postal_code: string | null;
+  child_city: string | null;
+  child_email: string | null;
+  child_phone: string | null;
   mother_first_name: string | null;
   mother_last_name: string | null;
   mother_phone: string | null;
@@ -34,9 +34,9 @@ type StudentData = {
   father_last_name: string | null;
   father_phone: string | null;
   father_email: string | null;
-  level_quran: string | null;
-  level_arabic: string | null;
-  level_islam: string | null;
+  child_level_quran: string | null;
+  child_level_arabic: string | null;
+  child_level_islam: string | null;
   notes: string | null;
 };
 
@@ -60,7 +60,7 @@ export default async function ElevDetailPage({
     supabase
       .from("students")
       .select(
-        "id, child_first_name, child_last_name, birth_date, gender, address, postal_code, city, email, phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, level_quran, level_arabic, level_islam, notes",
+        "id, child_first_name, child_last_name, child_birth_date, child_gender, child_address, child_postal_code, child_city, child_email, child_phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, child_level_quran, child_level_arabic, child_level_islam, notes",
       )
       .eq("id", id)
       .maybeSingle(),

@@ -420,86 +420,86 @@ export type Database = {
       }
       student_applications: {
         Row: {
-          address: string | null
-          birth_date: string | null
+          child_address: string | null
+          child_birth_date: string | null
+          child_city: string | null
+          child_email: string | null
           child_first_name: string | null
+          child_gender: string | null
           child_last_name: string | null
-          city: string | null
+          child_level_arabic: string | null
+          child_level_islam: string | null
+          child_level_quran: string | null
+          child_phone: string | null
+          child_postal_code: string | null
           created_at: string
           desired_class: string | null
-          email: string
           father_email: string | null
           father_first_name: string | null
           father_last_name: string | null
           father_phone: string | null
-          gender: string | null
           id: string
-          level_arabic: string | null
-          level_islam: string | null
-          level_quran: string | null
           message: string | null
           mother_email: string | null
           mother_first_name: string | null
           mother_last_name: string | null
           mother_phone: string | null
-          phone: string | null
-          postal_code: string | null
           status: string
           terms_accepted: boolean
         }
         Insert: {
-          address?: string | null
-          birth_date?: string | null
+          child_address?: string | null
+          child_birth_date?: string | null
+          child_city?: string | null
+          child_email?: string | null
           child_first_name?: string | null
+          child_gender?: string | null
           child_last_name?: string | null
-          city?: string | null
+          child_level_arabic?: string | null
+          child_level_islam?: string | null
+          child_level_quran?: string | null
+          child_phone?: string | null
+          child_postal_code?: string | null
           created_at?: string
           desired_class?: string | null
-          email: string
           father_email?: string | null
           father_first_name?: string | null
           father_last_name?: string | null
           father_phone?: string | null
-          gender?: string | null
           id?: string
-          level_arabic?: string | null
-          level_islam?: string | null
-          level_quran?: string | null
           message?: string | null
           mother_email?: string | null
           mother_first_name?: string | null
           mother_last_name?: string | null
           mother_phone?: string | null
-          phone?: string | null
-          postal_code?: string | null
           status?: string
           terms_accepted?: boolean
         }
         Update: {
-          address?: string | null
-          birth_date?: string | null
+          child_address?: string | null
+          child_birth_date?: string | null
+          child_city?: string | null
+          child_email?: string | null
           child_first_name?: string | null
+          child_gender?: string | null
           child_last_name?: string | null
-          city?: string | null
+          child_level_arabic?: string | null
+          child_level_islam?: string | null
+          child_level_quran?: string | null
+          child_phone?: string | null
+          child_postal_code?: string | null
           created_at?: string
           desired_class?: string | null
-          email?: string
           father_email?: string | null
           father_first_name?: string | null
           father_last_name?: string | null
           father_phone?: string | null
-          gender?: string | null
           id?: string
-          level_arabic?: string | null
-          level_islam?: string | null
-          level_quran?: string | null
           message?: string | null
           mother_email?: string | null
           mother_first_name?: string | null
           mother_last_name?: string | null
           mother_phone?: string | null
-          phone?: string | null
-          postal_code?: string | null
           status?: string
           terms_accepted?: boolean
         }
@@ -507,84 +507,84 @@ export type Database = {
       }
       students: {
         Row: {
-          address: string | null
           application_id: string | null
-          birth_date: string | null
+          child_address: string | null
+          child_birth_date: string | null
+          child_city: string | null
+          child_email: string | null
           child_first_name: string | null
+          child_gender: string | null
           child_last_name: string | null
-          city: string | null
+          child_level_arabic: string | null
+          child_level_islam: string | null
+          child_level_quran: string | null
+          child_phone: string | null
+          child_postal_code: string | null
           created_at: string
-          email: string | null
           father_email: string | null
           father_first_name: string | null
           father_last_name: string | null
           father_phone: string | null
-          gender: string | null
           id: string
-          level_arabic: string | null
-          level_islam: string | null
-          level_quran: string | null
           mother_email: string | null
           mother_first_name: string | null
           mother_last_name: string | null
           mother_phone: string | null
           notes: string | null
-          phone: string | null
-          postal_code: string | null
           updated_at: string
         }
         Insert: {
-          address?: string | null
           application_id?: string | null
-          birth_date?: string | null
+          child_address?: string | null
+          child_birth_date?: string | null
+          child_city?: string | null
+          child_email?: string | null
           child_first_name?: string | null
+          child_gender?: string | null
           child_last_name?: string | null
-          city?: string | null
+          child_level_arabic?: string | null
+          child_level_islam?: string | null
+          child_level_quran?: string | null
+          child_phone?: string | null
+          child_postal_code?: string | null
           created_at?: string
-          email?: string | null
           father_email?: string | null
           father_first_name?: string | null
           father_last_name?: string | null
           father_phone?: string | null
-          gender?: string | null
           id?: string
-          level_arabic?: string | null
-          level_islam?: string | null
-          level_quran?: string | null
           mother_email?: string | null
           mother_first_name?: string | null
           mother_last_name?: string | null
           mother_phone?: string | null
           notes?: string | null
-          phone?: string | null
-          postal_code?: string | null
           updated_at?: string
         }
         Update: {
-          address?: string | null
           application_id?: string | null
-          birth_date?: string | null
+          child_address?: string | null
+          child_birth_date?: string | null
+          child_city?: string | null
+          child_email?: string | null
           child_first_name?: string | null
+          child_gender?: string | null
           child_last_name?: string | null
-          city?: string | null
+          child_level_arabic?: string | null
+          child_level_islam?: string | null
+          child_level_quran?: string | null
+          child_phone?: string | null
+          child_postal_code?: string | null
           created_at?: string
-          email?: string | null
           father_email?: string | null
           father_first_name?: string | null
           father_last_name?: string | null
           father_phone?: string | null
-          gender?: string | null
           id?: string
-          level_arabic?: string | null
-          level_islam?: string | null
-          level_quran?: string | null
           mother_email?: string | null
           mother_first_name?: string | null
           mother_last_name?: string | null
           mother_phone?: string | null
           notes?: string | null
-          phone?: string | null
-          postal_code?: string | null
           updated_at?: string
         }
         Relationships: [

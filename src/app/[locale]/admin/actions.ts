@@ -492,10 +492,10 @@ const studentApplicationSchema = z
     child_last_name: z.string().min(1, "Barnets etternavn er påkrevd"),
     birth_date: z.string().min(1, "Fødselsdato er påkrevd"),
     gender: z.string().min(1, "Kjønn er påkrevd"),
-    email: z
-      .string()
-      .min(1, "E-post er påkrevd")
-      .email("Ugyldig e-postadresse"),
+    email: z.union([
+      z.literal(""),
+      z.string().email("Ugyldig e-postadresse"),
+    ]),
     mother_first_name: z.string(),
     father_first_name: z.string(),
     terms_accepted: z.boolean(),
@@ -569,13 +569,13 @@ export async function createStudentApplication(
   const payload = {
     child_first_name: childFirstName,
     child_last_name: childLastName,
-    birth_date: readOptionalString(formData, "birth_date"),
-    gender: readOptionalString(formData, "gender"),
-    address: readOptionalString(formData, "address"),
-    postal_code: readOptionalString(formData, "postal_code"),
-    city: readOptionalString(formData, "city"),
-    email,
-    phone: readOptionalString(formData, "phone"),
+    child_birth_date: readOptionalString(formData, "birth_date"),
+    child_gender: readOptionalString(formData, "gender"),
+    child_address: readOptionalString(formData, "address"),
+    child_postal_code: readOptionalString(formData, "postal_code"),
+    child_city: readOptionalString(formData, "city"),
+    child_email: email || null,
+    child_phone: readOptionalString(formData, "phone"),
     mother_first_name: readOptionalString(formData, "mother_first_name"),
     mother_last_name: readOptionalString(formData, "mother_last_name"),
     mother_phone: readOptionalString(formData, "mother_phone"),
@@ -585,9 +585,9 @@ export async function createStudentApplication(
     father_phone: readOptionalString(formData, "father_phone"),
     father_email: readOptionalString(formData, "father_email"),
     desired_class: readOptionalString(formData, "desired_class"),
-    level_quran: readOptionalString(formData, "level_quran"),
-    level_arabic: readOptionalString(formData, "level_arabic"),
-    level_islam: readOptionalString(formData, "level_islam"),
+    child_level_quran: readOptionalString(formData, "level_quran"),
+    child_level_arabic: readOptionalString(formData, "level_arabic"),
+    child_level_islam: readOptionalString(formData, "level_islam"),
     message: readOptionalString(formData, "message"),
     terms_accepted: termsAccepted,
   };
@@ -611,16 +611,16 @@ export async function createStudentApplication(
     await sendStudentApplicationEmail({
       to: settings?.enroll_email ?? "opptak@islamskole.no",
       childName,
-      replyTo: email,
+      replyTo: email || undefined,
       rows: [
         ["Barnets navn", childName],
-        ["Fødselsdato", payload.birth_date],
-        ["Kjønn", genderLabel(payload.gender)],
-        ["Adresse", payload.address],
-        ["Postnummer", payload.postal_code],
-        ["Poststed", payload.city],
+        ["Fødselsdato", payload.child_birth_date],
+        ["Kjønn", genderLabel(payload.child_gender)],
+        ["Adresse", payload.child_address],
+        ["Postnummer", payload.child_postal_code],
+        ["Poststed", payload.child_city],
         ["E-post (kontakt)", email],
-        ["Mobil (kontakt)", payload.phone],
+        ["Mobil (kontakt)", payload.child_phone],
         ["Mor", motherName || "-"],
         ["Mor - mobil", payload.mother_phone],
         ["Mor - e-post", payload.mother_email],
@@ -628,17 +628,19 @@ export async function createStudentApplication(
         ["Far - mobil", payload.father_phone],
         ["Far - e-post", payload.father_email],
         ["Ønsket klasse", payload.desired_class],
-        ["Nivå - Koran", levelLabel(payload.level_quran)],
-        ["Nivå - Arabisk", levelLabel(payload.level_arabic)],
-        ["Nivå - Islam", levelLabel(payload.level_islam)],
+        ["Nivå - Koran", levelLabel(payload.child_level_quran)],
+        ["Nivå - Arabisk", levelLabel(payload.child_level_arabic)],
+        ["Nivå - Islam", levelLabel(payload.child_level_islam)],
         ["Melding", payload.message],
       ],
     });
-    await sendStudentApplicationConfirmationEmail({
-      to: email,
-      childName,
-      lang: "no",
-    });
+    if (email) {
+      await sendStudentApplicationConfirmationEmail({
+        to: email,
+        childName,
+        lang: "no",
+      });
+    }
   }
 
   return { ok: true };

@@ -32,17 +32,17 @@ const entityConfigs: Record<ExportEntity, EntityConfig> = {
   students: {
     table: "students",
     select:
-      "id, child_first_name, child_last_name, birth_date, gender, address, postal_code, city, email, phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, level_quran, level_arabic, level_islam, notes, created_at",
+      "id, child_first_name, child_last_name, child_birth_date, child_gender, child_address, child_postal_code, child_city, child_email, child_phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, child_level_quran, child_level_arabic, child_level_islam, notes, created_at",
     columns: [
       { key: "child_first_name", header: "Fornavn" },
       { key: "child_last_name", header: "Etternavn" },
-      { key: "birth_date", header: "Fødselsdato" },
-      { key: "gender", header: "Kjønn" },
-      { key: "address", header: "Adresse" },
-      { key: "postal_code", header: "Postnummer" },
-      { key: "city", header: "Poststed" },
-      { key: "email", header: "E-post (kontakt)" },
-      { key: "phone", header: "Telefon (kontakt)" },
+      { key: "child_birth_date", header: "Fødselsdato" },
+      { key: "child_gender", header: "Kjønn" },
+      { key: "child_address", header: "Adresse" },
+      { key: "child_postal_code", header: "Postnummer" },
+      { key: "child_city", header: "Poststed" },
+      { key: "child_email", header: "E-post (kontakt)" },
+      { key: "child_phone", header: "Telefon (kontakt)" },
       { key: "mother_first_name", header: "Mor fornavn" },
       { key: "mother_last_name", header: "Mor etternavn" },
       { key: "mother_phone", header: "Mor mobil" },
@@ -51,9 +51,9 @@ const entityConfigs: Record<ExportEntity, EntityConfig> = {
       { key: "father_last_name", header: "Far etternavn" },
       { key: "father_phone", header: "Far mobil" },
       { key: "father_email", header: "Far e-post" },
-      { key: "level_quran", header: "Nivå Koran" },
-      { key: "level_arabic", header: "Nivå Arabisk" },
-      { key: "level_islam", header: "Nivå Islam" },
+      { key: "child_level_quran", header: "Nivå Koran" },
+      { key: "child_level_arabic", header: "Nivå Arabisk" },
+      { key: "child_level_islam", header: "Nivå Islam" },
       { key: "notes", header: "Notater" },
       { key: "created_at", header: "Registrert" },
     ],
@@ -61,17 +61,17 @@ const entityConfigs: Record<ExportEntity, EntityConfig> = {
   applications: {
     table: "student_applications",
     select:
-      "id, child_first_name, child_last_name, birth_date, gender, address, postal_code, city, email, phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, desired_class, level_quran, level_arabic, level_islam, message, status, created_at",
+      "id, child_first_name, child_last_name, child_birth_date, child_gender, child_address, child_postal_code, child_city, child_email, child_phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, desired_class, child_level_quran, child_level_arabic, child_level_islam, message, status, created_at",
     columns: [
       { key: "child_first_name", header: "Fornavn" },
       { key: "child_last_name", header: "Etternavn" },
-      { key: "birth_date", header: "Fødselsdato" },
-      { key: "gender", header: "Kjønn" },
-      { key: "address", header: "Adresse" },
-      { key: "postal_code", header: "Postnummer" },
-      { key: "city", header: "Poststed" },
-      { key: "email", header: "E-post (kontakt)" },
-      { key: "phone", header: "Mobil (kontakt)" },
+      { key: "child_birth_date", header: "Fødselsdato" },
+      { key: "child_gender", header: "Kjønn" },
+      { key: "child_address", header: "Adresse" },
+      { key: "child_postal_code", header: "Postnummer" },
+      { key: "child_city", header: "Poststed" },
+      { key: "child_email", header: "E-post (kontakt)" },
+      { key: "child_phone", header: "Mobil (kontakt)" },
       { key: "mother_first_name", header: "Mor fornavn" },
       { key: "mother_last_name", header: "Mor etternavn" },
       { key: "mother_phone", header: "Mor mobil" },
@@ -81,9 +81,9 @@ const entityConfigs: Record<ExportEntity, EntityConfig> = {
       { key: "father_phone", header: "Far mobil" },
       { key: "father_email", header: "Far e-post" },
       { key: "desired_class", header: "Ønsket klasse" },
-      { key: "level_quran", header: "Nivå Koran" },
-      { key: "level_arabic", header: "Nivå Arabisk" },
-      { key: "level_islam", header: "Nivå Islam" },
+      { key: "child_level_quran", header: "Nivå Koran" },
+      { key: "child_level_arabic", header: "Nivå Arabisk" },
+      { key: "child_level_islam", header: "Nivå Islam" },
       { key: "message", header: "Melding" },
       { key: "status", header: "Status" },
       { key: "created_at", header: "Dato" },
@@ -165,7 +165,7 @@ export async function GET(
   if (term) {
     if (entity === "applications" || entity === "students") {
       query = query.or(
-        `child_first_name.ilike.%${term}%,child_last_name.ilike.%${term}%,mother_first_name.ilike.%${term}%,mother_last_name.ilike.%${term}%,father_first_name.ilike.%${term}%,father_last_name.ilike.%${term}%,email.ilike.%${term}%`,
+        `child_first_name.ilike.%${term}%,child_last_name.ilike.%${term}%,mother_first_name.ilike.%${term}%,mother_last_name.ilike.%${term}%,father_first_name.ilike.%${term}%,father_last_name.ilike.%${term}%,child_email.ilike.%${term}%`,
       );
     } else if (entity === "teachers") {
       query = query.or(

@@ -40,7 +40,7 @@ type PaymentWithStudent = {
     mother_last_name: string | null;
     father_first_name: string | null;
     father_last_name: string | null;
-    email: string | null;
+    child_email: string | null;
     mother_email: string | null;
     father_email: string | null;
   } | null;
@@ -78,7 +78,7 @@ export async function syncPaymentByReference(
   const { data: existing } = await admin
     .from("payments")
     .select(
-      "status, amount, school_years(label), enrollments(classes(name_no)), students(child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name, email, mother_email, father_email)",
+      "status, amount, school_years(label), enrollments(classes(name_no)), students(child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name, child_email, mother_email, father_email)",
     )
     .eq("reference", reference)
     .maybeSingle();

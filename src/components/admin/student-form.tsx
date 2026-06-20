@@ -18,13 +18,13 @@ export type StudentRecord = {
   id: string;
   child_first_name: string | null;
   child_last_name: string | null;
-  birth_date: string | null;
-  gender: string | null;
-  address: string | null;
-  postal_code: string | null;
-  city: string | null;
-  email: string | null;
-  phone: string | null;
+  child_birth_date: string | null;
+  child_gender: string | null;
+  child_address: string | null;
+  child_postal_code: string | null;
+  child_city: string | null;
+  child_email: string | null;
+  child_phone: string | null;
   mother_first_name: string | null;
   mother_last_name: string | null;
   mother_phone: string | null;
@@ -33,9 +33,9 @@ export type StudentRecord = {
   father_last_name: string | null;
   father_phone: string | null;
   father_email: string | null;
-  level_quran: string | null;
-  level_arabic: string | null;
-  level_islam: string | null;
+  child_level_quran: string | null;
+  child_level_arabic: string | null;
+  child_level_islam: string | null;
   notes: string | null;
 };
 
@@ -147,7 +147,7 @@ export function StudentForm({
                 id="birth_date"
                 name="birth_date"
                 type="date"
-                defaultValue={student?.birth_date ?? ""}
+                defaultValue={student?.child_birth_date ?? ""}
               />
             </div>
             <div className="grid gap-2">
@@ -155,7 +155,7 @@ export function StudentForm({
               <select
                 id="gender"
                 name="gender"
-                defaultValue={student?.gender ?? ""}
+                defaultValue={student?.child_gender ?? ""}
                 className={selectClassName}
               >
                 {genderOptions.map((option) => (
@@ -171,7 +171,7 @@ export function StudentForm({
             <Input
               id="address"
               name="address"
-              defaultValue={student?.address ?? ""}
+              defaultValue={student?.child_address ?? ""}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -180,7 +180,7 @@ export function StudentForm({
               <Input
                 id="postal_code"
                 name="postal_code"
-                defaultValue={student?.postal_code ?? ""}
+                defaultValue={student?.child_postal_code ?? ""}
               />
             </div>
             <div className="grid gap-2">
@@ -188,7 +188,7 @@ export function StudentForm({
               <Input
                 id="city"
                 name="city"
-                defaultValue={student?.city ?? ""}
+                defaultValue={student?.child_city ?? ""}
               />
             </div>
           </div>
@@ -199,7 +199,7 @@ export function StudentForm({
                 id="email"
                 name="email"
                 type="email"
-                defaultValue={student?.email ?? ""}
+                defaultValue={student?.child_email ?? ""}
               />
             </div>
             <div className="grid gap-2">
@@ -208,7 +208,7 @@ export function StudentForm({
                 id="phone"
                 name="phone"
                 type="tel"
-                defaultValue={student?.phone ?? ""}
+                defaultValue={student?.child_phone ?? ""}
               />
             </div>
           </div>
@@ -320,17 +320,17 @@ export function StudentForm({
             <LevelSelect
               name="level_quran"
               label="Koran"
-              defaultValue={student?.level_quran ?? null}
+              defaultValue={student?.child_level_quran ?? null}
             />
             <LevelSelect
               name="level_arabic"
               label="Arabisk"
-              defaultValue={student?.level_arabic ?? null}
+              defaultValue={student?.child_level_arabic ?? null}
             />
             <LevelSelect
               name="level_islam"
               label="Islam"
-              defaultValue={student?.level_islam ?? null}
+              defaultValue={student?.child_level_islam ?? null}
             />
           </div>
           <div className="grid gap-2">

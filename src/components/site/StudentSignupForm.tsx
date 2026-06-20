@@ -277,9 +277,7 @@ export function StudentSignupForm() {
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="grid gap-2">
-            <Label htmlFor="email" required>
-              {t("fieldEmail")}
-            </Label>
+            <Label htmlFor="email">{t("fieldEmail")}</Label>
             <Input
               id="email"
               name="email"

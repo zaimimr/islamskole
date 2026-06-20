@@ -26,7 +26,7 @@ type StudentRow = {
   mother_last_name: string | null;
   father_first_name: string | null;
   father_last_name: string | null;
-  birth_date: string | null;
+  child_birth_date: string | null;
   enrollments: {
     school_year_id: string;
     school_years: { label: string } | null;
@@ -47,7 +47,7 @@ function ageFromBirthDate(value: string | null): number | null {
 }
 
 function displayAge(student: StudentRow): string {
-  const age = ageFromBirthDate(student.birth_date);
+  const age = ageFromBirthDate(student.child_birth_date);
   return age != null ? String(age) : "-";
 }
 
@@ -57,14 +57,14 @@ async function getStudents(q: string): Promise<StudentRow[]> {
     let query = supabase
       .from("students")
       .select(
-        "id, child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name, birth_date, enrollments(school_year_id, school_years(label), classes(id, name_no)), payments(status, amount, school_year_id)",
+        "id, child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name, child_birth_date, enrollments(school_year_id, school_years(label), classes(id, name_no)), payments(status, amount, school_year_id)",
       )
       .order("created_at", { ascending: false });
 
     const term = q.replace(/[%,()]/g, " ").trim();
     if (term) {
       query = query.or(
-        `child_first_name.ilike.%${term}%,child_last_name.ilike.%${term}%,mother_first_name.ilike.%${term}%,mother_last_name.ilike.%${term}%,father_first_name.ilike.%${term}%,father_last_name.ilike.%${term}%,email.ilike.%${term}%`,
+        `child_first_name.ilike.%${term}%,child_last_name.ilike.%${term}%,mother_first_name.ilike.%${term}%,mother_last_name.ilike.%${term}%,father_first_name.ilike.%${term}%,father_last_name.ilike.%${term}%,child_email.ilike.%${term}%`,
       );
     }
 

@@ -67,7 +67,7 @@ async function getDashboard() {
       supabase
         .from("student_applications")
         .select(
-          "id, child_first_name, child_last_name, email, status, created_at",
+          "id, child_first_name, child_last_name, child_email, status, created_at",
         )
         .order("created_at", { ascending: false })
         .limit(5),
@@ -91,7 +91,7 @@ async function getDashboard() {
               id: string;
               child_first_name: string | null;
               child_last_name: string | null;
-              email: string | null;
+              child_email: string | null;
               status: string | null;
               created_at: string | null;
             }[]
@@ -99,7 +99,7 @@ async function getDashboard() {
       ).map((r) => ({
         id: r.id,
         name: studentDisplayName(r) || "-",
-        email: r.email,
+        email: r.child_email,
         status: r.status,
         created_at: r.created_at,
       })),
