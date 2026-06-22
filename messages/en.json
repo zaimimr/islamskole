@@ -132,14 +132,14 @@
   "enrollForm": {
     "eyebrow": "Enrollment",
     "title": "Enroll your child",
-    "subtitle": "Fill in the form and we will get back to you about a place and start date.",
+    "subtitle": "Fill in the form and pay the tuition with Vipps to secure the spot.",
     "facts": {
       "schedule": "Lessons every Sunday 10:00-14:00",
       "season": "35 Sundays from August to June",
       "ages": "For children aged 6 to 18"
     },
     "formTitle": "Enrollment form",
-    "formSubtitle": "We reply as soon as we can. Enrollment is not binding.",
+    "formSubtitle": "You pay with Vipps when you submit. The spot is secured once the payment is registered.",
     "fieldChildName": "Child's name",
     "placeholderChildName": "First and last name",
     "fieldChildAge": "Child's age",
@@ -157,7 +157,10 @@
     "fieldLastName": "Last name",
     "fieldGender": "Gender",
     "genderPlaceholder": "Select",
-    "gender": { "gutt": "Boy", "jente": "Girl" },
+    "gender": {
+      "gutt": "Boy",
+      "jente": "Girl"
+    },
     "fieldAddress": "Address",
     "placeholderAddress": "Street address",
     "fieldPostalCode": "Postal code",
@@ -167,7 +170,7 @@
     "fieldParentPhone": "Mobile (contact)",
     "fieldParentEmail": "Email (contact)",
     "parentsHint": "Fill in name, email and phone for at least one parent.",
-    "feeNote": "School fee NOK 5,000 per school year, paid on enrollment.",
+    "feeNote": "Tuition {fee} kr per child per school year. Paid with Vipps at enrollment.",
     "termsLead": "I confirm I have read the rules and accept the",
     "termsLink": "terms of sale",
     "termsTail": ", and will respect the payment plan and school hours.",
@@ -187,7 +190,7 @@
     },
     "fieldMessage": "Message",
     "placeholderMessage": "Anything we should know?",
-    "submit": "Send enrollment",
+    "submit": "Pay and enroll",
     "toastSuccess": "Thank you! We have received your enrollment.",
     "thanksTitle": "Thank you!",
     "thanksBody": "We have received your enrollment and will be in touch as soon as we can.",
@@ -202,7 +205,14 @@
     "errorPhone": "Enter a valid phone number (at least 8 digits)",
     "errorTerms": "You must accept the terms of sale",
     "errorParents": "Fill in name, email and phone for at least one parent",
-    "formSummary": "Some fields are missing or invalid. Check the highlighted fields and try again."
+    "formSummary": "Some fields are missing or invalid. Check the highlighted fields and try again.",
+    "sectionChildren": "Children",
+    "childLabel": "Child {n}",
+    "addChild": "Add another child",
+    "removeChild": "Remove child",
+    "totalLabel": "To pay now",
+    "payHint": "You'll be redirected to Vipps to complete the payment.",
+    "redirecting": "Redirecting you to Vipps ..."
   },
   "about": {
     "title": "About us",
@@ -287,10 +297,22 @@
     "updated": "17 June 2026",
     "sellerTitle": "Seller",
     "seller": [
-      { "label": "Company name", "value": "Islamskole Bærum" },
-      { "label": "Organisation number", "value": "917 342 385" },
-      { "label": "Address", "value": "Skuiveien 40, 1339 Vøyenenga" },
-      { "label": "Email", "value": "baerum@islamskole.no" }
+      {
+        "label": "Company name",
+        "value": "Islamskole Bærum"
+      },
+      {
+        "label": "Organisation number",
+        "value": "917 342 385"
+      },
+      {
+        "label": "Address",
+        "value": "Skuiveien 40, 1339 Vøyenenga"
+      },
+      {
+        "label": "Email",
+        "value": "baerum@islamskole.no"
+      }
     ],
     "sections": [
       {

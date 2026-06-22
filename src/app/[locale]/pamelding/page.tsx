@@ -6,7 +6,18 @@ import { Section } from "@/components/site/Section";
 import { Blob } from "@/components/site/decor";
 import { StudentSignupForm } from "@/components/site/StudentSignupForm";
 import { contentMetadata } from "@/lib/seo";
+import { createClient } from "@/lib/supabase/server";
 import type { Locale } from "@/i18n/routing";
+
+async function getActiveFee() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("school_years")
+    .select("fee")
+    .eq("is_active", true)
+    .maybeSingle();
+  return (data as unknown as { fee: number | null } | null)?.fee ?? 5000;
+}
 
 export async function generateMetadata({
   params,
@@ -30,6 +41,7 @@ export default async function PameldingPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("enrollForm");
+  const fee = await getActiveFee();
 
   return (
     <>
@@ -68,7 +80,7 @@ export default async function PameldingPage({
             <p className="mt-2 mb-7 text-base text-muted-foreground">
               {t("formSubtitle")}
             </p>
-            <StudentSignupForm />
+            <StudentSignupForm fee={fee} />
           </div>
         </div>
       </Section>

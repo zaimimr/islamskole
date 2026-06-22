@@ -267,7 +267,7 @@ export type Database = {
           reference: string
           school_year_id: string | null
           status: string
-          student_id: string
+          student_id: string | null
           updated_at: string
           vipps_state: string | null
         }
@@ -285,7 +285,7 @@ export type Database = {
           reference: string
           school_year_id?: string | null
           status?: string
-          student_id: string
+          student_id?: string | null
           updated_at?: string
           vipps_state?: string | null
         }
@@ -303,7 +303,7 @@ export type Database = {
           reference?: string
           school_year_id?: string | null
           status?: string
-          student_id?: string
+          student_id?: string | null
           updated_at?: string
           vipps_state?: string | null
         }
@@ -444,6 +444,7 @@ export type Database = {
           mother_first_name: string | null
           mother_last_name: string | null
           mother_phone: string | null
+          payment_id: string | null
           status: string
           terms_accepted: boolean
         }
@@ -472,6 +473,7 @@ export type Database = {
           mother_first_name?: string | null
           mother_last_name?: string | null
           mother_phone?: string | null
+          payment_id?: string | null
           status?: string
           terms_accepted?: boolean
         }
@@ -500,10 +502,19 @@ export type Database = {
           mother_first_name?: string | null
           mother_last_name?: string | null
           mother_phone?: string | null
+          payment_id?: string | null
           status?: string
           terms_accepted?: boolean
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "student_applications_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       students: {
         Row: {

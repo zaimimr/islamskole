@@ -3,8 +3,8 @@
 import { useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Loader2, PartyPopper } from "lucide-react";
-import { createStudentApplication } from "@/app/[locale]/admin/actions";
+import { Loader2, Plus, Trash2 } from "lucide-react";
+import { createStudentEnrollment } from "@/app/[locale]/admin/actions";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,33 +16,6 @@ const inputClassName = "h-11";
 const selectClassName =
   "h-11 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
 
-const fieldOrder = [
-  "child_first_name",
-  "child_last_name",
-  "birth_date",
-  "gender",
-  "address",
-  "postal_code",
-  "city",
-  "email",
-  "phone",
-  "mother_last_name",
-  "mother_first_name",
-  "mother_email",
-  "mother_phone",
-  "father_last_name",
-  "father_first_name",
-  "father_email",
-  "father_phone",
-  "parents",
-  "desired_class",
-  "level_quran",
-  "level_arabic",
-  "level_islam",
-  "message",
-  "terms_accepted",
-] as const;
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function isValidEmail(value: string) {
@@ -51,6 +24,10 @@ function isValidEmail(value: string) {
 
 function isValidPhone(value: string) {
   return /^\+?\d{8,15}$/.test(value.replace(/[\s-]/g, ""));
+}
+
+function formatNok(amount: number) {
+  return amount.toLocaleString("nb-NO");
 }
 
 function FieldError({ id, message }: { id: string; message?: string }) {
@@ -62,20 +39,32 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   );
 }
 
-export function StudentSignupForm() {
+export function StudentSignupForm({ fee }: { fee: number }) {
   const t = useTranslations("enrollForm");
   const [pending, startTransition] = useTransition();
-  const [done, setDone] = useState(false);
-  const [formKey, setFormKey] = useState(0);
+  const [redirecting, setRedirecting] = useState(false);
+  const [children, setChildren] = useState<number[]>([0]);
+  const [nextId, setNextId] = useState(1);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | undefined>(undefined);
   const formRef = useRef<HTMLFormElement>(null);
 
-  function handleReset() {
-    setFormKey((key) => key + 1);
-    setFieldErrors({});
-    setFormError(undefined);
-    setDone(false);
+  const childField = (id: number, name: string) => `child_${id}_${name}`;
+
+  function addChild() {
+    setChildren((prev) => [...prev, nextId]);
+    setNextId((id) => id + 1);
+  }
+
+  function removeChild(id: number) {
+    setChildren((prev) => (prev.length > 1 ? prev.filter((x) => x !== id) : prev));
+    setFieldErrors((prev) => {
+      const next: Record<string, string> = {};
+      for (const [key, value] of Object.entries(prev)) {
+        if (!key.startsWith(`child_${id}_`)) next[key] = value;
+      }
+      return next;
+    });
   }
 
   function clearFieldError(name: string) {
@@ -90,7 +79,7 @@ export function StudentSignupForm() {
   function focusFirstError(errors: Record<string, string>) {
     const form = formRef.current;
     if (!form) return;
-    const firstKey = fieldOrder.find((key) => key in errors);
+    const firstKey = Object.keys(errors)[0];
     if (!firstKey) return;
     const anchor =
       firstKey === "parents"
@@ -106,32 +95,34 @@ export function StudentSignupForm() {
       ((formData.get(name) as string | null) ?? "").trim();
     const errors: Record<string, string> = {};
 
-    for (const name of [
-      "child_first_name",
-      "child_last_name",
-      "birth_date",
-      "gender",
-    ]) {
-      if (!value(name)) errors[name] = t("errorRequired");
+    for (const id of children) {
+      for (const name of [
+        "child_first_name",
+        "child_last_name",
+        "birth_date",
+        "gender",
+      ]) {
+        if (!value(childField(id, name))) {
+          errors[childField(id, name)] = t("errorRequired");
+        }
+      }
+      const email = value(childField(id, "email"));
+      if (email && !isValidEmail(email)) {
+        errors[childField(id, "email")] = t("errorEmail");
+      }
+      const phone = value(childField(id, "phone"));
+      if (phone && !isValidPhone(phone)) {
+        errors[childField(id, "phone")] = t("errorPhone");
+      }
     }
-
-    const email = value("email");
-    if (email && !isValidEmail(email)) errors.email = t("errorEmail");
-
-    const phone = value("phone");
-    if (phone && !isValidPhone(phone)) errors.phone = t("errorPhone");
 
     const hasCompleteParent = ["mother", "father"].some((parent) => {
       const name = value(`${parent}_first_name`);
       const email = value(`${parent}_email`);
       const phone = value(`${parent}_phone`);
-      return (
-        name && isValidEmail(email) && isValidPhone(phone)
-      );
+      return name && isValidEmail(email) && isValidPhone(phone);
     });
-    if (!hasCompleteParent) {
-      errors.parents = t("errorParents");
-    }
+    if (!hasCompleteParent) errors.parents = t("errorParents");
 
     for (const parent of ["mother", "father"]) {
       const parentEmail = value(`${parent}_email`);
@@ -168,18 +159,16 @@ export function StudentSignupForm() {
     setFormError(undefined);
 
     startTransition(async () => {
-      const result = await createStudentApplication(formData);
+      const result = await createStudentEnrollment(formData);
       if (result.ok) {
-        toast.success(t("toastSuccess"));
-        setDone(true);
+        setRedirecting(true);
+        window.location.href = result.redirectUrl;
         return;
       }
       const serverErrors = result.fieldErrors ?? {};
       setFieldErrors(serverErrors);
       setFormError(result.error ?? t("formSummary"));
-      if (result.error) {
-        toast.error(result.error);
-      }
+      if (result.error) toast.error(result.error);
       focusFirstError(serverErrors);
     });
   }
@@ -192,112 +181,105 @@ export function StudentSignupForm() {
     return fieldErrors[name] ? true : undefined;
   }
 
-  if (done) {
+  const total = fee * children.length;
+  const busy = pending || redirecting;
+
+  function renderChild(id: number, index: number) {
+    const f = (name: string) => childField(id, name);
     return (
-      <div className="flex flex-col items-center gap-4 rounded-3xl bg-primary/8 px-6 py-12 text-center">
-        <span className="inline-flex size-14 items-center justify-center rounded-full bg-primary/15 text-brand-green-dark">
-          <PartyPopper className="size-7" aria-hidden="true" />
-        </span>
-        <h3 className="font-heading text-2xl font-bold">{t("thanksTitle")}</h3>
-        <p className="max-w-md text-base text-muted-foreground">
-          {t("thanksBody")}
-        </p>
-        <Button variant="outline" onClick={handleReset}>
-          {t("submitAnother")}
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <form
-      key={formKey}
-      ref={formRef}
-      onSubmit={handleSubmit}
-      noValidate
-      className="grid gap-8"
-    >
-      {formError ? (
-        <div
-          role="alert"
-          className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
-        >
-          {formError}
+      <fieldset
+        key={id}
+        className="grid gap-5 rounded-2xl border border-foreground/10 bg-muted/20 p-5"
+      >
+        <div className="flex items-center justify-between">
+          <legend className="font-heading text-lg font-bold">
+            {t("childLabel", { n: index + 1 })}
+          </legend>
+          {children.length > 1 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => removeChild(id)}
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="size-4" aria-hidden="true" />
+              {t("removeChild")}
+            </Button>
+          ) : null}
         </div>
-      ) : null}
 
-      <fieldset className="grid gap-5">
-        <legend className="mb-1 font-heading text-lg font-bold">
-          {t("sectionStudent")}
-        </legend>
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="grid gap-2">
-            <Label htmlFor="child_first_name" required>
+            <Label htmlFor={f("child_first_name")} required>
               {t("fieldFirstName")}
             </Label>
             <Input
-              id="child_first_name"
-              name="child_first_name"
+              id={f("child_first_name")}
+              name={f("child_first_name")}
               className={inputClassName}
               placeholder={t("placeholderFirstName")}
               autoComplete="given-name"
-              aria-invalid={invalid("child_first_name")}
-              aria-describedby={describedBy("child_first_name")}
-              onInput={() => clearFieldError("child_first_name")}
+              aria-invalid={invalid(f("child_first_name"))}
+              aria-describedby={describedBy(f("child_first_name"))}
+              onInput={() => clearFieldError(f("child_first_name"))}
             />
             <FieldError
-              id="child_first_name-error"
-              message={fieldErrors.child_first_name}
+              id={`${f("child_first_name")}-error`}
+              message={fieldErrors[f("child_first_name")]}
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="child_last_name" required>
+            <Label htmlFor={f("child_last_name")} required>
               {t("fieldLastName")}
             </Label>
             <Input
-              id="child_last_name"
-              name="child_last_name"
+              id={f("child_last_name")}
+              name={f("child_last_name")}
               className={inputClassName}
               placeholder={t("placeholderLastName")}
               autoComplete="family-name"
-              aria-invalid={invalid("child_last_name")}
-              aria-describedby={describedBy("child_last_name")}
-              onInput={() => clearFieldError("child_last_name")}
+              aria-invalid={invalid(f("child_last_name"))}
+              aria-describedby={describedBy(f("child_last_name"))}
+              onInput={() => clearFieldError(f("child_last_name"))}
             />
             <FieldError
-              id="child_last_name-error"
-              message={fieldErrors.child_last_name}
+              id={`${f("child_last_name")}-error`}
+              message={fieldErrors[f("child_last_name")]}
             />
           </div>
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="grid gap-2">
-            <Label htmlFor="birth_date" required>
+            <Label htmlFor={f("birth_date")} required>
               {t("fieldChildBirthDate")}
             </Label>
             <Input
-              id="birth_date"
-              name="birth_date"
+              id={f("birth_date")}
+              name={f("birth_date")}
               type="date"
               className={inputClassName}
-              aria-invalid={invalid("birth_date")}
-              aria-describedby={describedBy("birth_date")}
-              onInput={() => clearFieldError("birth_date")}
+              aria-invalid={invalid(f("birth_date"))}
+              aria-describedby={describedBy(f("birth_date"))}
+              onInput={() => clearFieldError(f("birth_date"))}
             />
-            <FieldError id="birth_date-error" message={fieldErrors.birth_date} />
+            <FieldError
+              id={`${f("birth_date")}-error`}
+              message={fieldErrors[f("birth_date")]}
+            />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="gender" required>
+            <Label htmlFor={f("gender")} required>
               {t("fieldGender")}
             </Label>
             <select
-              id="gender"
-              name="gender"
+              id={f("gender")}
+              name={f("gender")}
               defaultValue=""
-              aria-invalid={invalid("gender")}
-              aria-describedby={describedBy("gender")}
-              onChange={() => clearFieldError("gender")}
+              aria-invalid={invalid(f("gender"))}
+              aria-describedby={describedBy(f("gender"))}
+              onChange={() => clearFieldError(f("gender"))}
               className={selectClassName}
             >
               <option value="">{t("genderPlaceholder")}</option>
@@ -307,94 +289,171 @@ export function StudentSignupForm() {
                 </option>
               ))}
             </select>
-            <FieldError id="gender-error" message={fieldErrors.gender} />
+            <FieldError
+              id={`${f("gender")}-error`}
+              message={fieldErrors[f("gender")]}
+            />
           </div>
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="address">{t("fieldAddress")}</Label>
+          <Label htmlFor={f("address")}>{t("fieldAddress")}</Label>
           <Input
-            id="address"
-            name="address"
+            id={f("address")}
+            name={f("address")}
             className={inputClassName}
             autoComplete="street-address"
             placeholder={t("placeholderAddress")}
-            aria-invalid={invalid("address")}
-            aria-describedby={describedBy("address")}
-            onInput={() => clearFieldError("address")}
           />
-          <FieldError id="address-error" message={fieldErrors.address} />
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="grid gap-2">
-            <Label htmlFor="postal_code">{t("fieldPostalCode")}</Label>
+            <Label htmlFor={f("postal_code")}>{t("fieldPostalCode")}</Label>
             <Input
-              id="postal_code"
-              name="postal_code"
+              id={f("postal_code")}
+              name={f("postal_code")}
               className={inputClassName}
               autoComplete="postal-code"
               placeholder={t("placeholderPostalCode")}
-              aria-invalid={invalid("postal_code")}
-              aria-describedby={describedBy("postal_code")}
-              onInput={() => clearFieldError("postal_code")}
-            />
-            <FieldError
-              id="postal_code-error"
-              message={fieldErrors.postal_code}
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="city">{t("fieldCity")}</Label>
+            <Label htmlFor={f("city")}>{t("fieldCity")}</Label>
             <Input
-              id="city"
-              name="city"
+              id={f("city")}
+              name={f("city")}
               className={inputClassName}
               autoComplete="address-level2"
               placeholder={t("placeholderCity")}
-              aria-invalid={invalid("city")}
-              aria-describedby={describedBy("city")}
-              onInput={() => clearFieldError("city")}
             />
-            <FieldError id="city-error" message={fieldErrors.city} />
           </div>
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="grid gap-2">
-            <Label htmlFor="email">{t("fieldEmail")}</Label>
+            <Label htmlFor={f("email")}>{t("fieldEmail")}</Label>
             <Input
-              id="email"
-              name="email"
+              id={f("email")}
+              name={f("email")}
               type="email"
               inputMode="email"
               className={inputClassName}
-              autoComplete="email"
               placeholder={t("placeholderEmail")}
-              aria-invalid={invalid("email")}
-              aria-describedby={describedBy("email")}
-              onInput={() => clearFieldError("email")}
+              aria-invalid={invalid(f("email"))}
+              aria-describedby={describedBy(f("email"))}
+              onInput={() => clearFieldError(f("email"))}
             />
-            <FieldError id="email-error" message={fieldErrors.email} />
+            <FieldError
+              id={`${f("email")}-error`}
+              message={fieldErrors[f("email")]}
+            />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="phone">{t("fieldPhone")}</Label>
+            <Label htmlFor={f("phone")}>{t("fieldPhone")}</Label>
             <Input
-              id="phone"
-              name="phone"
+              id={f("phone")}
+              name={f("phone")}
               type="tel"
               inputMode="tel"
               className={inputClassName}
-              autoComplete="tel"
               placeholder={t("placeholderPhone")}
-              aria-invalid={invalid("phone")}
-              aria-describedby={describedBy("phone")}
-              onInput={() => clearFieldError("phone")}
+              aria-invalid={invalid(f("phone"))}
+              aria-describedby={describedBy(f("phone"))}
+              onInput={() => clearFieldError(f("phone"))}
             />
-            <FieldError id="phone-error" message={fieldErrors.phone} />
+            <FieldError
+              id={`${f("phone")}-error`}
+              message={fieldErrors[f("phone")]}
+            />
           </div>
         </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor={f("desired_class")}>{t("fieldDesiredClass")}</Label>
+          <Input
+            id={f("desired_class")}
+            name={f("desired_class")}
+            className={inputClassName}
+            placeholder={t("placeholderDesiredClass")}
+          />
+        </div>
+
+        <div className="grid gap-3 rounded-2xl bg-background/60 p-4">
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              {t("levelsTitle")}
+            </p>
+            <p className="text-sm text-muted-foreground">{t("levelsHint")}</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {(
+              [
+                ["level_quran", "levelQuran"],
+                ["level_arabic", "levelArabic"],
+                ["level_islam", "levelIslam"],
+              ] as const
+            ).map(([name, label]) => (
+              <div key={name} className="grid gap-2">
+                <Label htmlFor={f(name)}>{t(label)}</Label>
+                <select
+                  id={f(name)}
+                  name={f(name)}
+                  defaultValue=""
+                  className={selectClassName}
+                >
+                  <option value="">{t("levelPlaceholder")}</option>
+                  {(["nybegynner", "litt", "middels", "god"] as const).map(
+                    (v) => (
+                      <option key={v} value={v}>
+                        {t(`levels.${v}`)}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor={f("message")}>{t("fieldMessage")}</Label>
+          <Textarea
+            id={f("message")}
+            name={f("message")}
+            rows={3}
+            placeholder={t("placeholderMessage")}
+          />
+        </div>
       </fieldset>
+    );
+  }
+
+  return (
+    <form ref={formRef} onSubmit={handleSubmit} noValidate className="grid gap-8">
+      {formError ? (
+        <div
+          role="alert"
+          className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
+        >
+          {formError}
+        </div>
+      ) : null}
+
+      <input type="hidden" name="child_indices" value={children.join(",")} />
+
+      <div className="grid gap-5">
+        {children.map((id, index) => renderChild(id, index))}
+        <Button
+          type="button"
+          variant="outline"
+          onClick={addChild}
+          className="justify-self-start"
+        >
+          <Plus className="size-4" aria-hidden="true" />
+          {t("addChild")}
+        </Button>
+      </div>
 
       <fieldset className="grid gap-5" data-parents-anchor tabIndex={-1}>
         <legend className="mb-1 font-heading text-lg font-bold">
@@ -417,16 +476,7 @@ export function StudentSignupForm() {
               name="mother_first_name"
               className={inputClassName}
               placeholder={t("placeholderFirstName")}
-              aria-invalid={invalid("mother_first_name")}
-              aria-describedby={describedBy("mother_first_name")}
-              onInput={() => {
-                clearFieldError("mother_first_name");
-                clearFieldError("parents");
-              }}
-            />
-            <FieldError
-              id="mother_first_name-error"
-              message={fieldErrors.mother_first_name}
+              onInput={() => clearFieldError("parents")}
             />
           </div>
           <div className="grid gap-2">
@@ -436,16 +486,7 @@ export function StudentSignupForm() {
               name="mother_last_name"
               className={inputClassName}
               placeholder={t("placeholderLastName")}
-              aria-invalid={invalid("mother_last_name")}
-              aria-describedby={describedBy("mother_last_name")}
-              onInput={() => {
-                clearFieldError("mother_last_name");
-                clearFieldError("parents");
-              }}
-            />
-            <FieldError
-              id="mother_last_name-error"
-              message={fieldErrors.mother_last_name}
+              onInput={() => clearFieldError("parents")}
             />
           </div>
         </div>
@@ -507,16 +548,7 @@ export function StudentSignupForm() {
               name="father_first_name"
               className={inputClassName}
               placeholder={t("placeholderFirstName")}
-              aria-invalid={invalid("father_first_name")}
-              aria-describedby={describedBy("father_first_name")}
-              onInput={() => {
-                clearFieldError("father_first_name");
-                clearFieldError("parents");
-              }}
-            />
-            <FieldError
-              id="father_first_name-error"
-              message={fieldErrors.father_first_name}
+              onInput={() => clearFieldError("parents")}
             />
           </div>
           <div className="grid gap-2">
@@ -526,16 +558,7 @@ export function StudentSignupForm() {
               name="father_last_name"
               className={inputClassName}
               placeholder={t("placeholderLastName")}
-              aria-invalid={invalid("father_last_name")}
-              aria-describedby={describedBy("father_last_name")}
-              onInput={() => {
-                clearFieldError("father_last_name");
-                clearFieldError("parents");
-              }}
-            />
-            <FieldError
-              id="father_last_name-error"
-              message={fieldErrors.father_last_name}
+              onInput={() => clearFieldError("parents")}
             />
           </div>
         </div>
@@ -586,80 +609,18 @@ export function StudentSignupForm() {
         <p className="text-sm text-muted-foreground">{t("parentsHint")}</p>
       </fieldset>
 
-      <div className="grid gap-2">
-        <Label htmlFor="desired_class">{t("fieldDesiredClass")}</Label>
-        <Input
-          id="desired_class"
-          name="desired_class"
-          className={inputClassName}
-          placeholder={t("placeholderDesiredClass")}
-          aria-invalid={invalid("desired_class")}
-          aria-describedby={describedBy("desired_class")}
-          onInput={() => clearFieldError("desired_class")}
-        />
-        <FieldError
-          id="desired_class-error"
-          message={fieldErrors.desired_class}
-        />
-      </div>
-
-      <div className="grid gap-3 rounded-2xl bg-muted/40 p-4">
-        <div>
-          <p className="text-sm font-semibold text-foreground">
-            {t("levelsTitle")}
-          </p>
-          <p className="text-sm text-muted-foreground">{t("levelsHint")}</p>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          {(
-            [
-              ["level_quran", "levelQuran"],
-              ["level_arabic", "levelArabic"],
-              ["level_islam", "levelIslam"],
-            ] as const
-          ).map(([name, label]) => (
-            <div key={name} className="grid gap-2">
-              <Label htmlFor={name}>{t(label)}</Label>
-              <select
-                id={name}
-                name={name}
-                defaultValue=""
-                aria-invalid={invalid(name)}
-                aria-describedby={describedBy(name)}
-                onChange={() => clearFieldError(name)}
-                className={selectClassName}
-              >
-                <option value="">{t("levelPlaceholder")}</option>
-                {(["nybegynner", "litt", "middels", "god"] as const).map(
-                  (v) => (
-                    <option key={v} value={v}>
-                      {t(`levels.${v}`)}
-                    </option>
-                  ),
-                )}
-              </select>
-              <FieldError id={`${name}-error`} message={fieldErrors[name]} />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid gap-2">
-        <Label htmlFor="message">{t("fieldMessage")}</Label>
-        <Textarea
-          id="message"
-          name="message"
-          rows={4}
-          placeholder={t("placeholderMessage")}
-          aria-invalid={invalid("message")}
-          aria-describedby={describedBy("message")}
-          onInput={() => clearFieldError("message")}
-        />
-        <FieldError id="message-error" message={fieldErrors.message} />
-      </div>
-
       <div className="grid gap-3 rounded-2xl bg-primary/6 p-4">
-        <p className="text-sm font-semibold text-foreground">{t("feeNote")}</p>
+        <p className="text-sm font-semibold text-foreground">
+          {t("feeNote", { fee: formatNok(fee) })}
+        </p>
+        <div className="flex items-center justify-between border-t border-foreground/10 pt-3">
+          <span className="text-sm font-semibold text-foreground">
+            {t("totalLabel")}
+          </span>
+          <span className="font-heading text-xl font-bold text-brand-green-dark">
+            {formatNok(total)} kr
+          </span>
+        </div>
         <label className="flex items-start gap-3 text-sm text-muted-foreground">
           <input
             type="checkbox"
@@ -685,11 +646,12 @@ export function StudentSignupForm() {
           id="terms_accepted-error"
           message={fieldErrors.terms_accepted}
         />
+        <p className="text-sm text-muted-foreground">{t("payHint")}</p>
       </div>
 
-      <Button type="submit" disabled={pending} className="h-12 w-full sm:w-auto">
-        {pending ? <Loader2 className="size-4 animate-spin" /> : null}
-        {pending ? "Sender ..." : t("submit")}
+      <Button type="submit" disabled={busy} className="h-12 w-full sm:w-auto">
+        {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+        {redirecting ? t("redirecting") : t("submit")}
       </Button>
     </form>
   );

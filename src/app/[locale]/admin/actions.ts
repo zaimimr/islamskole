@@ -1,6 +1,6 @@
 "use server";
 
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
@@ -11,19 +11,9 @@ import { getSiteSettings } from "@/lib/data";
 import { writeAudit } from "@/lib/audit";
 import { rateLimit } from "@/lib/rate-limit";
 import {
-  sendStudentApplicationEmail,
   sendTeacherApplicationEmail,
-  sendStudentApplicationConfirmationEmail,
   sendTeacherApplicationConfirmationEmail,
 } from "@/lib/email";
-
-const levelLabelsNo: Record<string, string> = {
-  nybegynner: "Nybegynner",
-  litt: "Litt erfaring",
-  middels: "Middels",
-  god: "God",
-};
-const levelLabel = (v: string | null) => (v ? (levelLabelsNo[v] ?? v) : null);
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 type PasswordResult =
@@ -472,46 +462,17 @@ export async function deleteTeacherApplication(
   return { ok: true, id };
 }
 
-const genderLabels: Record<string, string> = {
-  gutt: "Gutt",
-  jente: "Jente",
-};
-
-function genderLabel(value: string | null) {
-  if (!value) return "-";
-  return genderLabels[value] ?? value;
-}
-
 type SignupResult =
-  | { ok: true }
+  | { ok: true; redirectUrl: string }
   | { ok: false; error?: string; fieldErrors?: Record<string, string> };
 
-const studentApplicationSchema = z
-  .object({
-    child_first_name: z.string().min(1, "Barnets fornavn er påkrevd"),
-    child_last_name: z.string().min(1, "Barnets etternavn er påkrevd"),
-    birth_date: z.string().min(1, "Fødselsdato er påkrevd"),
-    gender: z.string().min(1, "Kjønn er påkrevd"),
-    email: z.union([
-      z.literal(""),
-      z.string().email("Ugyldig e-postadresse"),
-    ]),
-    mother_first_name: z.string(),
-    father_first_name: z.string(),
-    terms_accepted: z.boolean(),
-  })
-  .refine(
-    (v) =>
-      v.mother_first_name.length > 0 || v.father_first_name.length > 0,
-    {
-      message: "Minst én forelder må fylles ut",
-      path: ["parents"],
-    },
-  )
-  .refine((v) => v.terms_accepted, {
-    message: "Du må godta salgsbetingelsene",
-    path: ["terms_accepted"],
-  });
+const enrollChildSchema = z.object({
+  child_first_name: z.string().min(1, "Barnets fornavn er påkrevd"),
+  child_last_name: z.string().min(1, "Barnets etternavn er påkrevd"),
+  birth_date: z.string().min(1, "Fødselsdato er påkrevd"),
+  gender: z.string().min(1, "Kjønn er påkrevd"),
+  email: z.union([z.literal(""), z.string().email("Ugyldig e-postadresse")]),
+});
 const studentStatusSchema = z.enum([
   "ny",
   "kontaktet",
@@ -520,7 +481,7 @@ const studentStatusSchema = z.enum([
   "arkivert",
 ]);
 
-export async function createStudentApplication(
+export async function createStudentEnrollment(
   formData: FormData,
 ): Promise<SignupResult> {
   const ip =
@@ -531,119 +492,156 @@ export async function createStudentApplication(
     return { ok: false, error: "For mange forsøk, prøv igjen senere." };
   }
 
-  const childFirstName = readString(formData, "child_first_name");
-  const childLastName = readString(formData, "child_last_name");
-  const email = readString(formData, "email");
-  const motherFirstName = readString(formData, "mother_first_name");
-  const motherLastName = readString(formData, "mother_last_name");
-  const fatherFirstName = readString(formData, "father_first_name");
-  const fatherLastName = readString(formData, "father_last_name");
   const termsAccepted = formData.get("terms_accepted") != null;
-
-  const motherName = `${motherFirstName} ${motherLastName}`.trim();
-  const fatherName = `${fatherFirstName} ${fatherLastName}`.trim();
-
-  const parsed = studentApplicationSchema.safeParse({
-    child_first_name: childFirstName,
-    child_last_name: childLastName,
-    birth_date: readString(formData, "birth_date"),
-    gender: readString(formData, "gender"),
-    email,
-    mother_first_name: motherFirstName,
-    father_first_name: fatherFirstName,
-    terms_accepted: termsAccepted,
-  });
-  if (!parsed.success) {
-    const fieldErrors: Record<string, string> = {};
-    for (const issue of parsed.error.issues) {
-      const key = String(issue.path[0] ?? "");
-      if (key && !(key in fieldErrors)) {
-        fieldErrors[key] = issue.message;
-      }
-    }
-    return { ok: false, fieldErrors };
-  }
-
-  const childName = `${childFirstName} ${childLastName}`.trim();
-
-  const payload = {
-    child_first_name: childFirstName,
-    child_last_name: childLastName,
-    child_birth_date: readOptionalString(formData, "birth_date"),
-    child_gender: readOptionalString(formData, "gender"),
-    child_address: readOptionalString(formData, "address"),
-    child_postal_code: readOptionalString(formData, "postal_code"),
-    child_city: readOptionalString(formData, "city"),
-    child_email: email || null,
-    child_phone: readOptionalString(formData, "phone"),
-    mother_first_name: readOptionalString(formData, "mother_first_name"),
-    mother_last_name: readOptionalString(formData, "mother_last_name"),
-    mother_phone: readOptionalString(formData, "mother_phone"),
-    mother_email: readOptionalString(formData, "mother_email"),
-    father_first_name: readOptionalString(formData, "father_first_name"),
-    father_last_name: readOptionalString(formData, "father_last_name"),
-    father_phone: readOptionalString(formData, "father_phone"),
-    father_email: readOptionalString(formData, "father_email"),
-    desired_class: readOptionalString(formData, "desired_class"),
-    child_level_quran: readOptionalString(formData, "level_quran"),
-    child_level_arabic: readOptionalString(formData, "level_arabic"),
-    child_level_islam: readOptionalString(formData, "level_islam"),
-    message: readOptionalString(formData, "message"),
-    terms_accepted: termsAccepted,
-  };
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("student_applications")
-    .insert(payload as never);
-
-  if (error) {
-    console.error("createStudentApplication insert error", error);
+  if (!termsAccepted) {
     return {
       ok: false,
-      error:
-        "Noe gikk galt under registreringen. Prøv igjen senere.",
+      fieldErrors: { terms_accepted: "Du må godta salgsbetingelsene" },
     };
   }
 
-  {
-    const settings = await getSiteSettings();
-    await sendStudentApplicationEmail({
-      to: settings?.enroll_email ?? "opptak@islamskole.no",
-      childName,
-      replyTo: email || undefined,
-      rows: [
-        ["Barnets navn", childName],
-        ["Fødselsdato", payload.child_birth_date],
-        ["Kjønn", genderLabel(payload.child_gender)],
-        ["Adresse", payload.child_address],
-        ["Postnummer", payload.child_postal_code],
-        ["Poststed", payload.child_city],
-        ["E-post (kontakt)", email],
-        ["Mobil (kontakt)", payload.child_phone],
-        ["Mor", motherName || "-"],
-        ["Mor - mobil", payload.mother_phone],
-        ["Mor - e-post", payload.mother_email],
-        ["Far", fatherName || "-"],
-        ["Far - mobil", payload.father_phone],
-        ["Far - e-post", payload.father_email],
-        ["Ønsket klasse", payload.desired_class],
-        ["Nivå - Koran", levelLabel(payload.child_level_quran)],
-        ["Nivå - Arabisk", levelLabel(payload.child_level_arabic)],
-        ["Nivå - Islam", levelLabel(payload.child_level_islam)],
-        ["Melding", payload.message],
-      ],
-    });
-    if (email) {
-      await sendStudentApplicationConfirmationEmail({
-        to: email,
-        childName,
-        lang: "no",
-      });
-    }
+  const motherFirstName = readString(formData, "mother_first_name");
+  const fatherFirstName = readString(formData, "father_first_name");
+  if (!motherFirstName && !fatherFirstName) {
+    return {
+      ok: false,
+      fieldErrors: { parents: "Minst én forelder må fylles ut" },
+    };
   }
 
-  return { ok: true };
+  const indices = readString(formData, "child_indices")
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value) => value !== "");
+  if (indices.length === 0) {
+    return { ok: false, error: "Legg til minst ett barn." };
+  }
+
+  const fieldErrors: Record<string, string> = {};
+  const childPayloads: Record<string, unknown>[] = [];
+  const childNames: string[] = [];
+
+  for (const i of indices) {
+    const childFirstName = readString(formData, `child_${i}_child_first_name`);
+    const childLastName = readString(formData, `child_${i}_child_last_name`);
+    const birthDate = readString(formData, `child_${i}_birth_date`);
+    const gender = readString(formData, `child_${i}_gender`);
+    const childEmail = readString(formData, `child_${i}_email`);
+
+    const parsed = enrollChildSchema.safeParse({
+      child_first_name: childFirstName,
+      child_last_name: childLastName,
+      birth_date: birthDate,
+      gender,
+      email: childEmail,
+    });
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) {
+        const key = String(issue.path[0] ?? "");
+        const scoped = `child_${i}_${key === "email" ? "email" : key}`;
+        if (key && !(scoped in fieldErrors)) {
+          fieldErrors[scoped] = issue.message;
+        }
+      }
+      continue;
+    }
+
+    childNames.push(`${childFirstName} ${childLastName}`.trim());
+    childPayloads.push({
+      child_first_name: childFirstName,
+      child_last_name: childLastName,
+      child_birth_date: birthDate || null,
+      child_gender: gender || null,
+      child_address: readOptionalString(formData, `child_${i}_address`),
+      child_postal_code: readOptionalString(formData, `child_${i}_postal_code`),
+      child_city: readOptionalString(formData, `child_${i}_city`),
+      child_email: childEmail || null,
+      child_phone: readOptionalString(formData, `child_${i}_phone`),
+      mother_first_name: readOptionalString(formData, "mother_first_name"),
+      mother_last_name: readOptionalString(formData, "mother_last_name"),
+      mother_phone: readOptionalString(formData, "mother_phone"),
+      mother_email: readOptionalString(formData, "mother_email"),
+      father_first_name: readOptionalString(formData, "father_first_name"),
+      father_last_name: readOptionalString(formData, "father_last_name"),
+      father_phone: readOptionalString(formData, "father_phone"),
+      father_email: readOptionalString(formData, "father_email"),
+      desired_class: readOptionalString(formData, `child_${i}_desired_class`),
+      child_level_quran: readOptionalString(formData, `child_${i}_level_quran`),
+      child_level_arabic: readOptionalString(
+        formData,
+        `child_${i}_level_arabic`,
+      ),
+      child_level_islam: readOptionalString(formData, `child_${i}_level_islam`),
+      message: readOptionalString(formData, `child_${i}_message`),
+      terms_accepted: termsAccepted,
+    });
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return { ok: false, fieldErrors };
+  }
+
+  const admin = createAdminClient();
+
+  const { data: yearRow } = await admin
+    .from("school_years")
+    .select("id, label, fee")
+    .eq("is_active", true)
+    .maybeSingle();
+  const year = yearRow as unknown as {
+    id: string;
+    label: string;
+    fee: number | null;
+  } | null;
+  if (!year?.fee) {
+    return {
+      ok: false,
+      error: "Innmelding er ikke åpen ennå. Ta kontakt med skolen.",
+    };
+  }
+
+  const reference = `isk-${randomUUID()}`;
+  const amount = year.fee * 100 * childPayloads.length;
+  const description = `Innmelding ${year.label} (${childPayloads.length} barn)`;
+
+  const { data: paymentRow, error: paymentError } = await admin
+    .from("payments")
+    .insert({
+      school_year_id: year.id,
+      reference,
+      amount,
+      currency: "NOK",
+      method: "vipps",
+      status: "opprettet",
+      description,
+    } as never)
+    .select("id")
+    .single();
+
+  if (paymentError || !paymentRow) {
+    console.error("createStudentEnrollment payment error", paymentError);
+    return {
+      ok: false,
+      error: "Noe gikk galt under registreringen. Prøv igjen senere.",
+    };
+  }
+
+  const paymentId = (paymentRow as unknown as { id: string }).id;
+
+  const { error: insertError } = await admin
+    .from("student_applications")
+    .insert(childPayloads.map((row) => ({ ...row, payment_id: paymentId })) as never);
+
+  if (insertError) {
+    console.error("createStudentEnrollment insert error", insertError);
+    await admin.from("payments").delete().eq("id", paymentId);
+    return {
+      ok: false,
+      error: "Noe gikk galt under registreringen. Prøv igjen senere.",
+    };
+  }
+
+  return { ok: true, redirectUrl: `/api/vipps/pay/${paymentId}` };
 }
 
 export async function updateStudentApplicationStatus(

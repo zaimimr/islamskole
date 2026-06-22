@@ -130,16 +130,16 @@
     "note": "Påmeldingen for kommende skoleår åpner i april/mai."
   },
   "enrollForm": {
-    "eyebrow": "Påmelding",
-    "title": "Meld på barnet ditt",
-    "subtitle": "Fyll ut skjemaet, så tar vi kontakt med deg om plass og oppstart.",
+    "eyebrow": "Innmelding",
+    "title": "Meld inn barnet ditt",
+    "subtitle": "Fyll ut skjemaet og betal skoleavgiften med Vipps for å sikre plassen.",
     "facts": {
       "schedule": "Undervisning hver søndag kl. 10:00-14:00",
       "season": "35 søndager fra august til juni",
       "ages": "For barn fra 6 til 18 år"
     },
-    "formTitle": "Påmeldingsskjema",
-    "formSubtitle": "Vi svarer så fort vi kan. Påmelding er ikke bindende.",
+    "formTitle": "Innmeldingsskjema",
+    "formSubtitle": "Du betaler med Vipps når du sender inn. Plassen er sikret når betalingen er registrert.",
     "fieldChildName": "Barnets navn",
     "placeholderChildName": "Fornavn og etternavn",
     "fieldChildAge": "Barnets alder",
@@ -157,7 +157,10 @@
     "fieldLastName": "Etternavn",
     "fieldGender": "Kjønn",
     "genderPlaceholder": "Velg",
-    "gender": { "gutt": "Gutt", "jente": "Jente" },
+    "gender": {
+      "gutt": "Gutt",
+      "jente": "Jente"
+    },
     "fieldAddress": "Adresse",
     "placeholderAddress": "Gateadresse",
     "fieldPostalCode": "Postnummer",
@@ -167,7 +170,7 @@
     "fieldParentPhone": "Mobil (kontakt)",
     "fieldParentEmail": "E-post (kontakt)",
     "parentsHint": "Fyll ut navn, e-post og telefon for minst én forelder.",
-    "feeNote": "Skoleavgift 5 000 kr per skoleår, betales ved påmelding.",
+    "feeNote": "Skoleavgift {fee} kr per barn per skoleår. Betales med Vipps ved innmelding.",
     "termsLead": "Jeg bekrefter å ha lest reglementet og godtar",
     "termsLink": "salgsbetingelsene",
     "termsTail": ", og vil respektere innbetalingsplan og skoletider.",
@@ -187,7 +190,7 @@
     },
     "fieldMessage": "Melding",
     "placeholderMessage": "Er det noe vi bør vite?",
-    "submit": "Send påmelding",
+    "submit": "Betal og meld inn",
     "toastSuccess": "Takk! Vi har mottatt påmeldingen din.",
     "thanksTitle": "Tusen takk!",
     "thanksBody": "Vi har mottatt påmeldingen din og tar kontakt så snart vi kan.",
@@ -202,7 +205,14 @@
     "errorPhone": "Skriv inn et gyldig telefonnummer (minst 8 sifre)",
     "errorTerms": "Du må godta salgsbetingelsene",
     "errorParents": "Fyll ut navn, e-post og telefon for minst én forelder",
-    "formSummary": "Noen felt mangler eller er feil. Sjekk de markerte feltene og prøv igjen."
+    "formSummary": "Noen felt mangler eller er feil. Sjekk de markerte feltene og prøv igjen.",
+    "sectionChildren": "Barn",
+    "childLabel": "Barn {n}",
+    "addChild": "Legg til et barn til",
+    "removeChild": "Fjern barn",
+    "totalLabel": "Å betale nå",
+    "payHint": "Du sendes videre til Vipps for å fullføre betalingen.",
+    "redirecting": "Sender deg til Vipps ..."
   },
   "about": {
     "title": "Om oss",
@@ -287,10 +297,22 @@
     "updated": "17. juni 2026",
     "sellerTitle": "Selger",
     "seller": [
-      { "label": "Foretaksnavn", "value": "Islamskole Bærum" },
-      { "label": "Organisasjonsnummer", "value": "917 342 385" },
-      { "label": "Adresse", "value": "Skuiveien 40, 1339 Vøyenenga" },
-      { "label": "E-post", "value": "baerum@islamskole.no" }
+      {
+        "label": "Foretaksnavn",
+        "value": "Islamskole Bærum"
+      },
+      {
+        "label": "Organisasjonsnummer",
+        "value": "917 342 385"
+      },
+      {
+        "label": "Adresse",
+        "value": "Skuiveien 40, 1339 Vøyenenga"
+      },
+      {
+        "label": "E-post",
+        "value": "baerum@islamskole.no"
+      }
     ],
     "sections": [
       {

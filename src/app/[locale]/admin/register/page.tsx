@@ -50,7 +50,29 @@ type StudentApplicationRow = {
   message: string | null;
   status: string | null;
   created_at: string | null;
+  payment_id: string | null;
+  payments: { status: string | null } | null;
 };
+
+const paymentLabels: Record<string, string> = {
+  fanget: "Betalt",
+  autorisert: "Autorisert",
+  opprettet: "Avventer betaling",
+  avbrutt: "Avbrutt",
+  feilet: "Feilet",
+  refundert: "Refundert",
+};
+
+function paymentLabel(app: StudentApplicationRow): {
+  label: string;
+  paid: boolean;
+} {
+  const status = app.payments?.status ?? null;
+  if (!app.payment_id || !status) {
+    return { label: "Ikke startet", paid: false };
+  }
+  return { label: paymentLabels[status] ?? status, paid: status === "fanget" };
+}
 
 const genderLabels: Record<string, string> = {
   gutt: "Gutt",
@@ -111,7 +133,7 @@ async function getApplications(
     let query = supabase
       .from("student_applications")
       .select(
-        "id, child_first_name, child_last_name, child_birth_date, child_gender, child_address, child_postal_code, child_city, child_email, child_phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, desired_class, child_level_quran, child_level_arabic, child_level_islam, message, status, created_at",
+        "id, child_first_name, child_last_name, child_birth_date, child_gender, child_address, child_postal_code, child_city, child_email, child_phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, desired_class, child_level_quran, child_level_arabic, child_level_islam, message, status, created_at, payment_id, payments(status)",
       )
       .order("created_at", { ascending: false });
 
@@ -217,8 +239,8 @@ export default async function PameldingerPage({
   return (
     <div>
       <PageHeader
-        title="Påmeldinger"
-        description="Påmeldinger av elever fra foresatte."
+        title="Innmeldinger"
+        description="Innmeldinger fra foresatte med betalingsstatus."
       />
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -231,8 +253,8 @@ export default async function PameldingerPage({
           {applications.length === 0 ? (
             <p className="p-6 text-sm text-muted-foreground">
               {filtered
-                ? "Ingen påmeldinger samsvarer med søket."
-                : "Ingen påmeldinger ennå."}
+                ? "Ingen innmeldinger samsvarer med søket."
+                : "Ingen innmeldinger ennå."}
             </p>
           ) : (
             <BulkActions entity="applications" ids={pageIds}>
@@ -252,6 +274,7 @@ export default async function PameldingerPage({
                   <TableHead>Far</TableHead>
                   <TableHead>Ønsket klasse</TableHead>
                   <TableHead>Nivå (Koran / Arabisk / Islam)</TableHead>
+                  <TableHead>Betaling</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Dato</TableHead>
                   <TableHead className="text-right">Handlinger</TableHead>
@@ -307,6 +330,22 @@ export default async function PameldingerPage({
                       {levelLabel(application.child_level_quran)} /{" "}
                       {levelLabel(application.child_level_arabic)} /{" "}
                       {levelLabel(application.child_level_islam)}
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const payment = paymentLabel(application);
+                        return (
+                          <span
+                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                              payment.paid
+                                ? "bg-primary/15 text-brand-green-dark"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {payment.label}
+                          </span>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>
                       <StudentStatusSelect
