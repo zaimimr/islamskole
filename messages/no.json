@@ -169,7 +169,7 @@
     "placeholderCity": "F.eks. Vøyenenga",
     "fieldParentPhone": "Mobil (kontakt)",
     "fieldParentEmail": "E-post (kontakt)",
-    "parentsHint": "Fyll ut navn, e-post og telefon for minst én forelder.",
+    "parentsHint": "Fyll ut navn, e-post og telefon for begge foresatte. Huk av for eneforelder hvis barnet kun har én.",
     "feeNote": "Skoleavgift {fee} kr per barn per skoleår. Betales med Vipps ved innmelding.",
     "termsLead": "Jeg bekrefter å ha lest reglementet og godtar",
     "termsLink": "salgsbetingelsene",
@@ -204,7 +204,7 @@
     "errorEmail": "Skriv inn en gyldig e-postadresse",
     "errorPhone": "Skriv inn et gyldig telefonnummer (minst 8 sifre)",
     "errorTerms": "Du må godta salgsbetingelsene",
-    "errorParents": "Fyll ut navn, e-post og telefon for minst én forelder",
+    "errorParents": "Fyll ut navn, e-post og telefon for minst én foresatt",
     "formSummary": "Noen felt mangler eller er feil. Sjekk de markerte feltene og prøv igjen.",
     "sectionChildren": "Barn",
     "childLabel": "Barn {n}",
@@ -212,7 +212,8 @@
     "removeChild": "Fjern barn",
     "totalLabel": "Å betale nå",
     "payHint": "Du sendes videre til Vipps for å fullføre betalingen.",
-    "redirecting": "Sender deg til Vipps ..."
+    "redirecting": "Sender deg til Vipps ...",
+    "singleParentLabel": "Barnet har kun én foresatt (eneforelder)"
   },
   "about": {
     "title": "Om oss",

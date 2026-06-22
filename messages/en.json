@@ -169,7 +169,7 @@
     "placeholderCity": "e.g. Vøyenenga",
     "fieldParentPhone": "Mobile (contact)",
     "fieldParentEmail": "Email (contact)",
-    "parentsHint": "Fill in name, email and phone for at least one parent.",
+    "parentsHint": "Fill in name, email and phone for both guardians. Tick single parent if the child only has one.",
     "feeNote": "Tuition {fee} kr per child per school year. Paid with Vipps at enrollment.",
     "termsLead": "I confirm I have read the rules and accept the",
     "termsLink": "terms of sale",
@@ -204,7 +204,7 @@
     "errorEmail": "Enter a valid email address",
     "errorPhone": "Enter a valid phone number (at least 8 digits)",
     "errorTerms": "You must accept the terms of sale",
-    "errorParents": "Fill in name, email and phone for at least one parent",
+    "errorParents": "Fill in name, email and phone for at least one guardian",
     "formSummary": "Some fields are missing or invalid. Check the highlighted fields and try again.",
     "sectionChildren": "Children",
     "childLabel": "Child {n}",
@@ -212,7 +212,8 @@
     "removeChild": "Remove child",
     "totalLabel": "To pay now",
     "payHint": "You'll be redirected to Vipps to complete the payment.",
-    "redirecting": "Redirecting you to Vipps ..."
+    "redirecting": "Redirecting you to Vipps ...",
+    "singleParentLabel": "The child has only one guardian (single parent)"
   },
   "about": {
     "title": "About us",

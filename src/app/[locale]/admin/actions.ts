@@ -500,13 +500,47 @@ export async function createStudentEnrollment(
     };
   }
 
-  const motherFirstName = readString(formData, "mother_first_name");
-  const fatherFirstName = readString(formData, "father_first_name");
-  if (!motherFirstName && !fatherFirstName) {
+  const emailOk = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  const phoneOk = (v: string) => /^\+?\d{8,15}$/.test(v.replace(/[\s-]/g, ""));
+  const singleParent = formData.get("single_parent") != null;
+
+  const readParent = (prefix: string) => {
+    const first = readString(formData, `${prefix}_first_name`);
+    const last = readString(formData, `${prefix}_last_name`);
+    const email = readString(formData, `${prefix}_email`);
+    const phone = readString(formData, `${prefix}_phone`);
     return {
-      ok: false,
-      fieldErrors: { parents: "Minst én forelder må fylles ut" },
+      first,
+      last,
+      email,
+      phone,
+      complete: Boolean(first && last && emailOk(email) && phoneOk(phone)),
     };
+  };
+  const parents = { mother: readParent("mother"), father: readParent("father") };
+  const parentErrors: Record<string, string> = {};
+
+  if (singleParent) {
+    if (!parents.mother.complete && !parents.father.complete) {
+      parentErrors.parents =
+        "Fyll ut navn, e-post og telefon for minst én foresatt";
+    }
+  } else {
+    for (const prefix of ["mother", "father"] as const) {
+      const p = parents[prefix];
+      if (!p.first) parentErrors[`${prefix}_first_name`] = "Fornavn er påkrevd";
+      if (!p.last) parentErrors[`${prefix}_last_name`] = "Etternavn er påkrevd";
+      if (!p.email) parentErrors[`${prefix}_email`] = "E-post er påkrevd";
+      else if (!emailOk(p.email))
+        parentErrors[`${prefix}_email`] = "Ugyldig e-postadresse";
+      if (!p.phone) parentErrors[`${prefix}_phone`] = "Telefon er påkrevd";
+      else if (!phoneOk(p.phone))
+        parentErrors[`${prefix}_phone`] = "Ugyldig telefonnummer";
+    }
+  }
+
+  if (Object.keys(parentErrors).length > 0) {
+    return { ok: false, fieldErrors: parentErrors };
   }
 
   const indices = readString(formData, "child_indices")
