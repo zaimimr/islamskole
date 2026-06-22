@@ -539,6 +539,13 @@ export async function createStudentEnrollment(
     }
   }
 
+  const address = readString(formData, "address");
+  const postalCode = readString(formData, "postal_code");
+  const city = readString(formData, "city");
+  if (!address) parentErrors.address = "Adresse er påkrevd";
+  if (!postalCode) parentErrors.postal_code = "Postnummer er påkrevd";
+  if (!city) parentErrors.city = "Poststed er påkrevd";
+
   if (Object.keys(parentErrors).length > 0) {
     return { ok: false, fieldErrors: parentErrors };
   }
@@ -586,9 +593,9 @@ export async function createStudentEnrollment(
       child_last_name: childLastName,
       child_birth_date: birthDate || null,
       child_gender: gender || null,
-      child_address: readOptionalString(formData, `child_${i}_address`),
-      child_postal_code: readOptionalString(formData, `child_${i}_postal_code`),
-      child_city: readOptionalString(formData, `child_${i}_city`),
+      child_address: address,
+      child_postal_code: postalCode,
+      child_city: city,
       child_email: childEmail || null,
       child_phone: readOptionalString(formData, `child_${i}_phone`),
       mother_first_name: readOptionalString(formData, "mother_first_name"),

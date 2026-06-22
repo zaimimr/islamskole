@@ -117,6 +117,10 @@ export function StudentSignupForm({ fee }: { fee: number }) {
       }
     }
 
+    for (const name of ["address", "postal_code", "city"]) {
+      if (!value(name)) errors[name] = t("errorRequired");
+    }
+
     const single = Boolean(value("single_parent"));
     const parentComplete = (parent: string) => {
       const first = value(`${parent}_first_name`);
@@ -324,40 +328,6 @@ export function StudentSignupForm({ fee }: { fee: number }) {
           </div>
         </div>
 
-        <div className="grid gap-2">
-          <Label htmlFor={f("address")}>{t("fieldAddress")}</Label>
-          <Input
-            id={f("address")}
-            name={f("address")}
-            className={inputClassName}
-            autoComplete="street-address"
-            placeholder={t("placeholderAddress")}
-          />
-        </div>
-
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div className="grid gap-2">
-            <Label htmlFor={f("postal_code")}>{t("fieldPostalCode")}</Label>
-            <Input
-              id={f("postal_code")}
-              name={f("postal_code")}
-              className={inputClassName}
-              autoComplete="postal-code"
-              placeholder={t("placeholderPostalCode")}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor={f("city")}>{t("fieldCity")}</Label>
-            <Input
-              id={f("city")}
-              name={f("city")}
-              className={inputClassName}
-              autoComplete="address-level2"
-              placeholder={t("placeholderCity")}
-            />
-          </div>
-        </div>
-
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label htmlFor={f("email")}>{t("fieldEmail")}</Label>
@@ -482,6 +452,63 @@ export function StudentSignupForm({ fee }: { fee: number }) {
           {t("addChild")}
         </Button>
       </div>
+
+      <fieldset className="grid gap-5">
+        <legend className="mb-1 font-heading text-lg font-bold">
+          {t("sectionAddress")}
+        </legend>
+        <p className="text-sm text-muted-foreground">{t("addressHint")}</p>
+        <div className="grid gap-2">
+          <Label htmlFor="address" required>
+            {t("fieldAddress")}
+          </Label>
+          <Input
+            id="address"
+            name="address"
+            className={inputClassName}
+            autoComplete="street-address"
+            placeholder={t("placeholderAddress")}
+            aria-invalid={invalid("address")}
+            aria-describedby={describedBy("address")}
+            onInput={() => clearFieldError("address")}
+          />
+          <FieldError id="address-error" message={fieldErrors.address} />
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-2">
+            <Label htmlFor="postal_code" required>
+              {t("fieldPostalCode")}
+            </Label>
+            <Input
+              id="postal_code"
+              name="postal_code"
+              className={inputClassName}
+              autoComplete="postal-code"
+              placeholder={t("placeholderPostalCode")}
+              aria-invalid={invalid("postal_code")}
+              aria-describedby={describedBy("postal_code")}
+              onInput={() => clearFieldError("postal_code")}
+            />
+            <FieldError id="postal_code-error" message={fieldErrors.postal_code} />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="city" required>
+              {t("fieldCity")}
+            </Label>
+            <Input
+              id="city"
+              name="city"
+              className={inputClassName}
+              autoComplete="address-level2"
+              placeholder={t("placeholderCity")}
+              aria-invalid={invalid("city")}
+              aria-describedby={describedBy("city")}
+              onInput={() => clearFieldError("city")}
+            />
+            <FieldError id="city-error" message={fieldErrors.city} />
+          </div>
+        </div>
+      </fieldset>
 
       <label className="flex items-center gap-3 rounded-2xl bg-muted/40 px-4 py-3 text-sm font-medium text-foreground">
         <input

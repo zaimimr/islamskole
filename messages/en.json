@@ -213,7 +213,9 @@
     "totalLabel": "To pay now",
     "payHint": "You'll be redirected to Vipps to complete the payment.",
     "redirecting": "Redirecting you to Vipps ...",
-    "singleParentLabel": "The child has only one guardian (single parent)"
+    "singleParentLabel": "The child has only one guardian (single parent)",
+    "sectionAddress": "Address",
+    "addressHint": "The address applies to all children in this enrollment."
   },
   "about": {
     "title": "About us",

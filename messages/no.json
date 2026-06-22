@@ -213,7 +213,9 @@
     "totalLabel": "Å betale nå",
     "payHint": "Du sendes videre til Vipps for å fullføre betalingen.",
     "redirecting": "Sender deg til Vipps ...",
-    "singleParentLabel": "Barnet har kun én foresatt (eneforelder)"
+    "singleParentLabel": "Barnet har kun én foresatt (eneforelder)",
+    "sectionAddress": "Adresse",
+    "addressHint": "Adressen brukes for alle barna i denne innmeldingen."
   },
   "about": {
     "title": "Om oss",
