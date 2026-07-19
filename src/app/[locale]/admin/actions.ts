@@ -345,6 +345,20 @@ export async function updateSettings(formData: FormData): Promise<ActionResult> 
   return { ok: true };
 }
 
+const MIN_FILL_MS = 3_000;
+
+function isLikelyBot(formData: FormData): boolean {
+  const honeypot = readOptionalString(formData, "company");
+  if (honeypot) return true;
+
+  const loadedAt = Number(formData.get("loaded_at"));
+  if (!Number.isFinite(loadedAt) || Date.now() - loadedAt < MIN_FILL_MS) {
+    return true;
+  }
+
+  return false;
+}
+
 const teacherApplicationSchema = z.object({
   full_name: z.string().min(1, "Navn er påkrevd"),
   email: z.string().min(1, "E-post er påkrevd").email("Ugyldig e-postadresse"),
@@ -361,6 +375,10 @@ export async function createTeacherApplication(
   const limit = rateLimit(`apply:${ip}`, { limit: 5, windowMs: 60_000 });
   if (!limit.ok) {
     return { ok: false, error: "For mange forsøk, prøv igjen senere." };
+  }
+
+  if (isLikelyBot(formData)) {
+    return { ok: true };
   }
 
   const fullName = readString(formData, "full_name");

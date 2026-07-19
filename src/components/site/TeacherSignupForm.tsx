@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Loader2, PartyPopper } from "lucide-react";
@@ -15,13 +15,16 @@ export function TeacherSignupForm() {
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
   const [formKey, setFormKey] = useState(0);
+  const loadedAt = useRef(Date.now());
 
   function handleReset() {
+    loadedAt.current = Date.now();
     setFormKey((key) => key + 1);
     setDone(false);
   }
 
   function handleSubmit(formData: FormData) {
+    formData.set("loaded_at", String(loadedAt.current));
     startTransition(async () => {
       const result = await createTeacherApplication(formData);
       if (result.ok) {
@@ -52,6 +55,20 @@ export function TeacherSignupForm() {
 
   return (
     <form key={formKey} action={handleSubmit} className="grid gap-5">
+      <div
+        aria-hidden="true"
+        className="absolute left-[-9999px] h-0 w-0 overflow-hidden"
+      >
+        <label htmlFor="company">Firma</label>
+        <input
+          id="company"
+          name="company"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+        />
+      </div>
+
       <div className="grid gap-2">
         <Label htmlFor="full_name" required>
           {t("fieldName")}
