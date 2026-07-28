@@ -139,7 +139,7 @@ export async function createStudentFromApplication(
   const { data: application, error: appError } = await supabase
     .from("student_applications")
     .select(
-      "id, child_first_name, child_last_name, child_birth_date, child_gender, child_address, child_postal_code, child_city, child_email, child_phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, child_level_quran, child_level_arabic, child_level_islam, message",
+      "id, payment_id, child_first_name, child_last_name, child_birth_date, child_gender, child_address, child_postal_code, child_city, child_email, child_phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, child_level_quran, child_level_arabic, child_level_islam, message",
     )
     .eq("id", applicationId)
     .maybeSingle();
@@ -148,6 +148,7 @@ export async function createStudentFromApplication(
   if (!application) return { ok: false, error: "Fant ikke påmeldingen" };
 
   const app = application as unknown as {
+    payment_id: string | null;
     child_first_name: string | null;
     child_last_name: string | null;
     child_birth_date: string | null;
@@ -206,6 +207,7 @@ export async function createStudentFromApplication(
 
   const studentId = (data as unknown as { id: string }).id;
 
+  let newEnrollmentId: string | null = null;
   if (placement?.classId && placement?.schoolYearId) {
     const { capacity, priceSnapshot } = await resolveEnrollmentPricing(
       supabase,
@@ -222,14 +224,34 @@ export async function createStudentFromApplication(
       hasCapacity = enrolled < capacity;
     }
     if (hasCapacity) {
-      await supabase.from("enrollments").insert({
-        student_id: studentId,
-        class_id: placement.classId,
-        school_year_id: placement.schoolYearId,
-        status: "aktiv",
-        price_snapshot: priceSnapshot,
-      } as never);
+      const { data: enrollmentRow } = await supabase
+        .from("enrollments")
+        .insert({
+          student_id: studentId,
+          class_id: placement.classId,
+          school_year_id: placement.schoolYearId,
+          status: "aktiv",
+          price_snapshot: priceSnapshot,
+        } as never)
+        .select("id")
+        .single();
+      newEnrollmentId =
+        (enrollmentRow as unknown as { id: string } | null)?.id ?? null;
     }
+  }
+
+  // Relink the enrollment payment (made during public signup, where it has no
+  // student_id) to the newly registered student so it stays visible and counts
+  // as paid. Only claim payments not already linked to a student, so a payment
+  // shared by siblings stays with the first child registered.
+  if (app.payment_id) {
+    const paymentUpdate: Record<string, unknown> = { student_id: studentId };
+    if (newEnrollmentId) paymentUpdate.enrollment_id = newEnrollmentId;
+    await supabase
+      .from("payments")
+      .update(paymentUpdate as never)
+      .eq("id", app.payment_id)
+      .is("student_id", null);
   }
 
   await supabase
@@ -478,18 +500,21 @@ export async function createVippsPayment(
 
   const amount = Math.round((amountNok as number) * 100);
 
+  // Only an unpaid, still-pending payment should block a new one. A completed
+  // (fanget) payment must not stand in the way of collecting an additional
+  // amount, and cancelled/failed/refunded payments are irrelevant.
   const { data: existing } = await supabase
     .from("payments")
     .select("id, status")
     .eq("student_id", studentId)
     .eq("school_year_id", schoolYearId)
-    .not("status", "in", "(avbrutt,feilet,refundert)")
+    .in("status", ["opprettet", "autorisert"])
     .limit(1);
   if ((existing as unknown[] | null)?.length) {
     return {
       ok: false,
       error:
-        "Det finnes allerede en aktiv betaling for denne eleven dette skoleåret. Bruk Send-knappen for å sende lenken på nytt, eller avbryt den gamle først.",
+        "Det finnes allerede en påbegynt betaling som venter for denne eleven dette skoleåret. Bruk Send-knappen for å sende lenken på nytt, eller avbryt den ventende betalingen først.",
     };
   }
 
@@ -522,9 +547,12 @@ export async function createVippsPayment(
     .maybeSingle();
   const yearLabel = (year as unknown as { label: string } | null)?.label ?? null;
 
+  const studentName = studentRow ? studentDisplayName(studentRow) : "";
+  const namedDescription = studentName
+    ? `${studentName}${className ? ` ${className}` : ""}`
+    : `Skolepenger${yearLabel ? ` ${yearLabel}` : ""}`;
   const description =
-    readOptionalString(formData, "description") ??
-    `Skolepenger${yearLabel ? ` ${yearLabel}` : ""}`;
+    readOptionalString(formData, "description") ?? namedDescription;
 
   const reference = `isk-${randomUUID()}`;
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
@@ -596,7 +624,7 @@ const manualPaymentSchema = z.object({
   school_year_id: z.string().min(1, "Velg et skoleår"),
   amount_nok: z.number().positive("Beløp må være større enn 0"),
   paid_at: z.string().min(1, "Velg dato for betalingen"),
-  method: z.enum(["kontant", "bank", "annet"], {
+  method: z.enum(["vipps", "kontant", "bank", "annet"], {
     message: "Velg betalingsmåte",
   }),
 });
@@ -664,15 +692,18 @@ export async function registerManualPayment(
   const className = enrollment.classes?.name_no ?? null;
 
   const methodLabels: Record<string, string> = {
+    vipps: "Vipps",
     kontant: "Kontant",
     bank: "Bankoverføring",
     annet: "Annet",
   };
   const note = readOptionalString(formData, "note");
+  const orderId = readOptionalString(formData, "order_id");
   const descriptionParts = [
     `Skolepenger${yearLabel ? ` ${yearLabel}` : ""}`,
     className,
     methodLabels[payload.method],
+    orderId ? `Ordre-ID: ${orderId}` : null,
     note,
   ].filter(Boolean);
 

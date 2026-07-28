@@ -499,6 +499,26 @@ const studentStatusSchema = z.enum([
   "arkivert",
 ]);
 
+// Vipps ePayment paymentDescription is limited to 100 characters.
+const VIPPS_DESCRIPTION_MAX = 100;
+
+function buildEnrollmentDescription(
+  yearLabel: string,
+  childNames: string[],
+): string {
+  const names = childNames.filter((name) => name.trim() !== "");
+  const prefix = `Innmelding ${yearLabel}`;
+  if (names.length === 0) return prefix;
+
+  const full = `${prefix} – ${names.join(", ")}`;
+  if (full.length <= VIPPS_DESCRIPTION_MAX) return full;
+
+  // Too long: keep the first name and summarise the rest.
+  const summarised = `${prefix} – ${names[0]} +${names.length - 1} til`;
+  if (summarised.length <= VIPPS_DESCRIPTION_MAX) return summarised;
+  return summarised.slice(0, VIPPS_DESCRIPTION_MAX);
+}
+
 export async function createStudentEnrollment(
   formData: FormData,
 ): Promise<SignupResult> {
@@ -661,7 +681,7 @@ export async function createStudentEnrollment(
 
   const reference = `isk-${randomUUID()}`;
   const amount = year.fee * 100 * childPayloads.length;
-  const description = `Innmelding ${year.label} (${childPayloads.length} barn)`;
+  const description = buildEnrollmentDescription(year.label, childNames);
 
   const { data: paymentRow, error: paymentError } = await admin
     .from("payments")

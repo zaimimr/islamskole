@@ -23,9 +23,20 @@ type DeleteButtonProps = {
   id: string;
   label: string;
   action: (id: string) => Promise<ActionResult>;
+  /**
+   * Where to navigate after a successful delete. Set this on detail pages
+   * (e.g. the list URL) so we don't re-render the now-deleted [id] route,
+   * which would 404. When omitted the current route is refreshed in place.
+   */
+  redirectTo?: string;
 };
 
-export function DeleteButton({ id, label, action }: DeleteButtonProps) {
+export function DeleteButton({
+  id,
+  label,
+  action,
+  redirectTo,
+}: DeleteButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -36,7 +47,11 @@ export function DeleteButton({ id, label, action }: DeleteButtonProps) {
       if (result.ok) {
         toast.success("Slettet");
         setOpen(false);
-        router.refresh();
+        if (redirectTo) {
+          router.push(redirectTo);
+        } else {
+          router.refresh();
+        }
       } else {
         toast.error(result.error);
       }

@@ -46,6 +46,7 @@ export type PaymentRow = {
   description: string | null;
   status: string;
   method: string;
+  reference: string;
   paid_at: string | null;
   redirect_url: string | null;
   created_at: string | null;
@@ -254,6 +255,15 @@ export function PaymentManager({
             />
           </div>
           <div className="grid gap-2">
+            <Label htmlFor="manual_note">Notat</Label>
+            <Input
+              id="manual_note"
+              name="note"
+              type="text"
+              placeholder="Valgfritt"
+            />
+          </div>
+          <div className="grid gap-2">
             <Label htmlFor="manual_method" required>Betalingsmåte</Label>
             <select
               id="manual_method"
@@ -262,18 +272,19 @@ export function PaymentManager({
               defaultValue="kontant"
               className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
             >
+              <option value="vipps">Vipps</option>
               <option value="kontant">Kontant</option>
               <option value="bank">Bankoverføring</option>
               <option value="annet">Annet</option>
             </select>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="manual_note">Notat</Label>
+            <Label htmlFor="manual_order_id">Ordre-ID</Label>
             <Input
-              id="manual_note"
-              name="note"
+              id="manual_order_id"
+              name="order_id"
               type="text"
-              placeholder="Valgfritt"
+              placeholder="Valgfritt (f.eks. Vipps ordre-ID)"
             />
           </div>
           <Button
@@ -305,7 +316,10 @@ export function PaymentManager({
             </TableHeader>
             <TableBody>
               {payments.map((payment) => {
-                const isManual = payment.method !== "vipps";
+                // Manually-registered payments (any method, incl. a received
+                // Vipps payment) use a "manual-" reference and have no live
+                // Vipps session, so they only get the delete action.
+                const isManual = payment.reference.startsWith("manual-");
                 return (
                   <TableRow key={payment.id}>
                     <TableCell className="font-medium">

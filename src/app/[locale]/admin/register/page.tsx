@@ -265,6 +265,10 @@ export default async function PameldingerPage({
                     <BulkSelectAll />
                   </TableHead>
                   <TableHead>Barn</TableHead>
+                  <TableHead>Betaling</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Dato</TableHead>
+                  <TableHead className="text-right">Handlinger</TableHead>
                   <TableHead>Alder</TableHead>
                   <TableHead>Kjønn</TableHead>
                   <TableHead>Adresse</TableHead>
@@ -274,10 +278,6 @@ export default async function PameldingerPage({
                   <TableHead>Far</TableHead>
                   <TableHead>Ønsket klasse</TableHead>
                   <TableHead>Nivå (Koran / Arabisk / Islam)</TableHead>
-                  <TableHead>Betaling</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Dato</TableHead>
-                  <TableHead className="text-right">Handlinger</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -288,6 +288,45 @@ export default async function PameldingerPage({
                     </TableCell>
                     <TableCell className="font-medium">
                       {studentDisplayName(application) || "-"}
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const payment = paymentLabel(application);
+                        return (
+                          <span
+                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                              payment.paid
+                                ? "bg-primary/15 text-brand-green-dark"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {payment.label}
+                          </span>
+                        );
+                      })()}
+                    </TableCell>
+                    <TableCell>
+                      <StudentStatusSelect
+                        id={application.id}
+                        status={application.status ?? "ny"}
+                      />
+                    </TableCell>
+                    <TableCell>{formatDate(application.created_at)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <RegisterStudentButton
+                          applicationId={application.id}
+                          basePath={basePath}
+                          classes={placement.classes}
+                          schoolYears={placement.schoolYears}
+                          defaultSchoolYearId={defaultSchoolYearId}
+                        />
+                        <DeleteButton
+                          id={application.id}
+                          label="påmelding"
+                          action={deleteStudentApplication}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell>{displayAge(application)}</TableCell>
                     <TableCell>{genderLabel(application.child_gender)}</TableCell>
@@ -330,45 +369,6 @@ export default async function PameldingerPage({
                       {levelLabel(application.child_level_quran)} /{" "}
                       {levelLabel(application.child_level_arabic)} /{" "}
                       {levelLabel(application.child_level_islam)}
-                    </TableCell>
-                    <TableCell>
-                      {(() => {
-                        const payment = paymentLabel(application);
-                        return (
-                          <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                              payment.paid
-                                ? "bg-primary/15 text-brand-green-dark"
-                                : "bg-muted text-muted-foreground"
-                            }`}
-                          >
-                            {payment.label}
-                          </span>
-                        );
-                      })()}
-                    </TableCell>
-                    <TableCell>
-                      <StudentStatusSelect
-                        id={application.id}
-                        status={application.status ?? "ny"}
-                      />
-                    </TableCell>
-                    <TableCell>{formatDate(application.created_at)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <RegisterStudentButton
-                          applicationId={application.id}
-                          basePath={basePath}
-                          classes={placement.classes}
-                          schoolYears={placement.schoolYears}
-                          defaultSchoolYearId={defaultSchoolYearId}
-                        />
-                        <DeleteButton
-                          id={application.id}
-                          label="påmelding"
-                          action={deleteStudentApplication}
-                        />
-                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

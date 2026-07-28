@@ -82,7 +82,7 @@ export default async function ElevDetailPage({
     supabase
       .from("payments")
       .select(
-        "id, amount, currency, description, status, method, paid_at, redirect_url, created_at, school_years(label)",
+        "id, amount, currency, description, status, method, reference, paid_at, redirect_url, created_at, school_years(label)",
       )
       .eq("student_id", id)
       .order("created_at", { ascending: false }),
@@ -148,6 +148,7 @@ export default async function ElevDetailPage({
     description: p.description,
     status: p.status,
     method: p.method,
+    reference: p.reference,
     paid_at: p.paid_at,
     redirect_url: p.redirect_url,
     created_at: p.created_at,
@@ -167,16 +168,13 @@ export default async function ElevDetailPage({
         title={studentDisplayName(student) || "Elev"}
         description="Rediger elev, plassering og betaling."
         action={
-          <DeleteButton id={student.id} label="elev" action={deleteStudent} />
+          <DeleteButton
+            id={student.id}
+            label="elev"
+            action={deleteStudent}
+            redirectTo={listHref}
+          />
         }
-      />
-
-      <EnrollmentManager
-        studentId={student.id}
-        classes={classes}
-        schoolYears={schoolYears}
-        enrollments={enrollments}
-        defaultSchoolYearId={defaultSchoolYearId}
       />
 
       <PaymentManager
@@ -186,6 +184,14 @@ export default async function ElevDetailPage({
         defaultSchoolYearId={defaultSchoolYearId}
         defaultAmount={defaultAmount}
         payments={payments}
+      />
+
+      <EnrollmentManager
+        studentId={student.id}
+        classes={classes}
+        schoolYears={schoolYears}
+        enrollments={enrollments}
+        defaultSchoolYearId={defaultSchoolYearId}
       />
 
       <StudentForm student={student} listHref={listHref} />

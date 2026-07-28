@@ -5,6 +5,7 @@ import { adminBasePath } from "@/components/admin/paths";
 import { PageHeader } from "@/components/admin/page-header";
 import { BatchSendButton } from "@/components/admin/batch-send-button";
 import { ExportButton } from "@/components/admin/export-button";
+import { PaymentRowActions } from "@/components/admin/payment-row-actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -29,6 +30,7 @@ type EnrollmentRow = {
   classes: { name_no: string | null } | null;
 };
 type PaymentRow = {
+  id: string;
   student_id: string;
   school_year_id: string;
   status: string;
@@ -53,7 +55,9 @@ async function getData() {
           "student_id, school_year_id, students(child_first_name, child_last_name), classes(name_no)",
         )
         .eq("status", "aktiv"),
-      supabase.from("payments").select("student_id, school_year_id, status, amount"),
+      supabase
+        .from("payments")
+        .select("id, student_id, school_year_id, status, amount"),
     ]);
   return {
     years: (years as YearRow[] | null) ?? [],
@@ -71,6 +75,29 @@ export default async function BetalingPage({
   const basePath = adminBasePath(locale);
   const { years, enrollments, payments } = await getData();
 
+  // Page-level total for the active school year (fallback: newest year).
+  const summaryYear = years.find((y) => y.is_active) ?? years[0] ?? null;
+  let totalEnrolled = 0;
+  let totalPaid = 0;
+  if (summaryYear) {
+    const ids = [
+      ...new Set(
+        enrollments
+          .filter((e) => e.school_year_id === summaryYear.id)
+          .map((e) => e.student_id),
+      ),
+    ];
+    totalEnrolled = ids.length;
+    const paidSet = new Set(
+      payments
+        .filter(
+          (p) => p.school_year_id === summaryYear.id && p.status === "fanget",
+        )
+        .map((p) => p.student_id),
+    );
+    totalPaid = ids.filter((id) => paidSet.has(id)).length;
+  }
+
   return (
     <div className="grid gap-6">
       <PageHeader
@@ -78,7 +105,17 @@ export default async function BetalingPage({
         description="Oversikt over betaling per skoleår."
       />
 
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {summaryYear ? (
+          <p className="text-sm text-muted-foreground">
+            Totalt påmeldt/betalt {summaryYear.label}:{" "}
+            <span className="font-semibold text-foreground">
+              {totalPaid}/{totalEnrolled}
+            </span>
+          </p>
+        ) : (
+          <span />
+        )}
         <ExportButton entity="payments" />
       </div>
 
@@ -119,6 +156,18 @@ export default async function BetalingPage({
               stateByStudent.get(p.student_id) !== "betalt"
             ) {
               stateByStudent.set(p.student_id, "venter");
+            }
+          }
+
+          // First still-pending payment per student, so it can be cancelled or
+          // resent directly from this overview.
+          const pendingPaymentByStudent = new Map<string, string>();
+          for (const p of yearPayments) {
+            if (
+              (p.status === "opprettet" || p.status === "autorisert") &&
+              !pendingPaymentByStudent.has(p.student_id)
+            ) {
+              pendingPaymentByStudent.set(p.student_id, p.id);
             }
           }
 
@@ -184,6 +233,7 @@ export default async function BetalingPage({
                         <TableHead>Klasse</TableHead>
                         <TableHead>Betalt</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Handlinger</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -214,6 +264,15 @@ export default async function BetalingPage({
                               ) : (
                                 <Badge variant="outline">Ikke betalt</Badge>
                               )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {pendingPaymentByStudent.has(e.student_id) ? (
+                                <PaymentRowActions
+                                  paymentId={
+                                    pendingPaymentByStudent.get(e.student_id)!
+                                  }
+                                />
+                              ) : null}
                             </TableCell>
                           </TableRow>
                         );
