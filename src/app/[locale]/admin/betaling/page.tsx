@@ -67,15 +67,21 @@ async function getData() {
       supabase.from("payments").select("student_id, school_year_id, status, amount"),
     ]);
 
-  const { data: balances } = await supabase
-    .from("student_balances")
-    .select("student_id, school_year_id, owed, paid, remaining, state");
+  const [{ data: balances }, { count: duplicateCount }] = await Promise.all([
+    supabase
+      .from("student_balances")
+      .select("student_id, school_year_id, owed, paid, remaining, state"),
+    supabase
+      .from("duplicate_payment_candidates")
+      .select("payment_id", { count: "exact", head: true }),
+  ]);
 
   return {
     years: (years as YearRow[] | null) ?? [],
     enrollments: (enrollments as EnrollmentRow[] | null) ?? [],
     payments: (payments as PaymentRow[] | null) ?? [],
     balances: (balances as BalanceRow[] | null) ?? [],
+    duplicateCount: duplicateCount ?? 0,
   };
 }
 
@@ -86,7 +92,8 @@ export default async function BetalingPage({
 }) {
   const { locale } = await params;
   const basePath = adminBasePath(locale);
-  const { years, enrollments, payments, balances } = await getData();
+  const { years, enrollments, payments, balances, duplicateCount } =
+    await getData();
 
   return (
     <div className="grid gap-6">
@@ -95,7 +102,36 @@ export default async function BetalingPage({
         description="Oversikt over betaling per skoleår."
       />
 
-      <div className="flex justify-end">
+      {duplicateCount > 0 ? (
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <p className="text-sm">
+              <span className="font-medium">
+                {duplicateCount} mistenkte dobbeltføringer
+              </span>
+              <span className="text-muted-foreground">
+                {" "}
+                · betalinger som ser ut til å være registrert manuelt i tillegg
+                til Vipps
+              </span>
+            </p>
+            <Link
+              href={`${basePath}/betaling/dobbeltforinger`}
+              className="text-sm font-medium underline underline-offset-2"
+            >
+              Gå gjennom
+            </Link>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <div className="flex flex-wrap justify-end gap-3">
+        <Link
+          href={`${basePath}/betaling/logg`}
+          className="text-sm font-medium underline underline-offset-2"
+        >
+          Betalingslogg
+        </Link>
         <ExportButton entity="payments" />
       </div>
 

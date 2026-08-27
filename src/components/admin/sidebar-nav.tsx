@@ -14,6 +14,7 @@ import {
   Wallet,
   ShieldCheck,
   ScrollText,
+  ReceiptText,
   UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,11 @@ export function SidebarNav({ basePath }: { basePath: string }) {
     { href: `${basePath}/elever`, label: "Elever", icon: UserCheck },
     { href: `${basePath}/skolear`, label: "Skoleår", icon: CalendarRange },
     { href: `${basePath}/betaling`, label: "Betaling", icon: Wallet },
+    {
+      href: `${basePath}/betaling/logg`,
+      label: "Betalingslogg",
+      icon: ReceiptText,
+    },
     { href: `${basePath}/laerere`, label: "Lærere", icon: Users },
     {
       href: `${basePath}/innstillinger`,
@@ -50,9 +56,16 @@ export function SidebarNav({ basePath }: { basePath: string }) {
     { href: `${basePath}/konto`, label: "Min konto", icon: UserCog },
   ];
 
-  function isActive(href: string) {
+  function matches(href: string) {
     if (href === basePath) return pathname === basePath;
     return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  function isActive(href: string) {
+    if (!matches(href)) return false;
+    return !links.some(
+      (link) => link.href !== href && link.href.startsWith(href) && matches(link.href),
+    );
   }
 
   return (

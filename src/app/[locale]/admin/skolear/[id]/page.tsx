@@ -63,6 +63,7 @@ export default async function SkolearDetailPage({
     { data: enrollmentData },
     { data: paymentData },
     { data: activeData },
+    { data: balanceData },
   ] = await Promise.all([
     supabase
       .from("school_years")
@@ -84,6 +85,10 @@ export default async function SkolearDetailPage({
       .select("label")
       .eq("is_active", true)
       .maybeSingle(),
+    supabase
+      .from("student_balances")
+      .select("student_id, owed, paid, remaining")
+      .eq("school_year_id", id),
   ]);
   const year = yearData as SchoolYearRecord | null;
   if (!year) notFound();
@@ -92,31 +97,60 @@ export default async function SkolearDetailPage({
   const payments = (paymentData as PaymentRow[] | null) ?? [];
   const activeYearLabel =
     (activeData as { label: string } | null)?.label ?? null;
+  const balances =
+    (balanceData as
+      | {
+          student_id: string | null;
+          owed: number | null;
+          paid: number | null;
+          remaining: number | null;
+        }[]
+      | null) ?? [];
 
-  const paidByStudent = new Map<string, number>();
-  const stateByStudent = new Map<string, "betalt" | "venter" | "ubetalt">();
-  for (const p of payments) {
-    if (p.status === "fanget") {
-      paidByStudent.set(
-        p.student_id,
-        (paidByStudent.get(p.student_id) ?? 0) + p.amount,
-      );
-    }
-    const current = stateByStudent.get(p.student_id);
-    if (p.status === "fanget") stateByStudent.set(p.student_id, "betalt");
-    else if (
-      (p.status === "opprettet" || p.status === "autorisert") &&
-      current !== "betalt"
-    )
-      stateByStudent.set(p.student_id, "venter");
+  const balanceByStudent = new Map<
+    string,
+    { owed: number; paid: number; remaining: number }
+  >();
+  for (const b of balances) {
+    if (!b.student_id) continue;
+    balanceByStudent.set(b.student_id, {
+      owed: b.owed ?? 0,
+      paid: b.paid ?? 0,
+      remaining: b.remaining ?? 0,
+    });
   }
 
-  const totalPaid = payments
-    .filter((p) => p.status === "fanget")
-    .reduce((s, p) => s + p.amount, 0);
-  const totalPending = payments
-    .filter((p) => p.status === "opprettet" || p.status === "autorisert")
-    .reduce((s, p) => s + p.amount, 0);
+  const hasPending = new Set(
+    payments
+      .filter((p) => p.status === "opprettet" || p.status === "autorisert")
+      .map((p) => p.student_id),
+  );
+
+  const stateByStudent = new Map<
+    string,
+    "betalt" | "delvis" | "venter" | "ubetalt"
+  >();
+  for (const e of enrollments) {
+    const balance = balanceByStudent.get(e.student_id);
+    const owed = balance?.owed ?? 0;
+    const paid = balance?.paid ?? 0;
+    const remaining = balance?.remaining ?? 0;
+    if (owed > 0 && remaining <= 0) stateByStudent.set(e.student_id, "betalt");
+    else if (paid > 0) stateByStudent.set(e.student_id, "delvis");
+    else if (hasPending.has(e.student_id))
+      stateByStudent.set(e.student_id, "venter");
+    else stateByStudent.set(e.student_id, "ubetalt");
+  }
+
+  const enrolledIds = [...new Set(enrollments.map((e) => e.student_id))];
+  const totalPaid = enrolledIds.reduce(
+    (s, id) => s + (balanceByStudent.get(id)?.paid ?? 0),
+    0,
+  );
+  const totalRemaining = enrolledIds.reduce(
+    (s, id) => s + (balanceByStudent.get(id)?.remaining ?? 0),
+    0,
+  );
 
   return (
     <div className="grid gap-6">
@@ -156,8 +190,8 @@ export default async function SkolearDetailPage({
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Utestående</p>
-            <p className="text-2xl font-bold">{formatNok(totalPending)}</p>
+            <p className="text-sm text-muted-foreground">Gjenstår</p>
+            <p className="text-2xl font-bold">{formatNok(totalRemaining)}</p>
           </CardContent>
         </Card>
       </div>
@@ -202,11 +236,26 @@ export default async function SkolearDetailPage({
                       </TableCell>
                       <TableCell>{e.classes?.name_no ?? "-"}</TableCell>
                       <TableCell>
-                        {formatNok(paidByStudent.get(e.student_id) ?? 0)}
+                        {formatNok(balanceByStudent.get(e.student_id)?.paid ?? 0)}
+                        <span className="text-muted-foreground">
+                          {" "}
+                          av{" "}
+                          {formatNok(
+                            balanceByStudent.get(e.student_id)?.owed ?? 0,
+                          )}
+                        </span>
                       </TableCell>
                       <TableCell>
                         {state === "betalt" ? (
                           <Badge>Betalt</Badge>
+                        ) : state === "delvis" ? (
+                          <Badge variant="secondary">
+                            Delvis ·{" "}
+                            {formatNok(
+                              balanceByStudent.get(e.student_id)?.remaining ?? 0,
+                            )}{" "}
+                            igjen
+                          </Badge>
                         ) : state === "venter" ? (
                           <Badge variant="secondary">Venter</Badge>
                         ) : (
