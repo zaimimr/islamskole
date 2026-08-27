@@ -15,14 +15,31 @@ export async function POST(request: NextRequest) {
         "VIPPS_WEBHOOK_SECRET is not set; webhook signature validation is disabled.",
       );
     }
-  } else if (!verifyVippsSignature(raw, request.headers, secret)) {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  } else {
+    const valid = verifyVippsSignature({
+      rawBody: raw,
+      method: request.method,
+      pathAndQuery: `${request.nextUrl.pathname}${request.nextUrl.search}`,
+      headers: request.headers,
+      secret,
+    });
+    if (!valid) {
+      console.error("Vipps webhook signature rejected", {
+        path: request.nextUrl.pathname,
+        host: request.headers.get("host"),
+        forwardedHost: request.headers.get("x-forwarded-host"),
+        hasDate: Boolean(request.headers.get("x-ms-date")),
+      });
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
   }
 
   let reference: string | null = null;
+  let eventName: string | null = null;
   try {
-    const body = JSON.parse(raw) as { reference?: string };
+    const body = JSON.parse(raw) as { reference?: string; name?: string };
     reference = typeof body.reference === "string" ? body.reference : null;
+    eventName = typeof body.name === "string" ? body.name : null;
   } catch {
     reference = null;
   }
@@ -32,8 +49,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await syncPaymentByReference(reference);
-  } catch {
+    const status = await syncPaymentByReference(reference);
+    console.log("Vipps webhook handled", { reference, eventName, status });
+  } catch (error) {
+    console.error("Vipps webhook sync failed", { reference, eventName, error });
     return NextResponse.json({ error: "Sync failed" }, { status: 502 });
   }
 

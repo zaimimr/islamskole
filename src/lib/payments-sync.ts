@@ -1,11 +1,17 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getPayment, capturePayment, type VippsPaymentState } from "@/lib/vipps";
+import {
+  getPayment,
+  getPaymentEvents,
+  capturePayment,
+  type VippsPaymentState,
+} from "@/lib/vipps";
 import {
   sendPaymentReceiptEmail,
   sendStudentApplicationEmail,
 } from "@/lib/email";
 import { getSiteSettings } from "@/lib/data";
+import { allocatePayment } from "@/lib/payment-ledger";
 import {
   guardianEmails,
   guardianName,
@@ -45,6 +51,7 @@ type NamedPersonRow = {
 };
 
 type PaymentWithStudent = {
+  id: string;
   status: string;
   amount: number;
   school_years: { label: string } | null;
@@ -52,6 +59,33 @@ type PaymentWithStudent = {
   students: NamedPersonRow | null;
   student_applications: NamedPersonRow[] | null;
 };
+
+async function recordEvents(
+  admin: ReturnType<typeof createAdminClient>,
+  reference: string,
+  paymentId: string | null,
+) {
+  try {
+    const events = await getPaymentEvents(reference);
+    if (events.length === 0) return;
+
+    await admin.from("payment_events").upsert(
+      events.map((event) => ({
+        payment_id: paymentId,
+        reference,
+        name: event.name,
+        amount: event.amount,
+        success: event.success,
+        psp_reference: event.pspReference,
+        idempotency_key: event.idempotencyKey,
+        occurred_at: event.timestamp,
+      })),
+      { onConflict: "reference,name,occurred_at", ignoreDuplicates: true },
+    );
+  } catch (error) {
+    console.error("Vipps event log sync failed", { reference, error });
+  }
+}
 
 export async function syncPaymentByReference(
   reference: string,
@@ -70,7 +104,7 @@ export async function syncPaymentByReference(
       await capturePayment(reference, result.authorizedAmount);
       capturedAmount = result.authorizedAmount;
     } catch (error) {
-      console.error("Auto-capture failed", error);
+      console.error("Auto-capture failed", { reference, error });
     }
   }
 
@@ -85,25 +119,47 @@ export async function syncPaymentByReference(
   const { data: existing } = await admin
     .from("payments")
     .select(
-      "status, amount, school_years(label), enrollments(classes(name_no)), students(child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name, child_email, mother_email, father_email), student_applications(child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name, child_email, mother_email, father_email)",
+      "id, status, amount, school_years(label), enrollments(classes(name_no)), students(child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name, child_email, mother_email, father_email), student_applications(child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name, child_email, mother_email, father_email)",
     )
     .eq("reference", reference)
     .maybeSingle();
-  const payment = existing as PaymentWithStudent | null;
+  const payment = existing as unknown as PaymentWithStudent | null;
   const previousStatus = payment?.status;
 
+  const now = new Date().toISOString();
   const update: Record<string, unknown> = {
     status,
     vipps_state: result.state,
+    last_synced_at: now,
   };
-  if (status === "fanget") update.captured_at = new Date().toISOString();
+  if (result.payerName) update.payer_name = result.payerName;
+  if (result.payerEmail) update.payer_email = result.payerEmail;
+  if (result.payerPhone) update.payer_phone = result.payerPhone;
+  if (result.paymentMethodType) {
+    update.vipps_payment_method = result.paymentMethodType;
+  }
+  if (result.pspReference) update.psp_reference = result.pspReference;
+  if (status === "fanget") {
+    update.captured_at = now;
+    update.paid_at = now;
+  }
 
   await admin
     .from("payments")
     .update(update as never)
     .eq("reference", reference);
 
+  await recordEvents(admin, reference, payment?.id ?? null);
+
   const justCaptured = status === "fanget" && previousStatus !== "fanget";
+
+  if (status === "fanget" && payment?.id) {
+    try {
+      await allocatePayment(admin, payment.id);
+    } catch (error) {
+      console.error("Payment allocation failed", { reference, error });
+    }
+  }
 
   if (justCaptured && (await emailNotifications())) {
     const schoolYear = payment?.school_years?.label ?? null;

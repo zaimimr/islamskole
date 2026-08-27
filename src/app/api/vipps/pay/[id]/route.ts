@@ -1,7 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createPayment, getPayment, cancelPayment } from "@/lib/vipps";
+import {
+  createPayment,
+  getPayment,
+  cancelPayment,
+  type VippsPaymentState,
+} from "@/lib/vipps";
+import { buildPaymentDescriptor } from "@/lib/payment-descriptor";
 import { rateLimit } from "@/lib/rate-limit";
 
 const FRESH_WINDOW_MS = 9 * 60 * 1000;
@@ -54,45 +59,57 @@ export async function GET(
   if (payment.status === "fanget") return done("fanget");
   if (payment.status === "refundert") return done("ukjent");
 
+  let confirmedState: VippsPaymentState | null = null;
   if (payment.reference) {
     try {
       const current = await getPayment(payment.reference);
+      confirmedState = current.state;
       if (current.capturedAmount > 0) return done("fanget");
       if (current.state === "AUTHORIZED") return done("autorisert");
-    } catch {
-      void 0;
+    } catch (error) {
+      console.error("Vipps lookup failed before re-issue", {
+        reference: payment.reference,
+        error,
+      });
     }
   }
 
   if (
     payment.redirect_url &&
-    payment.vipps_state === "CREATED" &&
+    (confirmedState === "CREATED" || confirmedState === null) &&
     payment.updated_at &&
     Date.now() - new Date(payment.updated_at).getTime() < FRESH_WINDOW_MS
   ) {
     return NextResponse.redirect(payment.redirect_url);
   }
 
-  const reference = `isk-${randomUUID()}`;
+  const descriptor = await buildPaymentDescriptor(admin, id);
+  const reference = descriptor.reference;
   const returnUrl = `${site}/api/vipps/return?reference=${reference}`;
   let redirectUrl: string;
   try {
-    const result = await createPayment({
+    const created = await createPayment({
       reference,
       amount: payment.amount,
-      description: payment.description ?? "Skolepenger",
+      description: descriptor.description || payment.description || "Skolepenger",
       returnUrl,
+      metadata: descriptor.metadata,
+      orderLines: descriptor.orderLines,
     });
-    redirectUrl = result.redirectUrl;
-  } catch {
+    redirectUrl = created.redirectUrl;
+  } catch (error) {
+    console.error("Vipps create failed", { paymentId: id, error });
     return done("ukjent");
   }
 
-  if (payment.reference && payment.vipps_state === "CREATED") {
+  if (payment.reference && confirmedState === "CREATED") {
     try {
       await cancelPayment(payment.reference);
-    } catch {
-      void 0;
+    } catch (error) {
+      console.error("Vipps cancel of superseded payment failed", {
+        reference: payment.reference,
+        error,
+      });
     }
   }
 
@@ -103,6 +120,7 @@ export async function GET(
       redirect_url: redirectUrl,
       vipps_state: "CREATED",
       status: "opprettet",
+      description: descriptor.description || payment.description,
     } as never)
     .eq("id", id);
 

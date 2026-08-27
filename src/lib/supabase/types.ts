@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -252,6 +252,130 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_allocations: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          payment_id: string
+          school_year_id: string
+          student_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          payment_id: string
+          school_year_id: string
+          student_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          payment_id?: string
+          school_year_id?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_allocations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_payment_candidates"
+            referencedColumns: ["matched_payment_id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_payment_candidates"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_events: {
+        Row: {
+          amount: number | null
+          created_at: string
+          id: string
+          idempotency_key: string | null
+          name: string
+          occurred_at: string
+          payment_id: string | null
+          psp_reference: string | null
+          reference: string
+          success: boolean | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          name: string
+          occurred_at: string
+          payment_id?: string | null
+          psp_reference?: string | null
+          reference: string
+          success?: boolean | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          name?: string
+          occurred_at?: string
+          payment_id?: string | null
+          psp_reference?: string | null
+          reference?: string
+          success?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_events_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_payment_candidates"
+            referencedColumns: ["matched_payment_id"]
+          },
+          {
+            foreignKeyName: "payment_events_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_payment_candidates"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "payment_events_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -259,17 +383,28 @@ export type Database = {
           created_at: string
           currency: string
           description: string | null
+          duplicate_of_payment_id: string | null
+          duplicate_reviewed_at: string | null
+          duplicate_reviewed_by: string | null
           enrollment_id: string | null
           id: string
+          last_synced_at: string | null
           method: string
           paid_at: string | null
+          payer_email: string | null
+          payer_name: string | null
+          payer_phone: string | null
+          psp_reference: string | null
           redirect_url: string | null
           reference: string
           school_year_id: string | null
           status: string
           student_id: string | null
           updated_at: string
+          vipps_payment_method: string | null
           vipps_state: string | null
+          void_reason: string | null
+          voided_at: string | null
         }
         Insert: {
           amount: number
@@ -277,17 +412,28 @@ export type Database = {
           created_at?: string
           currency?: string
           description?: string | null
+          duplicate_of_payment_id?: string | null
+          duplicate_reviewed_at?: string | null
+          duplicate_reviewed_by?: string | null
           enrollment_id?: string | null
           id?: string
+          last_synced_at?: string | null
           method?: string
           paid_at?: string | null
+          payer_email?: string | null
+          payer_name?: string | null
+          payer_phone?: string | null
+          psp_reference?: string | null
           redirect_url?: string | null
           reference: string
           school_year_id?: string | null
           status?: string
           student_id?: string | null
           updated_at?: string
+          vipps_payment_method?: string | null
           vipps_state?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Update: {
           amount?: number
@@ -295,19 +441,51 @@ export type Database = {
           created_at?: string
           currency?: string
           description?: string | null
+          duplicate_of_payment_id?: string | null
+          duplicate_reviewed_at?: string | null
+          duplicate_reviewed_by?: string | null
           enrollment_id?: string | null
           id?: string
+          last_synced_at?: string | null
           method?: string
           paid_at?: string | null
+          payer_email?: string | null
+          payer_name?: string | null
+          payer_phone?: string | null
+          psp_reference?: string | null
           redirect_url?: string | null
           reference?: string
           school_year_id?: string | null
           status?: string
           student_id?: string | null
           updated_at?: string
+          vipps_payment_method?: string | null
           vipps_state?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payments_duplicate_of_payment_id_fkey"
+            columns: ["duplicate_of_payment_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_payment_candidates"
+            referencedColumns: ["matched_payment_id"]
+          },
+          {
+            foreignKeyName: "payments_duplicate_of_payment_id_fkey"
+            columns: ["duplicate_of_payment_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_payment_candidates"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "payments_duplicate_of_payment_id_fkey"
+            columns: ["duplicate_of_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payments_enrollment_id_fkey"
             columns: ["enrollment_id"]
@@ -511,7 +689,69 @@ export type Database = {
             foreignKeyName: "student_applications_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
+            referencedRelation: "duplicate_payment_candidates"
+            referencedColumns: ["matched_payment_id"]
+          },
+          {
+            foreignKeyName: "student_applications_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_payment_candidates"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "student_applications_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
             referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_fees: {
+        Row: {
+          amount: number
+          created_at: string
+          discount: number
+          id: string
+          note: string | null
+          school_year_id: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          discount?: number
+          id?: string
+          note?: string | null
+          school_year_id: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          discount?: number
+          id?: string
+          note?: string | null
+          school_year_id?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_fees_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_fees_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
@@ -643,7 +883,65 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      duplicate_payment_candidates: {
+        Row: {
+          amount: number | null
+          cited_reference: string | null
+          description: string | null
+          evidence: string | null
+          matched_amount: number | null
+          matched_created_at: string | null
+          matched_payment_id: string | null
+          matched_reference: string | null
+          method: string | null
+          paid_at: string | null
+          payment_id: string | null
+          school_year_id: string | null
+          student_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_allocations_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_balances: {
+        Row: {
+          owed: number | null
+          paid: number | null
+          remaining: number | null
+          school_year_id: string | null
+          state: string | null
+          student_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_fees_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_fees_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       is_admin: { Args: never; Returns: boolean }

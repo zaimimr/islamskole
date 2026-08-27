@@ -4,7 +4,8 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { getIsAdmin } from "@/lib/auth";
+import { getIsAdmin, getUser } from "@/lib/auth";
+import { writeAudit } from "@/lib/audit";
 import {
   capturePayment,
   cancelPayment,
@@ -12,6 +13,16 @@ import {
   refundPayment,
 } from "@/lib/vipps";
 import { syncPaymentByReference } from "@/lib/payments-sync";
+import {
+  allocatePayment,
+  allocatePaymentsForStudent,
+  ensureStudentFee,
+  setStudentFee,
+} from "@/lib/payment-ledger";
+import {
+  buildReference,
+  describeForStudent,
+} from "@/lib/payment-descriptor";
 import { sendPaymentLinkEmail } from "@/lib/email";
 import {
   guardianEmails,
@@ -229,6 +240,7 @@ export async function createStudentFromApplication(
         status: "aktiv",
         price_snapshot: priceSnapshot,
       } as never);
+      await ensureStudentFee(supabase, studentId, placement.schoolYearId);
     }
   }
 
@@ -236,6 +248,8 @@ export async function createStudentFromApplication(
     .from("student_applications")
     .update({ status: "akseptert" } as never)
     .eq("id", applicationId);
+
+  await allocatePaymentsForStudent(supabase, studentId, applicationId);
 
   revalidate();
   return { ok: true, id: studentId };
@@ -412,6 +426,8 @@ export async function placeStudentInClass(
     }
     return { ok: false, error: error.message };
   }
+
+  await ensureStudentFee(supabase, payload.student_id, payload.school_year_id);
   revalidate();
   return { ok: true, id: (data as unknown as { id: string }).id };
 }
@@ -476,6 +492,8 @@ export async function createVippsPayment(
   const className = enrollment.classes?.name_no ?? null;
   const enrollmentId = enrollment.id;
 
+  await ensureStudentFee(supabase, studentId, schoolYearId);
+
   const amount = Math.round((amountNok as number) * 100);
 
   const { data: existing } = await supabase
@@ -483,13 +501,13 @@ export async function createVippsPayment(
     .select("id, status")
     .eq("student_id", studentId)
     .eq("school_year_id", schoolYearId)
-    .not("status", "in", "(avbrutt,feilet,refundert)")
+    .in("status", ["opprettet", "autorisert"])
     .limit(1);
   if ((existing as unknown[] | null)?.length) {
     return {
       ok: false,
       error:
-        "Det finnes allerede en aktiv betaling for denne eleven dette skoleåret. Bruk Send-knappen for å sende lenken på nytt, eller avbryt den gamle først.",
+        "Det finnes allerede en ubetalt Vipps-lenke for denne eleven dette skoleåret. Bruk Send-knappen for å sende den på nytt, eller avbryt den først.",
     };
   }
 
@@ -522,11 +540,16 @@ export async function createVippsPayment(
     .maybeSingle();
   const yearLabel = (year as unknown as { label: string } | null)?.label ?? null;
 
+  const descriptor = studentRow
+    ? describeForStudent(studentRow, yearLabel, amount)
+    : null;
+
   const description =
     readOptionalString(formData, "description") ??
+    descriptor?.description ??
     `Skolepenger${yearLabel ? ` ${yearLabel}` : ""}`;
 
-  const reference = `isk-${randomUUID()}`;
+  const reference = buildReference(yearLabel, descriptor?.familyName ?? null, 1);
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
   const returnUrl = `${siteUrl}/api/vipps/return?reference=${reference}`;
 
@@ -538,6 +561,8 @@ export async function createVippsPayment(
       description,
       returnUrl,
       phoneNumber: phone,
+      metadata: descriptor?.metadata ?? null,
+      orderLines: descriptor?.orderLines ?? null,
     });
     redirectUrl = result.redirectUrl;
   } catch (error) {
@@ -641,20 +666,6 @@ export async function registerManualPayment(
     };
   }
 
-  const { data: alreadyPaid } = await supabase
-    .from("payments")
-    .select("id")
-    .eq("student_id", payload.student_id)
-    .eq("school_year_id", payload.school_year_id)
-    .eq("status", "fanget")
-    .limit(1);
-  if ((alreadyPaid as unknown[] | null)?.length) {
-    return {
-      ok: false,
-      error: "Eleven er allerede registrert som betalt for dette skoleåret.",
-    };
-  }
-
   const { data: year } = await supabase
     .from("school_years")
     .select("label")
@@ -676,22 +687,32 @@ export async function registerManualPayment(
     note,
   ].filter(Boolean);
 
-  const { error } = await supabase.from("payments").insert({
-    student_id: payload.student_id,
-    enrollment_id: enrollment.id,
-    school_year_id: payload.school_year_id,
-    reference: `manual-${randomUUID()}`,
-    amount: Math.round(payload.amount_nok * 100),
-    description: descriptionParts.join(" · "),
-    status: "fanget",
-    method: payload.method,
-    paid_at: payload.paid_at,
-    captured_at: payload.paid_at,
-  } as never);
+  await ensureStudentFee(supabase, payload.student_id, payload.school_year_id);
+
+  const { data: inserted, error } = await supabase
+    .from("payments")
+    .insert({
+      student_id: payload.student_id,
+      enrollment_id: enrollment.id,
+      school_year_id: payload.school_year_id,
+      reference: `manual-${randomUUID()}`,
+      amount: Math.round(payload.amount_nok * 100),
+      description: descriptionParts.join(" · "),
+      status: "fanget",
+      method: payload.method,
+      paid_at: payload.paid_at,
+      captured_at: payload.paid_at,
+    } as never)
+    .select("id")
+    .single();
 
   if (error) return { ok: false, error: error.message };
+
+  const paymentId = (inserted as unknown as { id: string }).id;
+  await allocatePayment(supabase, paymentId);
+
   revalidate();
-  return { ok: true };
+  return { ok: true, id: paymentId };
 }
 
 type BatchEnrollment = {
@@ -1167,4 +1188,172 @@ export async function deletePayment(id: string): Promise<ActionResult> {
   if (error) return { ok: false, error: error.message };
   revalidate();
   return { ok: true, id };
+}
+
+export async function updateStudentFee(
+  formData: FormData,
+): Promise<ActionResult> {
+  await requireAdmin();
+
+  const studentId = readString(formData, "student_id");
+  const schoolYearId = readString(formData, "school_year_id");
+  const amountNok = readNumber(formData, "amount_nok");
+  const discountNok = readNumber(formData, "discount_nok") ?? 0;
+  const note = readOptionalString(formData, "note");
+
+  if (!studentId || !schoolYearId) {
+    return { ok: false, error: "Mangler elev eller skoleår" };
+  }
+  if (amountNok == null || amountNok < 0) {
+    return { ok: false, error: "Ugyldig beløp" };
+  }
+  if (discountNok < 0) {
+    return { ok: false, error: "Ugyldig moderasjon" };
+  }
+  if (discountNok > amountNok) {
+    return { ok: false, error: "Moderasjon kan ikke være større enn beløpet" };
+  }
+
+  const supabase = await createClient();
+  await setStudentFee(supabase, studentId, schoolYearId, {
+    amount: Math.round(amountNok * 100),
+    discount: Math.round(discountNok * 100),
+    note,
+  });
+
+  await writeAudit({
+    action: "student_fee.update",
+    entityType: "student_fee",
+    entityId: studentId,
+    metadata: { schoolYearId, amountNok, discountNok },
+  });
+
+  revalidate();
+  return { ok: true, id: studentId };
+}
+
+export async function voidPayment(
+  paymentId: string,
+  reason: string,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const user = await getUser();
+
+  const { error } = await supabase
+    .from("payments")
+    .update({
+      voided_at: new Date().toISOString(),
+      void_reason: reason,
+      duplicate_reviewed_at: new Date().toISOString(),
+      duplicate_reviewed_by: user?.email ?? null,
+    } as never)
+    .eq("id", paymentId);
+
+  if (error) return { ok: false, error: error.message };
+
+  await writeAudit({
+    action: "payment.void",
+    entityType: "payment",
+    entityId: paymentId,
+    metadata: { reason },
+  });
+
+  revalidate();
+  return { ok: true, id: paymentId };
+}
+
+export async function restorePayment(paymentId: string): Promise<ActionResult> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("payments")
+    .update({
+      voided_at: null,
+      void_reason: null,
+      duplicate_of_payment_id: null,
+    } as never)
+    .eq("id", paymentId);
+
+  if (error) return { ok: false, error: error.message };
+
+  await writeAudit({
+    action: "payment.restore",
+    entityType: "payment",
+    entityId: paymentId,
+  });
+
+  revalidate();
+  return { ok: true, id: paymentId };
+}
+
+export async function markPaymentAsDuplicate(
+  paymentId: string,
+  originalPaymentId: string,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const user = await getUser();
+  const now = new Date().toISOString();
+
+  const { error } = await supabase
+    .from("payments")
+    .update({
+      voided_at: now,
+      void_reason: "Dobbeltføring av Vipps-betaling",
+      duplicate_of_payment_id: originalPaymentId,
+      duplicate_reviewed_at: now,
+      duplicate_reviewed_by: user?.email ?? null,
+    } as never)
+    .eq("id", paymentId);
+
+  if (error) return { ok: false, error: error.message };
+
+  await writeAudit({
+    action: "payment.mark_duplicate",
+    entityType: "payment",
+    entityId: paymentId,
+    metadata: { originalPaymentId },
+  });
+
+  revalidate();
+  return { ok: true, id: paymentId };
+}
+
+export async function keepPaymentAsSeparate(
+  paymentId: string,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const user = await getUser();
+
+  const { error } = await supabase
+    .from("payments")
+    .update({
+      duplicate_reviewed_at: new Date().toISOString(),
+      duplicate_reviewed_by: user?.email ?? null,
+    } as never)
+    .eq("id", paymentId);
+
+  if (error) return { ok: false, error: error.message };
+
+  await writeAudit({
+    action: "payment.keep_separate",
+    entityType: "payment",
+    entityId: paymentId,
+  });
+
+  revalidate();
+  return { ok: true, id: paymentId };
+}
+
+export async function reallocatePayment(
+  paymentId: string,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const supabase = await createClient();
+  await allocatePayment(supabase, paymentId);
+  revalidate();
+  return { ok: true, id: paymentId };
 }

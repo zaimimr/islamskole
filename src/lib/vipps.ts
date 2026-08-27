@@ -86,18 +86,65 @@ function baseHeaders(config: VippsConfig, token: string) {
   };
 }
 
+export type VippsOrderLine = {
+  name: string;
+  id: string;
+  totalAmount: number;
+};
+
 export type CreatePaymentInput = {
   reference: string;
   amount: number;
   description: string;
   returnUrl: string;
   phoneNumber?: string | null;
+  metadata?: Record<string, string> | null;
+  orderLines?: VippsOrderLine[] | null;
 };
 
 export type CreatePaymentResult = {
   reference: string;
   redirectUrl: string;
 };
+
+const DESCRIPTION_MAX = 100;
+const METADATA_MAX_ENTRIES = 5;
+const METADATA_KEY_MAX = 100;
+const METADATA_VALUE_MAX = 500;
+
+export function truncateDescription(value: string): string {
+  const trimmed = value.trim().replace(/\s+/g, " ");
+  if (trimmed.length <= DESCRIPTION_MAX) return trimmed;
+  return `${trimmed.slice(0, DESCRIPTION_MAX - 1).trimEnd()}…`;
+}
+
+function sanitizeMetadata(
+  metadata: Record<string, string> | null | undefined,
+): Record<string, string> | null {
+  if (!metadata) return null;
+  const entries = Object.entries(metadata)
+    .filter(([key, value]) => key && value)
+    .slice(0, METADATA_MAX_ENTRIES)
+    .map(([key, value]) => [
+      key.slice(0, METADATA_KEY_MAX),
+      value.slice(0, METADATA_VALUE_MAX),
+    ]);
+  return entries.length > 0 ? Object.fromEntries(entries) : null;
+}
+
+function buildReceipt(orderLines: VippsOrderLine[]) {
+  return {
+    orderLines: orderLines.map((line) => ({
+      name: line.name.slice(0, 100),
+      id: line.id.slice(0, 100),
+      totalAmount: line.totalAmount,
+      totalAmountExcludingTax: line.totalAmount,
+      totalTaxAmount: 0,
+      taxPercentage: 0,
+    })),
+    bottomLine: { currency: "NOK" },
+  };
+}
 
 export async function createPayment(
   input: CreatePaymentInput,
@@ -115,11 +162,22 @@ export async function createPayment(
     reference: input.reference,
     returnUrl: input.returnUrl,
     userFlow: "WEB_REDIRECT",
-    paymentDescription: input.description,
+    paymentDescription: truncateDescription(input.description),
   };
 
   if (normalizedPhone && normalizedPhone.length >= 10) {
     body.customer = { phoneNumber: normalizedPhone };
+  }
+
+  const metadata = sanitizeMetadata(input.metadata);
+  if (metadata) body.metadata = metadata;
+
+  if (input.orderLines && input.orderLines.length > 0) {
+    body.receipt = buildReceipt(input.orderLines);
+  }
+
+  if (process.env.VIPPS_REQUEST_PROFILE === "true") {
+    body.profile = { scope: "name phoneNumber email" };
   }
 
   const response = await fetch(`${config.baseUrl}/epayment/v1/payments`, {
@@ -156,6 +214,12 @@ export type GetPaymentResult = {
   authorizedAmount: number;
   capturedAmount: number;
   refundedAmount: number;
+  payerName: string | null;
+  payerEmail: string | null;
+  payerPhone: string | null;
+  paymentMethodType: string | null;
+  pspReference: string | null;
+  metadata: Record<string, string> | null;
 };
 
 export async function getPayment(
@@ -181,14 +245,141 @@ export async function getPayment(
       capturedAmount?: { value?: number };
       refundedAmount?: { value?: number };
     };
+    paymentMethod?: { type?: string };
+    pspReference?: string;
+    metadata?: Record<string, string>;
+    userDetails?: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      mobileNumber?: string;
+    };
   };
+
+  const details = data.userDetails;
+  const payerName =
+    [details?.firstName, details?.lastName]
+      .filter((part): part is string => Boolean(part && part.trim()))
+      .join(" ")
+      .trim() || null;
 
   return {
     state: data.state,
     authorizedAmount: data.aggregate?.authorizedAmount?.value ?? 0,
     capturedAmount: data.aggregate?.capturedAmount?.value ?? 0,
     refundedAmount: data.aggregate?.refundedAmount?.value ?? 0,
+    payerName,
+    payerEmail: details?.email ?? null,
+    payerPhone: details?.mobileNumber ?? null,
+    paymentMethodType: data.paymentMethod?.type ?? null,
+    pspReference: data.pspReference ?? null,
+    metadata: data.metadata ?? null,
   };
+}
+
+export type VippsPaymentEvent = {
+  name: string;
+  amount: number | null;
+  timestamp: string;
+  success: boolean | null;
+  pspReference: string | null;
+  idempotencyKey: string | null;
+};
+
+export async function getPaymentEvents(
+  reference: string,
+): Promise<VippsPaymentEvent[]> {
+  const config = getConfig();
+  const token = await getAccessToken(config);
+
+  const response = await fetch(
+    `${config.baseUrl}/epayment/v1/payments/${encodeURIComponent(reference)}/events`,
+    { headers: baseHeaders(config, token), cache: "no-store" },
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Vipps events-feil (${response.status}): ${errorBody}`);
+  }
+
+  const data = (await response.json()) as Array<{
+    name?: string;
+    amount?: { value?: number };
+    timestamp?: string;
+    success?: boolean;
+    pspReference?: string;
+    idempotencyKey?: string;
+  }>;
+
+  return (Array.isArray(data) ? data : [])
+    .filter((event) => event.name && event.timestamp)
+    .map((event) => ({
+      name: event.name as string,
+      amount: event.amount?.value ?? null,
+      timestamp: event.timestamp as string,
+      success: typeof event.success === "boolean" ? event.success : null,
+      pspReference: event.pspReference ?? null,
+      idempotencyKey: event.idempotencyKey ?? null,
+    }));
+}
+
+export type VippsWebhook = { id: string; url: string; events: string[] };
+
+export async function listWebhooks(): Promise<VippsWebhook[]> {
+  const config = getConfig();
+  const token = await getAccessToken(config);
+
+  const response = await fetch(`${config.baseUrl}/webhooks/v1/webhooks`, {
+    headers: baseHeaders(config, token),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Vipps webhooks-feil (${response.status}): ${errorBody}`);
+  }
+
+  const data = (await response.json()) as { webhooks?: VippsWebhook[] };
+  return data.webhooks ?? [];
+}
+
+export async function registerWebhook(
+  url: string,
+  events: string[],
+): Promise<{ id: string; secret: string }> {
+  const config = getConfig();
+  const token = await getAccessToken(config);
+
+  const response = await fetch(`${config.baseUrl}/webhooks/v1/webhooks`, {
+    method: "POST",
+    headers: baseHeaders(config, token),
+    body: JSON.stringify({ url, events }),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(
+      `Vipps webhook-registrering feilet (${response.status}): ${errorBody}`,
+    );
+  }
+
+  return (await response.json()) as { id: string; secret: string };
+}
+
+export async function deleteWebhook(id: string): Promise<void> {
+  const config = getConfig();
+  const token = await getAccessToken(config);
+
+  const response = await fetch(
+    `${config.baseUrl}/webhooks/v1/webhooks/${encodeURIComponent(id)}`,
+    { method: "DELETE", headers: baseHeaders(config, token), cache: "no-store" },
+  );
+
+  if (!response.ok && response.status !== 404) {
+    const errorBody = await response.text();
+    throw new Error(`Vipps webhook-sletting feilet (${response.status}): ${errorBody}`);
+  }
 }
 
 export async function refundPayment(
