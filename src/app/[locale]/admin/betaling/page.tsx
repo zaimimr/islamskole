@@ -35,6 +35,17 @@ type PaymentRow = {
   amount: number;
 };
 
+type BalanceRow = {
+  student_id: string | null;
+  school_year_id: string | null;
+  owed: number | null;
+  paid: number | null;
+  remaining: number | null;
+  state: string | null;
+};
+
+type LedgerState = "betalt" | "delvis" | "venter" | "ubetalt";
+
 function formatNok(ore: number) {
   return `${(ore / 100).toLocaleString("nb-NO")} kr`;
 }
@@ -55,10 +66,16 @@ async function getData() {
         .eq("status", "aktiv"),
       supabase.from("payments").select("student_id, school_year_id, status, amount"),
     ]);
+
+  const { data: balances } = await supabase
+    .from("student_balances")
+    .select("student_id, school_year_id, owed, paid, remaining, state");
+
   return {
     years: (years as YearRow[] | null) ?? [],
     enrollments: (enrollments as EnrollmentRow[] | null) ?? [],
     payments: (payments as PaymentRow[] | null) ?? [],
+    balances: (balances as BalanceRow[] | null) ?? [],
   };
 }
 
@@ -69,7 +86,7 @@ export default async function BetalingPage({
 }) {
   const { locale } = await params;
   const basePath = adminBasePath(locale);
-  const { years, enrollments, payments } = await getData();
+  const { years, enrollments, payments, balances } = await getData();
 
   return (
     <div className="grid gap-6">
@@ -100,42 +117,60 @@ export default async function BetalingPage({
           const studentIds = [
             ...new Set(yearEnrollments.map((e) => e.student_id)),
           ];
-          const enrolledSet = new Set(studentIds);
 
-          const paidByStudent = new Map<string, number>();
-          const stateByStudent = new Map<
-            string,
-            "betalt" | "venter" | "ubetalt"
-          >();
-          for (const p of yearPayments) {
-            if (p.status === "fanget") {
-              paidByStudent.set(
-                p.student_id,
-                (paidByStudent.get(p.student_id) ?? 0) + p.amount,
-              );
-              stateByStudent.set(p.student_id, "betalt");
-            } else if (
-              (p.status === "opprettet" || p.status === "autorisert") &&
-              stateByStudent.get(p.student_id) !== "betalt"
-            ) {
-              stateByStudent.set(p.student_id, "venter");
+          const yearBalances = new Map<string, BalanceRow>();
+          for (const b of balances) {
+            if (b.school_year_id === year.id && b.student_id) {
+              yearBalances.set(b.student_id, b);
+            }
+          }
+
+          const hasPending = new Set(
+            yearPayments
+              .filter(
+                (p) => p.status === "opprettet" || p.status === "autorisert",
+              )
+              .map((p) => p.student_id),
+          );
+
+          const stateByStudent = new Map<string, LedgerState>();
+          for (const studentId of studentIds) {
+            const balance = yearBalances.get(studentId);
+            const owed = balance?.owed ?? 0;
+            const paid = balance?.paid ?? 0;
+            const remaining = balance?.remaining ?? 0;
+            if (owed > 0 && remaining <= 0) {
+              stateByStudent.set(studentId, "betalt");
+            } else if (paid > 0) {
+              stateByStudent.set(studentId, "delvis");
+            } else if (hasPending.has(studentId)) {
+              stateByStudent.set(studentId, "venter");
+            } else {
+              stateByStudent.set(studentId, "ubetalt");
             }
           }
 
           const paidCount = studentIds.filter(
             (id) => stateByStudent.get(id) === "betalt",
           ).length;
+          const partialCount = studentIds.filter(
+            (id) => stateByStudent.get(id) === "delvis",
+          ).length;
           const missingCount = studentIds.length - paidCount;
-          const collected = yearPayments
-            .filter((p) => p.status === "fanget" && enrolledSet.has(p.student_id))
-            .reduce((s, p) => s + p.amount, 0);
-          const outstanding = yearPayments
-            .filter(
-              (p) =>
-                (p.status === "opprettet" || p.status === "autorisert") &&
-                enrolledSet.has(p.student_id),
-            )
-            .reduce((s, p) => s + p.amount, 0);
+
+          const enrolledBalances = studentIds.map((id) => yearBalances.get(id));
+          const billed = enrolledBalances.reduce(
+            (s, b) => s + (b?.owed ?? 0),
+            0,
+          );
+          const collected = enrolledBalances.reduce(
+            (s, b) => s + (b?.paid ?? 0),
+            0,
+          );
+          const outstanding = enrolledBalances.reduce(
+            (s, b) => s + (b?.remaining ?? 0),
+            0,
+          );
 
           const seen = new Set<string>();
           const rows = yearEnrollments.filter((e) => {
@@ -153,8 +188,9 @@ export default async function BetalingPage({
                     {year.is_active ? <Badge>Aktivt</Badge> : null}
                   </span>
                   <span className="text-sm text-muted-foreground">
-                    {paidCount}/{studentIds.length} betalt · {formatNok(collected)}{" "}
-                    innbetalt
+                    {paidCount}/{studentIds.length} betalt
+                    {partialCount > 0 ? ` · ${partialCount} delvis` : ""} ·{" "}
+                    {formatNok(collected)} av {formatNok(billed)} innbetalt
                   </span>
                 </summary>
                 <div className="grid gap-4 border-t p-4">
@@ -164,12 +200,13 @@ export default async function BetalingPage({
                       yearLabel={year.label}
                     />
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                  <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
                     <Stat label="Elever" value={String(studentIds.length)} />
                     <Stat label="Betalt" value={String(paidCount)} />
+                    <Stat label="Delvis" value={String(partialCount)} />
                     <Stat label="Mangler" value={String(missingCount)} />
                     <Stat label="Innbetalt" value={formatNok(collected)} />
-                    <Stat label="Utestående" value={formatNok(outstanding)} />
+                    <Stat label="Gjenstår" value={formatNok(outstanding)} />
                   </div>
 
                   {rows.length === 0 ? (
@@ -204,11 +241,27 @@ export default async function BetalingPage({
                             </TableCell>
                             <TableCell>{e.classes?.name_no ?? "-"}</TableCell>
                             <TableCell>
-                              {formatNok(paidByStudent.get(e.student_id) ?? 0)}
+                              {formatNok(yearBalances.get(e.student_id)?.paid ?? 0)}
+                              <span className="text-muted-foreground">
+                                {" "}
+                                av{" "}
+                                {formatNok(
+                                  yearBalances.get(e.student_id)?.owed ?? 0,
+                                )}
+                              </span>
                             </TableCell>
                             <TableCell>
                               {state === "betalt" ? (
                                 <Badge>Betalt</Badge>
+                              ) : state === "delvis" ? (
+                                <Badge variant="secondary">
+                                  Delvis ·{" "}
+                                  {formatNok(
+                                    yearBalances.get(e.student_id)?.remaining ??
+                                      0,
+                                  )}{" "}
+                                  igjen
+                                </Badge>
                               ) : state === "venter" ? (
                                 <Badge variant="secondary">Lenke sendt</Badge>
                               ) : (

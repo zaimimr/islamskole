@@ -15,8 +15,9 @@ import {
 
 const paymentStatuses = [
   { value: "alle", label: "All betaling" },
-  { value: "ikke_betalt", label: "Ikke betalt" },
+  { value: "ikke_betalt", label: "Ikke ferdig betalt" },
   { value: "betalt", label: "Betalt" },
+  { value: "delvis", label: "Delvis betalt" },
   { value: "venter", label: "Lenke sendt, venter" },
   { value: "ubetalt", label: "Ingen lenke sendt" },
 ];

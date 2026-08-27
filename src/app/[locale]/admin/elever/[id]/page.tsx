@@ -56,6 +56,7 @@ export default async function ElevDetailPage({
     { data: yearData },
     { data: enrollmentData },
     { data: paymentData },
+    { data: balanceData },
   ] = await Promise.all([
     supabase
       .from("students")
@@ -82,10 +83,14 @@ export default async function ElevDetailPage({
     supabase
       .from("payments")
       .select(
-        "id, amount, currency, description, status, method, paid_at, redirect_url, created_at, school_years(label)",
+        "id, amount, currency, description, status, method, paid_at, redirect_url, created_at, reference, voided_at, void_reason, payer_name, payer_phone, school_years(label)",
       )
       .eq("student_id", id)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("student_balances")
+      .select("school_year_id, owed, paid, remaining, state")
+      .eq("student_id", id),
   ]);
 
   const student = studentData as StudentData | null;
@@ -132,8 +137,29 @@ export default async function ElevDetailPage({
     enrollmentRaw.find(
       (e) => e.status === "aktiv" && e.school_year_id === defaultSchoolYearId,
     ) ?? enrollmentRaw.find((e) => e.status === "aktiv");
-  const defaultAmount =
+  const balancesByYear: Record<
+    string,
+    { owed: number; paid: number; remaining: number }
+  > = {};
+  for (const row of (balanceData as
+    | {
+        school_year_id: string | null;
+        owed: number | null;
+        paid: number | null;
+        remaining: number | null;
+      }[]
+    | null) ?? []) {
+    if (!row.school_year_id) continue;
+    balancesByYear[row.school_year_id] = {
+      owed: row.owed ?? 0,
+      paid: row.paid ?? 0,
+      remaining: row.remaining ?? 0,
+    };
+  }
+
+  const fallbackAmount =
     activeEnrollment?.classes?.price ?? activeYear?.fee ?? null;
+  const defaultAmount = fallbackAmount;
 
   const payments: PaymentRow[] = (
     (paymentData as
@@ -151,6 +177,11 @@ export default async function ElevDetailPage({
     paid_at: p.paid_at,
     redirect_url: p.redirect_url,
     created_at: p.created_at,
+    reference: p.reference,
+    voided_at: p.voided_at,
+    void_reason: p.void_reason,
+    payer_name: p.payer_name,
+    payer_phone: p.payer_phone,
     schoolYear: p.school_years?.label ?? null,
   }));
 
@@ -185,6 +216,7 @@ export default async function ElevDetailPage({
         schoolYears={schoolYears}
         defaultSchoolYearId={defaultSchoolYearId}
         defaultAmount={defaultAmount}
+        balancesByYear={balancesByYear}
         payments={payments}
       />
 

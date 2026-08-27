@@ -12,9 +12,13 @@ import {
   Undo2,
   Ban,
   Trash2,
+  EyeOff,
+  RotateCcw,
 } from "lucide-react";
 import {
   createVippsPayment,
+  voidPayment,
+  restorePayment,
   registerManualPayment,
   syncPaymentStatus,
   captureVippsPayment,
@@ -49,7 +53,14 @@ export type PaymentRow = {
   paid_at: string | null;
   redirect_url: string | null;
   created_at: string | null;
+  reference: string | null;
+  voided_at: string | null;
+  void_reason: string | null;
+  payer_name: string | null;
+  payer_phone: string | null;
 };
+
+export type YearBalance = { owed: number; paid: number; remaining: number };
 
 const statusLabels: Record<string, string> = {
   opprettet: "Venter",
@@ -73,6 +84,10 @@ function statusVariant(status: string): "default" | "secondary" | "destructive" 
   return "secondary";
 }
 
+function formatNok(ore: number) {
+  return `${(ore / 100).toLocaleString("nb-NO")} kr`;
+}
+
 function formatAmount(amount: number, currency: string) {
   return `${(amount / 100).toLocaleString("nb-NO")} ${currency}`;
 }
@@ -90,6 +105,7 @@ export function PaymentManager({
   schoolYears,
   defaultSchoolYearId,
   defaultAmount,
+  balancesByYear,
   payments,
 }: {
   studentId: string;
@@ -97,6 +113,7 @@ export function PaymentManager({
   schoolYears: SchoolYearOption[];
   defaultSchoolYearId: string | null;
   defaultAmount: number | null;
+  balancesByYear: Record<string, YearBalance>;
   payments: PaymentRow[];
 }) {
   const router = useRouter();
@@ -106,6 +123,10 @@ export function PaymentManager({
   );
 
   const currentClass = classByYear[year] ?? null;
+  const balance = balancesByYear[year] ?? null;
+  const remainingNok =
+    balance && balance.remaining > 0 ? Math.round(balance.remaining / 100) : null;
+  const suggestedAmount = remainingNok ?? defaultAmount ?? null;
 
   function handleCreate(formData: FormData) {
     formData.set("student_id", studentId);
@@ -200,7 +221,34 @@ export function PaymentManager({
           </div>
         </div>
 
+        {balance ? (
+          <div className="grid gap-3 rounded-lg border p-4 sm:grid-cols-3">
+            <div>
+              <p className="text-sm text-muted-foreground">Skyldig</p>
+              <p className="text-2xl font-bold">{formatNok(balance.owed)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Betalt</p>
+              <p className="text-2xl font-bold">{formatNok(balance.paid)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Gjenstår</p>
+              <p className="text-2xl font-bold">
+                {formatNok(balance.remaining)}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {balance.owed > 0 && balance.remaining <= 0
+                  ? "Ferdig betalt"
+                  : balance.paid > 0
+                    ? "Delvis betalt"
+                    : "Ikke betalt"}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         <form
+          key={`vipps-${year}`}
           action={handleCreate}
           className="grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
         >
@@ -216,8 +264,13 @@ export function PaymentManager({
               min="1"
               step="1"
               required
-              defaultValue={defaultAmount ?? ""}
+              defaultValue={suggestedAmount ?? ""}
             />
+            {remainingNok != null ? (
+              <p className="text-xs text-muted-foreground">
+                Foreslått: restbeløpet
+              </p>
+            ) : null}
           </div>
           <Button type="submit" disabled={pending || !currentClass}>
             {pending ? <Loader2 className="size-4 animate-spin" /> : null}
@@ -226,6 +279,7 @@ export function PaymentManager({
         </form>
 
         <form
+          key={`manual-${year}`}
           action={handleManual}
           className="grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end"
         >
@@ -241,8 +295,11 @@ export function PaymentManager({
               min="1"
               step="1"
               required
-              defaultValue={defaultAmount ?? ""}
+              defaultValue={suggestedAmount ?? ""}
             />
+            <p className="text-xs text-muted-foreground">
+              Delbetaling er lov - skriv beløpet som faktisk kom inn
+            </p>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="manual_paid_at" required>Betalt dato</Label>
@@ -298,6 +355,7 @@ export function PaymentManager({
                 <TableHead>Beløp</TableHead>
                 <TableHead>Skoleår</TableHead>
                 <TableHead>Måte</TableHead>
+                <TableHead>Betaler</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Dato</TableHead>
                 <TableHead className="text-right">Handlinger</TableHead>
@@ -306,25 +364,96 @@ export function PaymentManager({
             <TableBody>
               {payments.map((payment) => {
                 const isManual = payment.method !== "vipps";
+                const voided = Boolean(payment.voided_at);
                 return (
-                  <TableRow key={payment.id}>
+                  <TableRow
+                    key={payment.id}
+                    className={voided ? "opacity-55" : undefined}
+                  >
                     <TableCell className="font-medium">
-                      {formatAmount(payment.amount, payment.currency)}
+                      <span className={voided ? "line-through" : undefined}>
+                        {formatAmount(payment.amount, payment.currency)}
+                      </span>
                     </TableCell>
                     <TableCell>{payment.schoolYear ?? "-"}</TableCell>
                     <TableCell>
                       {methodLabels[payment.method] ?? payment.method}
                     </TableCell>
+                    <TableCell className="max-w-48">
+                      {payment.payer_name || payment.payer_phone ? (
+                        <span className="text-sm">
+                          {payment.payer_name ?? payment.payer_phone}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">-</span>
+                      )}
+                      {payment.reference ? (
+                        <span
+                          className="block truncate font-mono text-xs text-muted-foreground"
+                          title={payment.reference}
+                        >
+                          {payment.reference}
+                        </span>
+                      ) : null}
+                    </TableCell>
                     <TableCell>
-                      <Badge variant={statusVariant(payment.status)}>
-                        {statusLabels[payment.status] ?? payment.status}
-                      </Badge>
+                      {voided ? (
+                        <Badge
+                          variant="destructive"
+                          title={payment.void_reason ?? "Annullert"}
+                        >
+                          Annullert
+                        </Badge>
+                      ) : (
+                        <Badge variant={statusVariant(payment.status)}>
+                          {statusLabels[payment.status] ?? payment.status}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       {formatDate(payment.paid_at ?? payment.created_at)}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
+                        {voided ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Angre annullering"
+                            title="Angre annullering - la betalingen telle igjen"
+                            disabled={pending}
+                            onClick={() =>
+                              run(
+                                () => restorePayment(payment.id),
+                                "Annullering angret",
+                              )
+                            }
+                          >
+                            <RotateCcw className="size-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Annuller betaling"
+                            title="Annuller - behold raden i loggen, men slutt å telle den"
+                            disabled={pending}
+                            onClick={() =>
+                              run(
+                                () =>
+                                  voidPayment(
+                                    payment.id,
+                                    "Annullert manuelt",
+                                  ),
+                                "Betaling annullert",
+                              )
+                            }
+                          >
+                            <EyeOff className="size-4" />
+                          </Button>
+                        )}
                         {isManual ? (
                           <Button
                             type="button"

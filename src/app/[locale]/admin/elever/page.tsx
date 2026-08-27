@@ -75,6 +75,26 @@ async function getStudents(q: string): Promise<StudentRow[]> {
   }
 }
 
+type BalanceRow = {
+  student_id: string | null;
+  school_year_id: string | null;
+  owed: number | null;
+  paid: number | null;
+  remaining: number | null;
+};
+
+async function getBalances(): Promise<BalanceRow[]> {
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("student_balances")
+      .select("student_id, school_year_id, owed, paid, remaining");
+    return (data as BalanceRow[] | null) ?? [];
+  } catch {
+    return [];
+  }
+}
+
 async function getClasses() {
   try {
     const supabase = await createClient();
@@ -126,26 +146,38 @@ function yearLabels(enrollments: StudentRow["enrollments"]) {
   ].sort().reverse();
 }
 
-function paidTotal(payments: StudentRow["payments"]) {
-  return (payments ?? [])
-    .filter((p) => p.status === "fanget")
-    .reduce((sum, p) => sum + p.amount, 0);
+type Ledger = { owed: number; paid: number; remaining: number };
+
+function emptyLedger(): Ledger {
+  return { owed: 0, paid: 0, remaining: 0 };
 }
 
-function pendingTotal(payments: StudentRow["payments"]) {
-  return (payments ?? [])
-    .filter((p) => p.status === "opprettet" || p.status === "autorisert")
-    .reduce((sum, p) => sum + p.amount, 0);
+function sumLedger(rows: Ledger[]): Ledger {
+  return rows.reduce(
+    (acc, row) => ({
+      owed: acc.owed + row.owed,
+      paid: acc.paid + row.paid,
+      remaining: acc.remaining + row.remaining,
+    }),
+    emptyLedger(),
+  );
 }
 
-function payState(payments: StudentRow["payments"]): "betalt" | "venter" | "ubetalt" {
-  if ((payments ?? []).some((p) => p.status === "fanget")) return "betalt";
-  if (
-    (payments ?? []).some(
-      (p) => p.status === "opprettet" || p.status === "autorisert",
-    )
-  )
-    return "venter";
+function hasPendingLink(payments: StudentRow["payments"]) {
+  return (payments ?? []).some(
+    (p) => p.status === "opprettet" || p.status === "autorisert",
+  );
+}
+
+type PayState = "betalt" | "delvis" | "venter" | "ubetalt";
+
+function payState(ledger: Ledger, payments: StudentRow["payments"]): PayState {
+  if (ledger.owed > 0 && ledger.remaining <= 0) return "betalt";
+  if (ledger.paid > 0) return "delvis";
+  if (ledger.owed === 0 && (payments ?? []).some((p) => p.status === "fanget")) {
+    return "betalt";
+  }
+  if (hasPendingLink(payments)) return "venter";
   return "ubetalt";
 }
 
@@ -171,11 +203,24 @@ export default async function RegistrertePage({
   const page = Math.max(1, Number(sp.page) || 1);
   const basePath = adminBasePath(locale);
 
-  const [allStudents, classes, schoolYears] = await Promise.all([
+  const [allStudents, classes, schoolYears, balanceRows] = await Promise.all([
     getStudents(q),
     getClasses(),
     getSchoolYears(),
+    getBalances(),
   ]);
+
+  const balancesByStudent = new Map<string, Map<string, Ledger>>();
+  for (const row of balanceRows) {
+    if (!row.student_id || !row.school_year_id) continue;
+    const byYear = balancesByStudent.get(row.student_id) ?? new Map();
+    byYear.set(row.school_year_id, {
+      owed: row.owed ?? 0,
+      paid: row.paid ?? 0,
+      remaining: row.remaining ?? 0,
+    });
+    balancesByStudent.set(row.student_id, byYear);
+  }
 
   const activeYear = schoolYears.find((y) => y.is_active);
   const activeYearId = activeYear?.id ?? null;
@@ -187,6 +232,13 @@ export default async function RegistrertePage({
     realYear
       ? payments.filter((p) => p.school_year_id === realYear)
       : payments;
+
+  const ledgerFor = (studentId: string): Ledger => {
+    const byYear = balancesByStudent.get(studentId);
+    if (!byYear) return emptyLedger();
+    if (realYear) return byYear.get(realYear) ?? emptyLedger();
+    return sumLedger([...byYear.values()]);
+  };
 
   const students = allStudents.filter((student) => {
     if (yearFilter === "needs_rollover") {
@@ -210,7 +262,7 @@ export default async function RegistrertePage({
       if (!inClass) return false;
     }
     if (payFilter && payFilter !== "alle") {
-      const state = payState(scoped(student.payments));
+      const state = payState(ledgerFor(student.id), scoped(student.payments));
       if (payFilter === "ikke_betalt") {
         if (state === "betalt") return false;
       } else if (state !== payFilter) {
@@ -220,14 +272,9 @@ export default async function RegistrertePage({
     return true;
   });
 
-  const totalPaid = students.reduce(
-    (s, st) => s + paidTotal(scoped(st.payments)),
-    0,
-  );
-  const totalPending = students.reduce(
-    (s, st) => s + pendingTotal(scoped(st.payments)),
-    0,
-  );
+  const ledgerTotals = sumLedger(students.map((st) => ledgerFor(st.id)));
+  const totalPaid = ledgerTotals.paid;
+  const totalRemaining = ledgerTotals.remaining;
 
   const total = students.length;
   const from = (page - 1) * PAGE_SIZE;
@@ -259,8 +306,8 @@ export default async function RegistrertePage({
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Utestående</p>
-            <p className="text-2xl font-bold">{formatNok(totalPending)}</p>
+            <p className="text-sm text-muted-foreground">Gjenstår</p>
+            <p className="text-2xl font-bold">{formatNok(totalRemaining)}</p>
           </CardContent>
         </Card>
       </div>
@@ -296,7 +343,8 @@ export default async function RegistrertePage({
               <TableBody>
                 {pageStudents.map((student) => {
                   const studentPayments = scoped(student.payments);
-                  const state = payState(studentPayments);
+                  const ledger = ledgerFor(student.id);
+                  const state = payState(ledger, studentPayments);
                   return (
                     <ClickableRow
                       key={student.id}
@@ -332,10 +380,25 @@ export default async function RegistrertePage({
                           );
                         })()}
                       </TableCell>
-                      <TableCell>{formatNok(paidTotal(studentPayments))}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {formatNok(ledger.paid)}
+                        {ledger.owed > 0 ? (
+                          <span className="text-muted-foreground">
+                            {" "}
+                            av {formatNok(ledger.owed)}
+                          </span>
+                        ) : null}
+                      </TableCell>
                       <TableCell>
                         {state === "betalt" ? (
                           <Badge>Betalt</Badge>
+                        ) : state === "delvis" ? (
+                          <Badge
+                            variant="secondary"
+                            title={`Gjenstår ${formatNok(ledger.remaining)}`}
+                          >
+                            Delvis · {formatNok(ledger.remaining)} igjen
+                          </Badge>
                         ) : state === "venter" ? (
                           <Badge variant="secondary">Lenke sendt</Badge>
                         ) : (
