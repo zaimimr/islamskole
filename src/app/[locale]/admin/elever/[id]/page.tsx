@@ -55,7 +55,7 @@ export default async function ElevDetailPage({
     { data: classData },
     { data: yearData },
     { data: enrollmentData },
-    { data: paymentData },
+    { data: allocationData },
     { data: balanceData },
   ] = await Promise.all([
     supabase
@@ -81,12 +81,9 @@ export default async function ElevDetailPage({
       .eq("student_id", id)
       .order("created_at", { ascending: false }),
     supabase
-      .from("payments")
-      .select(
-        "id, amount, currency, description, status, method, paid_at, redirect_url, created_at, reference, voided_at, void_reason, payer_name, payer_phone, school_years(label)",
-      )
-      .eq("student_id", id)
-      .order("created_at", { ascending: false }),
+      .from("payment_allocations")
+      .select("payment_id, amount, school_year_id")
+      .eq("student_id", id),
     supabase
       .from("student_balances")
       .select("school_year_id, owed, paid, remaining, state")
@@ -161,29 +158,63 @@ export default async function ElevDetailPage({
     activeEnrollment?.classes?.price ?? activeYear?.fee ?? null;
   const defaultAmount = fallbackAmount;
 
+  const allocations =
+    (allocationData as
+      | { payment_id: string; amount: number; school_year_id: string }[]
+      | null) ?? [];
+
+  const allocationByPayment = new Map(
+    allocations.map((a) => [a.payment_id, a.amount]),
+  );
+
+  const paymentIds = [...new Set(allocations.map((a) => a.payment_id))];
+
+  const paymentFilter = paymentIds.length
+    ? `id.in.(${paymentIds.join(",")}),student_id.eq.${id}`
+    : `student_id.eq.${id}`;
+
+  const { data: paymentData } = await supabase
+    .from("payments")
+    .select(
+      "id, amount, currency, description, status, method, paid_at, redirect_url, created_at, reference, voided_at, void_reason, payer_name, payer_phone, student_id, school_year_id, school_years(label), payment_allocations(student_id)",
+    )
+    .or(paymentFilter)
+    .order("created_at", { ascending: false });
+
   const payments: PaymentRow[] = (
     (paymentData as
-      | (Omit<PaymentRow, "schoolYear"> & {
+      | (Omit<
+          PaymentRow,
+          "schoolYear" | "allocatedAmount" | "sharedWith" | "schoolYearId"
+        > & {
+          school_year_id: string | null;
           school_years: { label: string } | null;
+          payment_allocations: { student_id: string }[] | null;
         })[]
       | null) ?? []
-  ).map((p) => ({
-    id: p.id,
-    amount: p.amount,
-    currency: p.currency,
-    description: p.description,
-    status: p.status,
-    method: p.method,
-    paid_at: p.paid_at,
-    redirect_url: p.redirect_url,
-    created_at: p.created_at,
-    reference: p.reference,
-    voided_at: p.voided_at,
-    void_reason: p.void_reason,
-    payer_name: p.payer_name,
-    payer_phone: p.payer_phone,
-    schoolYear: p.school_years?.label ?? null,
-  }));
+  ).map((p) => {
+    const covers = (p.payment_allocations ?? []).length;
+    return {
+      id: p.id,
+      amount: p.amount,
+      currency: p.currency,
+      description: p.description,
+      status: p.status,
+      method: p.method,
+      paid_at: p.paid_at,
+      redirect_url: p.redirect_url,
+      created_at: p.created_at,
+      reference: p.reference,
+      voided_at: p.voided_at,
+      void_reason: p.void_reason,
+      payer_name: p.payer_name,
+      payer_phone: p.payer_phone,
+      schoolYear: p.school_years?.label ?? null,
+      schoolYearId: p.school_year_id,
+      allocatedAmount: allocationByPayment.get(p.id) ?? null,
+      sharedWith: covers > 1 ? covers : null,
+    };
+  });
 
   const classByYear: Record<string, string> = {};
   for (const e of enrollmentRaw) {
