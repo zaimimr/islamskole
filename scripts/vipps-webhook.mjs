@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 
 function loadEnv(path) {
   try {
@@ -13,7 +13,30 @@ function loadEnv(path) {
   }
 }
 
-loadEnv(process.env.VIPPS_ENV_FILE ?? ".env.vipps.prod");
+function resolveEnvFile() {
+  const explicit = process.env.VIPPS_ENV_FILE;
+  const path = explicit ?? ".env.vipps.prod";
+  if (!existsSync(path)) {
+    console.error(`\nEnv file not found: ${path}`);
+    console.error(
+      explicit
+        ? "Check VIPPS_ENV_FILE, or drop the variable to use .env.vipps.prod."
+        : "Create .env.vipps.prod with the PRODUCTION Vipps credentials:\n" +
+          "  VIPPS_BASE_URL=https://api.vipps.no\n" +
+          "  VIPPS_CLIENT_ID=...\n" +
+          "  VIPPS_CLIENT_SECRET=...\n" +
+          "  VIPPS_SUBSCRIPTION_KEY=...\n" +
+          "  VIPPS_MSN=...\n" +
+          "\nTo deliberately target the test merchant instead:\n" +
+          "  VIPPS_ENV_FILE=.env.local node " + process.argv[1],
+    );
+    process.exit(1);
+  }
+  return path;
+}
+
+const envFile = resolveEnvFile();
+loadEnv(envFile);
 
 const EVENTS = [
   "epayments.payment.created.v1",
@@ -25,16 +48,32 @@ const EVENTS = [
   "epayments.payment.expired.v1",
 ];
 
-const baseUrl = (process.env.VIPPS_BASE_URL ?? "https://api.vipps.no").replace(/\/$/, "");
+const baseUrl = (process.env.VIPPS_BASE_URL ?? "https://api.vipps.no").replace(
+  /\/$/,
+  "",
+);
 const clientId = process.env.VIPPS_CLIENT_ID;
 const clientSecret = process.env.VIPPS_CLIENT_SECRET;
 const subscriptionKey = process.env.VIPPS_SUBSCRIPTION_KEY;
 const msn = process.env.VIPPS_MSN;
 
 if (!clientId || !clientSecret || !subscriptionKey || !msn) {
-  console.error("Missing VIPPS_CLIENT_ID / VIPPS_CLIENT_SECRET / VIPPS_SUBSCRIPTION_KEY / VIPPS_MSN");
+  console.error(
+    "Missing VIPPS_CLIENT_ID / VIPPS_CLIENT_SECRET / VIPPS_SUBSCRIPTION_KEY / VIPPS_MSN",
+  );
   process.exit(1);
 }
+
+const isTest = baseUrl.includes("apitest");
+console.log(
+  `Environment: ${isTest ? "TEST" : "PRODUCTION"}  ${baseUrl}  MSN ${msn}  (from ${envFile})`,
+);
+if (isTest) {
+  console.log(
+    "NOTE: this is the TEST merchant. Production payment references will return 404 here.",
+  );
+}
+console.log("");
 
 const tokenResponse = await fetch(`${baseUrl}/accesstoken/get`, {
   method: "POST",
@@ -45,7 +84,11 @@ const tokenResponse = await fetch(`${baseUrl}/accesstoken/get`, {
   },
 });
 if (!tokenResponse.ok) {
-  console.error("token failed", tokenResponse.status, await tokenResponse.text());
+  console.error(
+    "token failed",
+    tokenResponse.status,
+    await tokenResponse.text(),
+  );
   process.exit(1);
 }
 const token = (await tokenResponse.json()).access_token;
@@ -64,7 +107,7 @@ async function list() {
   const response = await fetch(`${baseUrl}/webhooks/v1/webhooks`, { headers });
   const text = await response.text();
   console.log(response.status, text);
-  return response.ok ? JSON.parse(text).webhooks ?? [] : [];
+  return response.ok ? (JSON.parse(text).webhooks ?? []) : [];
 }
 
 if (!command || command === "list") {
@@ -76,7 +119,9 @@ if (command === "register") {
   const url = argument ?? "https://www.islamskole.no/api/vipps/webhook";
   const existing = await list();
   if (existing.some((hook) => hook.url === url)) {
-    console.log(`\nA webhook for ${url} already exists. Delete it first to get a new secret.`);
+    console.log(
+      `\nA webhook for ${url} already exists. Delete it first to get a new secret.`,
+    );
     process.exit(0);
   }
 
@@ -112,5 +157,7 @@ if (command === "delete") {
   process.exit(0);
 }
 
-console.error(`Unknown command: ${command}. Use list, register [url], or delete <id>.`);
+console.error(
+  `Unknown command: ${command}. Use list, register [url], or delete <id>.`,
+);
 process.exit(1);

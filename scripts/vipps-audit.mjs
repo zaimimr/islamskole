@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 
 function loadEnv(path) {
   try {
@@ -13,7 +13,30 @@ function loadEnv(path) {
   }
 }
 
-loadEnv(process.env.VIPPS_ENV_FILE ?? ".env.vipps.prod");
+function resolveEnvFile() {
+  const explicit = process.env.VIPPS_ENV_FILE;
+  const path = explicit ?? ".env.vipps.prod";
+  if (!existsSync(path)) {
+    console.error(`\nEnv file not found: ${path}`);
+    console.error(
+      explicit
+        ? "Check VIPPS_ENV_FILE, or drop the variable to use .env.vipps.prod."
+        : "Create .env.vipps.prod with the PRODUCTION Vipps credentials:\n" +
+          "  VIPPS_BASE_URL=https://api.vipps.no\n" +
+          "  VIPPS_CLIENT_ID=...\n" +
+          "  VIPPS_CLIENT_SECRET=...\n" +
+          "  VIPPS_SUBSCRIPTION_KEY=...\n" +
+          "  VIPPS_MSN=...\n" +
+          "\nTo deliberately target the test merchant instead:\n" +
+          "  VIPPS_ENV_FILE=.env.local node " + process.argv[1],
+    );
+    process.exit(1);
+  }
+  return path;
+}
+
+const envFile = resolveEnvFile();
+loadEnv(envFile);
 
 const baseUrl = (process.env.VIPPS_BASE_URL ?? "https://api.vipps.no").replace(/\/$/, "");
 const clientId = process.env.VIPPS_CLIENT_ID;
@@ -25,6 +48,17 @@ if (!clientId || !clientSecret || !subscriptionKey || !msn) {
   console.error("Missing VIPPS_CLIENT_ID / VIPPS_CLIENT_SECRET / VIPPS_SUBSCRIPTION_KEY / VIPPS_MSN");
   process.exit(1);
 }
+
+const isTest = baseUrl.includes("apitest");
+console.log(
+  `Environment: ${isTest ? "TEST" : "PRODUCTION"}  ${baseUrl}  MSN ${msn}  (from ${envFile})`,
+);
+if (isTest) {
+  console.log(
+    "NOTE: this is the TEST merchant. Production payment references will return 404 here.",
+  );
+}
+console.log("");
 
 const tokenResponse = await fetch(`${baseUrl}/accesstoken/get`, {
   method: "POST",
