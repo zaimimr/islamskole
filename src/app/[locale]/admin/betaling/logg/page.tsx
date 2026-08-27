@@ -7,6 +7,7 @@ import {
   AllocatePaymentDialog,
   type AllocationStudent,
 } from "@/components/admin/allocate-payment-dialog";
+import { RefundPaymentDialog } from "@/components/admin/refund-payment-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -245,7 +246,7 @@ export default async function PaymentLogPage({
                     <TableHead>Skoleår</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Vipps</TableHead>
-                    <TableHead className="text-right">Fordeling</TableHead>
+                    <TableHead className="text-right">Handlinger</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -304,10 +305,15 @@ export default async function PaymentLogPage({
                                 key={`${payment.id}-${index}`}
                                 className="block text-sm"
                               >
-                                {allocation.students
-                                  ? studentDisplayName(allocation.students) ||
-                                    "Ukjent"
-                                  : "Ukjent"}
+                                <Link
+                                  href={`${basePath}/elever/${allocation.student_id}`}
+                                  className="underline-offset-2 hover:underline"
+                                >
+                                  {allocation.students
+                                    ? studentDisplayName(allocation.students) ||
+                                      "Ukjent"
+                                    : "Ukjent"}
+                                </Link>
                                 <span className="text-muted-foreground">
                                   {" "}
                                   {formatNok(allocation.amount)}
@@ -372,15 +378,33 @@ export default async function PaymentLogPage({
                           ) : null}
                         </TableCell>
                         <TableCell className="text-right">
-                          <AllocatePaymentDialog
-                            paymentId={payment.id}
-                            paymentAmount={payment.amount}
-                            students={students}
-                            existing={rows.map((allocation) => ({
-                              studentId: allocation.student_id,
-                              amount: allocation.amount,
-                            }))}
-                          />
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <AllocatePaymentDialog
+                              paymentId={payment.id}
+                              paymentAmount={payment.amount}
+                              students={students}
+                              existing={rows.map((allocation) => ({
+                                studentId: allocation.student_id,
+                                amount: allocation.amount,
+                              }))}
+                            />
+                            {payment.method === "vipps" &&
+                            payment.status === "fanget" &&
+                            !voided ? (
+                              <RefundPaymentDialog
+                                paymentId={payment.id}
+                                amount={payment.amount}
+                                payerName={payment.payer_name}
+                                childNames={rows
+                                  .map((allocation) =>
+                                    allocation.students
+                                      ? studentDisplayName(allocation.students)
+                                      : "",
+                                  )
+                                  .filter(Boolean)}
+                              />
+                            ) : null}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
