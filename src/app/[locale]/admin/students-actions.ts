@@ -1357,3 +1357,82 @@ export async function reallocatePayment(
   revalidate();
   return { ok: true, id: paymentId };
 }
+
+export async function updatePaymentAllocations(
+  paymentId: string,
+  rows: { studentId: string; amount: number }[],
+): Promise<ActionResult> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { data: paymentRow } = await supabase
+    .from("payments")
+    .select("id, amount, school_year_id")
+    .eq("id", paymentId)
+    .maybeSingle();
+
+  const payment = paymentRow as unknown as {
+    id: string;
+    amount: number;
+    school_year_id: string | null;
+  } | null;
+
+  if (!payment) return { ok: false, error: "Fant ikke betalingen" };
+  if (!payment.school_year_id) {
+    return { ok: false, error: "Betalingen mangler skoleår" };
+  }
+
+  const cleaned = rows
+    .map((row) => ({
+      studentId: row.studentId,
+      amount: Math.round(row.amount),
+    }))
+    .filter((row) => row.studentId && row.amount > 0);
+
+  const unique = new Set(cleaned.map((row) => row.studentId));
+  if (unique.size !== cleaned.length) {
+    return { ok: false, error: "Samme elev er lagt til flere ganger" };
+  }
+
+  const total = cleaned.reduce((sum, row) => sum + row.amount, 0);
+  if (total > payment.amount) {
+    return {
+      ok: false,
+      error: `Fordelt beløp (${(total / 100).toLocaleString("nb-NO")} kr) er større enn betalingen (${(payment.amount / 100).toLocaleString("nb-NO")} kr)`,
+    };
+  }
+
+  for (const row of cleaned) {
+    await ensureStudentFee(supabase, row.studentId, payment.school_year_id);
+  }
+
+  const { error: deleteError } = await supabase
+    .from("payment_allocations")
+    .delete()
+    .eq("payment_id", paymentId);
+  if (deleteError) return { ok: false, error: deleteError.message };
+
+  if (cleaned.length > 0) {
+    const { error: insertError } = await supabase
+      .from("payment_allocations")
+      .insert(
+        cleaned.map((row) => ({
+          payment_id: paymentId,
+          student_id: row.studentId,
+          school_year_id: payment.school_year_id as string,
+          amount: row.amount,
+        })) as never,
+      );
+    if (insertError) return { ok: false, error: insertError.message };
+  }
+
+  await writeAudit({
+    action: "payment.allocate",
+    entityType: "payment",
+    entityId: paymentId,
+    metadata: { rows: cleaned, total },
+  });
+
+  revalidate();
+  return { ok: true, id: paymentId };
+}

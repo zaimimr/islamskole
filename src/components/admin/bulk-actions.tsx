@@ -120,7 +120,7 @@ export function BulkActions({
   return (
     <BulkContext.Provider value={value}>
       {selected.size > 0 ? (
-        <div className="flex flex-wrap items-center gap-3 border-b bg-muted/40 p-3">
+        <div className="sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b bg-background/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80">
           <span className="text-sm text-muted-foreground">
             {selected.size} valgt
           </span>

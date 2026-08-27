@@ -3,6 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { studentDisplayName } from "@/lib/student-name";
 import { adminBasePath } from "@/components/admin/paths";
 import { PageHeader } from "@/components/admin/page-header";
+import {
+  AllocatePaymentDialog,
+  type AllocationStudent,
+} from "@/components/admin/allocate-payment-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -52,11 +56,19 @@ type PaymentRow = {
 
 type AllocationRow = {
   payment_id: string;
+  student_id: string;
   amount: number;
   students: {
     child_first_name: string | null;
     child_last_name: string | null;
   } | null;
+};
+
+type ApplicationRow = {
+  payment_id: string | null;
+  child_first_name: string | null;
+  child_last_name: string | null;
+  status: string | null;
 };
 
 type EventRow = {
@@ -103,12 +115,13 @@ async function getData(query: string) {
   const ids = rows.map((row) => row.id);
   const references = rows.map((row) => row.reference);
 
-  const [{ data: allocations }, { data: events }] = await Promise.all([
+  const [{ data: allocations }, { data: events }, { data: applications }, { data: students }] =
+    await Promise.all([
     ids.length
       ? supabase
           .from("payment_allocations")
           .select(
-            "payment_id, amount, students(child_first_name, child_last_name)",
+            "payment_id, student_id, amount, students(child_first_name, child_last_name)",
           )
           .in("payment_id", ids)
       : Promise.resolve({ data: [] }),
@@ -119,12 +132,35 @@ async function getData(query: string) {
           .in("reference", references)
           .order("occurred_at", { ascending: false })
       : Promise.resolve({ data: [] }),
+    ids.length
+      ? supabase
+          .from("student_applications")
+          .select("payment_id, child_first_name, child_last_name, status")
+          .in("payment_id", ids)
+      : Promise.resolve({ data: [] }),
+    supabase
+      .from("students")
+      .select("id, child_first_name, child_last_name")
+      .order("child_first_name", { ascending: true }),
   ]);
 
   return {
     payments: rows,
     allocations: (allocations as AllocationRow[] | null) ?? [],
     events: (events as EventRow[] | null) ?? [],
+    applications: (applications as ApplicationRow[] | null) ?? [],
+    students: (
+      (students as
+        | {
+            id: string;
+            child_first_name: string | null;
+            child_last_name: string | null;
+          }[]
+        | null) ?? []
+    ).map((student) => ({
+      id: student.id,
+      name: studentDisplayName(student) || "Uten navn",
+    })) as AllocationStudent[],
   };
 }
 
@@ -140,13 +176,22 @@ export default async function PaymentLogPage({
   const query = typeof sp.q === "string" ? sp.q : "";
   const basePath = adminBasePath(locale);
 
-  const { payments, allocations, events } = await getData(query);
+  const { payments, allocations, events, applications, students } =
+    await getData(query);
 
   const allocationsByPayment = new Map<string, AllocationRow[]>();
   for (const allocation of allocations) {
     const list = allocationsByPayment.get(allocation.payment_id) ?? [];
     list.push(allocation);
     allocationsByPayment.set(allocation.payment_id, list);
+  }
+
+  const applicationsByPayment = new Map<string, ApplicationRow[]>();
+  for (const application of applications) {
+    if (!application.payment_id) continue;
+    const list = applicationsByPayment.get(application.payment_id) ?? [];
+    list.push(application);
+    applicationsByPayment.set(application.payment_id, list);
   }
 
   const eventsByReference = new Map<string, EventRow[]>();
@@ -200,11 +245,13 @@ export default async function PaymentLogPage({
                     <TableHead>Skoleår</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Vipps</TableHead>
+                    <TableHead className="text-right">Fordeling</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {payments.map((payment) => {
                     const rows = allocationsByPayment.get(payment.id) ?? [];
+                    const apps = applicationsByPayment.get(payment.id) ?? [];
                     const log = eventsByReference.get(payment.reference) ?? [];
                     const voided = Boolean(payment.voided_at);
                     return (
@@ -251,11 +298,7 @@ export default async function PaymentLogPage({
                           ) : null}
                         </TableCell>
                         <TableCell className="max-w-64">
-                          {rows.length === 0 ? (
-                            <span className="text-sm text-muted-foreground">
-                              Ikke fordelt
-                            </span>
-                          ) : (
+                          {rows.length > 0 ? (
                             rows.map((allocation, index) => (
                               <span
                                 key={`${payment.id}-${index}`}
@@ -271,6 +314,24 @@ export default async function PaymentLogPage({
                                 </span>
                               </span>
                             ))
+                          ) : apps.length > 0 ? (
+                            <>
+                              {apps.map((application, index) => (
+                                <span
+                                  key={`${payment.id}-app-${index}`}
+                                  className="block text-sm"
+                                >
+                                  {studentDisplayName(application) || "Ukjent"}
+                                </span>
+                              ))}
+                              <span className="block text-xs text-muted-foreground">
+                                Påmelding ikke godkjent ennå
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              Ikke fordelt
+                            </span>
                           )}
                         </TableCell>
                         <TableCell>{payment.school_years?.label ?? "-"}</TableCell>
@@ -309,6 +370,17 @@ export default async function PaymentLogPage({
                               Sist synk {formatDateTime(payment.last_synced_at)}
                             </span>
                           ) : null}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <AllocatePaymentDialog
+                            paymentId={payment.id}
+                            paymentAmount={payment.amount}
+                            students={students}
+                            existing={rows.map((allocation) => ({
+                              studentId: allocation.student_id,
+                              amount: allocation.amount,
+                            }))}
+                          />
                         </TableCell>
                       </TableRow>
                     );

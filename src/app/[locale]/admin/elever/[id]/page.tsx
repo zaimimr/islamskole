@@ -176,7 +176,7 @@ export default async function ElevDetailPage({
   const { data: paymentData } = await supabase
     .from("payments")
     .select(
-      "id, amount, currency, description, status, method, paid_at, redirect_url, created_at, reference, voided_at, void_reason, payer_name, payer_phone, student_id, school_year_id, school_years(label), payment_allocations(student_id)",
+      "id, amount, currency, description, status, method, paid_at, redirect_url, created_at, reference, voided_at, void_reason, payer_name, payer_phone, payer_email, vipps_state, vipps_payment_method, psp_reference, last_synced_at, captured_at, student_id, school_year_id, school_years(label), payment_allocations(student_id)",
     )
     .or(paymentFilter)
     .order("created_at", { ascending: false });
@@ -209,6 +209,12 @@ export default async function ElevDetailPage({
       void_reason: p.void_reason,
       payer_name: p.payer_name,
       payer_phone: p.payer_phone,
+      payer_email: p.payer_email,
+      vipps_state: p.vipps_state,
+      vipps_payment_method: p.vipps_payment_method,
+      psp_reference: p.psp_reference,
+      last_synced_at: p.last_synced_at,
+      captured_at: p.captured_at,
       schoolYear: p.school_years?.label ?? null,
       schoolYearId: p.school_year_id,
       allocatedAmount: allocationByPayment.get(p.id) ?? null,

@@ -15,14 +15,6 @@ import {
   BulkRowCheckbox,
 } from "@/components/admin/bulk-actions";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 type StudentApplicationRow = {
   id: string;
@@ -210,6 +202,16 @@ function formatDate(value: string | null) {
   });
 }
 
+function Field({ label, value }: { label: string; value: string | null }) {
+  if (!value || value === "-") return null;
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="break-words">{value}</dd>
+    </div>
+  );
+}
+
 const PAGE_SIZE = 25;
 
 export default async function PameldingerPage({
@@ -258,83 +260,56 @@ export default async function PameldingerPage({
             </p>
           ) : (
             <BulkActions entity="applications" ids={pageIds}>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8">
-                    <BulkSelectAll />
-                  </TableHead>
-                  <TableHead>Barn</TableHead>
-                  <TableHead>Alder</TableHead>
-                  <TableHead>Kjønn</TableHead>
-                  <TableHead>Adresse</TableHead>
-                  <TableHead>E-post</TableHead>
-                  <TableHead>Telefon</TableHead>
-                  <TableHead>Mor</TableHead>
-                  <TableHead>Far</TableHead>
-                  <TableHead>Ønsket klasse</TableHead>
-                  <TableHead>Nivå (Koran / Arabisk / Islam)</TableHead>
-                  <TableHead>Betaling</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Dato</TableHead>
-                  <TableHead className="text-right">Handlinger</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {applications.map((application) => (
-                  <TableRow key={application.id}>
-                    <TableCell className="w-8">
-                      <BulkRowCheckbox id={application.id} />
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {studentDisplayName(application) || "-"}
-                    </TableCell>
-                    <TableCell>{displayAge(application)}</TableCell>
-                    <TableCell>{genderLabel(application.child_gender)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {addressLine(application)}
-                    </TableCell>
-                    <TableCell>
-                      {application.child_email ? (
-                        <a
-                          href={`mailto:${application.child_email}`}
-                          className="underline-offset-2 hover:underline"
-                        >
-                          {application.child_email}
-                        </a>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell>{application.child_phone ?? "-"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {fullName(
-                        application.mother_first_name,
-                        application.mother_last_name,
-                      ) || "-"}
-                      {application.mother_phone
-                        ? ` · ${application.mother_phone}`
-                        : ""}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {fullName(
-                        application.father_first_name,
-                        application.father_last_name,
-                      ) || "-"}
-                      {application.father_phone
-                        ? ` · ${application.father_phone}`
-                        : ""}
-                    </TableCell>
-                    <TableCell>{application.desired_class ?? "-"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {levelLabel(application.child_level_quran)} /{" "}
-                      {levelLabel(application.child_level_arabic)} /{" "}
-                      {levelLabel(application.child_level_islam)}
-                    </TableCell>
-                    <TableCell>
-                      {(() => {
-                        const payment = paymentLabel(application);
-                        return (
+              <div className="flex items-center gap-3 border-b px-4 py-2 text-sm text-muted-foreground">
+                <BulkSelectAll />
+                <span>Velg alle på denne siden</span>
+              </div>
+              <ul className="divide-y">
+                {applications.map((application) => {
+                  const payment = paymentLabel(application);
+                  const mother = fullName(
+                    application.mother_first_name,
+                    application.mother_last_name,
+                  );
+                  const father = fullName(
+                    application.father_first_name,
+                    application.father_last_name,
+                  );
+                  return (
+                    <li key={application.id} className="p-4">
+                      <div className="flex flex-wrap items-start gap-3">
+                        <div className="pt-1">
+                          <BulkRowCheckbox id={application.id} />
+                        </div>
+
+                        <div className="min-w-56 flex-1">
+                          <p className="font-medium">
+                            {studentDisplayName(application) || "-"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {displayAge(application)} år ·{" "}
+                            {genderLabel(application.child_gender)}
+                            {application.desired_class
+                              ? ` · ønsker ${application.desired_class}`
+                              : ""}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {mother || father
+                              ? [
+                                  mother
+                                    ? `${mother}${application.mother_phone ? ` · ${application.mother_phone}` : ""}`
+                                    : null,
+                                  father
+                                    ? `${father}${application.father_phone ? ` · ${application.father_phone}` : ""}`
+                                    : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join("  |  ")
+                              : "Ingen foresatt registrert"}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
                           <span
                             className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                               payment.paid
@@ -344,36 +319,68 @@ export default async function PameldingerPage({
                           >
                             {payment.label}
                           </span>
-                        );
-                      })()}
-                    </TableCell>
-                    <TableCell>
-                      <StudentStatusSelect
-                        id={application.id}
-                        status={application.status ?? "ny"}
-                      />
-                    </TableCell>
-                    <TableCell>{formatDate(application.created_at)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <RegisterStudentButton
-                          applicationId={application.id}
-                          basePath={basePath}
-                          classes={placement.classes}
-                          schoolYears={placement.schoolYears}
-                          defaultSchoolYearId={defaultSchoolYearId}
-                        />
-                        <DeleteButton
-                          id={application.id}
-                          label="påmelding"
-                          action={deleteStudentApplication}
-                        />
+                          <StudentStatusSelect
+                            id={application.id}
+                            status={application.status ?? "ny"}
+                          />
+                          <RegisterStudentButton
+                            applicationId={application.id}
+                            basePath={basePath}
+                            classes={placement.classes}
+                            schoolYears={placement.schoolYears}
+                            defaultSchoolYearId={defaultSchoolYearId}
+                          />
+                          <DeleteButton
+                            id={application.id}
+                            label="påmelding"
+                            action={deleteStudentApplication}
+                          />
+                        </div>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+
+                      <details className="group mt-2">
+                        <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-sm text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+                          Detaljer
+                          <span className="transition-transform group-open:rotate-180">
+                            ▾
+                          </span>
+                        </summary>
+                        <dl className="mt-2 grid gap-x-6 gap-y-2 rounded-lg bg-muted/40 p-3 text-sm sm:grid-cols-2">
+                          <Field label="Adresse" value={addressLine(application)} />
+                          <Field
+                            label="E-post barn"
+                            value={application.child_email}
+                          />
+                          <Field
+                            label="Telefon barn"
+                            value={application.child_phone}
+                          />
+                          <Field
+                            label="E-post mor"
+                            value={application.mother_email}
+                          />
+                          <Field
+                            label="E-post far"
+                            value={application.father_email}
+                          />
+                          <Field
+                            label="Nivå (Koran / Arabisk / Islam)"
+                            value={`${levelLabel(application.child_level_quran)} / ${levelLabel(application.child_level_arabic)} / ${levelLabel(application.child_level_islam)}`}
+                          />
+                          <Field
+                            label="Melding"
+                            value={application.message}
+                          />
+                          <Field
+                            label="Mottatt"
+                            value={formatDate(application.created_at)}
+                          />
+                        </dl>
+                      </details>
+                    </li>
+                  );
+                })}
+              </ul>
             </BulkActions>
           )}
           {total > PAGE_SIZE ? (

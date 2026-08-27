@@ -17,6 +17,7 @@ import {
   MoreHorizontal,
   Plus,
   Users,
+  ChevronDown,
 } from "lucide-react";
 import {
   createVippsPayment,
@@ -61,6 +62,12 @@ export type PaymentRow = {
   void_reason: string | null;
   payer_name: string | null;
   payer_phone: string | null;
+  payer_email: string | null;
+  vipps_state: string | null;
+  vipps_payment_method: string | null;
+  psp_reference: string | null;
+  last_synced_at: string | null;
+  captured_at: string | null;
   allocatedAmount: number | null;
   sharedWith: number | null;
 };
@@ -103,6 +110,26 @@ function shortNote(payment: PaymentRow): string | null {
   return tail && tail.length > 1 ? tail : description;
 }
 
+function Detail({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string | null;
+  mono?: boolean;
+}) {
+  if (!value) return null;
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className={`truncate ${mono ? "font-mono text-xs" : ""}`} title={value}>
+        {value}
+      </dd>
+    </div>
+  );
+}
+
 export function PaymentManager({
   studentId,
   classByYear,
@@ -126,6 +153,7 @@ export function PaymentManager({
     defaultSchoolYearId ?? schoolYears[0]?.id ?? "",
   );
   const [formOpen, setFormOpen] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [mode, setMode] = useState<"vipps" | "manual">("vipps");
 
   const currentClass = classByYear[year] ?? null;
@@ -426,10 +454,9 @@ export function PaymentManager({
               return (
                 <li
                   key={payment.id}
-                  className={`flex flex-wrap items-center gap-x-3 gap-y-1 p-3 ${
-                    voided ? "opacity-55" : ""
-                  }`}
+                  className={voided ? "opacity-55" : undefined}
                 >
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 p-3">
                   <span className="w-14 shrink-0 text-sm text-muted-foreground">
                     {formatDate(payment.paid_at ?? payment.created_at)}
                   </span>
@@ -470,6 +497,25 @@ export function PaymentManager({
                       </span>
                     ) : null}
                   </span>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Vis detaljer"
+                    aria-expanded={expanded === payment.id}
+                    onClick={() =>
+                      setExpanded((current) =>
+                        current === payment.id ? null : payment.id,
+                      )
+                    }
+                  >
+                    <ChevronDown
+                      className={`size-4 transition-transform ${
+                        expanded === payment.id ? "rotate-180" : ""
+                      }`}
+                    />
+                  </Button>
 
                   <DropdownMenu>
                     <DropdownMenuTrigger
@@ -597,6 +643,71 @@ export function PaymentManager({
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  </div>
+
+                  {expanded === payment.id ? (
+                    <dl className="grid gap-x-6 gap-y-2 border-t bg-muted/40 px-3 py-3 text-sm sm:grid-cols-2">
+                      <Detail label="Referanse" value={payment.reference} mono />
+                      <Detail
+                        label="Betalings-ID"
+                        value={payment.psp_reference}
+                        mono
+                      />
+                      <Detail
+                        label="Beløp på betalingen"
+                        value={formatNok(payment.amount)}
+                      />
+                      {payment.allocatedAmount != null &&
+                      payment.allocatedAmount !== payment.amount ? (
+                        <Detail
+                          label="Andel for dette barnet"
+                          value={formatNok(payment.allocatedAmount)}
+                        />
+                      ) : null}
+                      <Detail
+                        label="Status i Vipps"
+                        value={payment.vipps_state}
+                      />
+                      <Detail
+                        label="Betalingsmetode"
+                        value={payment.vipps_payment_method}
+                      />
+                      <Detail label="E-post" value={payment.payer_email} />
+                      <Detail label="Telefon" value={payment.payer_phone} />
+                      <Detail
+                        label="Beskrivelse"
+                        value={payment.description}
+                      />
+                      <Detail
+                        label="Trukket"
+                        value={
+                          payment.captured_at
+                            ? new Date(payment.captured_at).toLocaleString(
+                                "nb-NO",
+                                { dateStyle: "short", timeStyle: "short" },
+                              )
+                            : null
+                        }
+                      />
+                      <Detail
+                        label="Sist synkronisert"
+                        value={
+                          payment.last_synced_at
+                            ? new Date(payment.last_synced_at).toLocaleString(
+                                "nb-NO",
+                                { dateStyle: "short", timeStyle: "short" },
+                              )
+                            : null
+                        }
+                      />
+                      {payment.void_reason ? (
+                        <Detail
+                          label="Annullert fordi"
+                          value={payment.void_reason}
+                        />
+                      ) : null}
+                    </dl>
+                  ) : null}
                 </li>
               );
             })}
