@@ -15,7 +15,7 @@ function loadEnv(path) {
 
 function resolveEnvFile() {
   const explicit = process.env.VIPPS_ENV_FILE;
-  const path = explicit ?? ".env.vipps.prod";
+  const path = explicit ?? ".env.local";
   if (!existsSync(path)) {
     console.error(`\nEnv file not found: ${path}`);
     console.error(

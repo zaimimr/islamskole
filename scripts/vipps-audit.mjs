@@ -15,7 +15,7 @@ function loadEnv(path) {
 
 function resolveEnvFile() {
   const explicit = process.env.VIPPS_ENV_FILE;
-  const path = explicit ?? ".env.vipps.prod";
+  const path = explicit ?? ".env.local";
   if (!existsSync(path)) {
     console.error(`\nEnv file not found: ${path}`);
     console.error(
@@ -98,6 +98,8 @@ for (const reference of refs) {
   }
   const data = await response.json();
   const aggregate = data.aggregate ?? {};
+  const aggregate2 = data.aggregate ?? {};
+  void aggregate2;
   console.log(
     [
       reference,
@@ -107,4 +109,23 @@ for (const reference of refs) {
       `refunded=${(aggregate.refundedAmount?.value ?? 0) / 100}`,
     ].join("\t"),
   );
+}
+
+if (process.env.VIPPS_SHOW_EVENTS === "true") {
+  console.log("\n=== EVENT LOG ===");
+  for (const reference of refs) {
+    const response = await fetch(
+      `${baseUrl}/epayment/v1/payments/${encodeURIComponent(reference)}/events`,
+      { headers },
+    );
+    if (!response.ok) {
+      console.log(`${reference}\tHTTP ${response.status}`);
+      continue;
+    }
+    const events = await response.json();
+    const summary = (Array.isArray(events) ? events : [])
+      .map((event) => `${event.name}@${(event.timestamp ?? "").slice(0, 19)}`)
+      .join("  ");
+    console.log(`${reference}\t${summary || "(no events)"}`);
+  }
 }
