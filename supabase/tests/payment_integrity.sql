@@ -1,5 +1,11 @@
 begin;
 
+create extension if not exists pgtap with schema extensions;
+
+set local search_path = public, extensions;
+
+select plan(1);
+
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
 
 do $$
@@ -184,5 +190,9 @@ begin
   end if;
 end
 $$;
+
+select pass('preserves payment ledger integrity across allocation, refund, and deletion flows');
+
+select * from finish();
 
 rollback;
