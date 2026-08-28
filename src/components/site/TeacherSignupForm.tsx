@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Loader2, PartyPopper } from "lucide-react";
@@ -15,7 +15,11 @@ export function TeacherSignupForm() {
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
   const [formKey, setFormKey] = useState(0);
-  const loadedAt = useRef(Date.now());
+  const loadedAt = useRef<number | null>(null);
+
+  useEffect(() => {
+    loadedAt.current = Date.now();
+  }, [formKey]);
 
   function handleReset() {
     loadedAt.current = Date.now();
@@ -24,7 +28,7 @@ export function TeacherSignupForm() {
   }
 
   function handleSubmit(formData: FormData) {
-    formData.set("loaded_at", String(loadedAt.current));
+    formData.set("loaded_at", String(loadedAt.current ?? Date.now()));
     startTransition(async () => {
       const result = await createTeacherApplication(formData);
       if (result.ok) {
@@ -126,7 +130,11 @@ export function TeacherSignupForm() {
         />
       </div>
 
-      <Button type="submit" disabled={pending} className="h-12 w-full sm:w-auto">
+      <Button
+        type="submit"
+        disabled={pending}
+        className="h-12 w-full sm:w-auto"
+      >
         {pending ? <Loader2 className="size-4 animate-spin" /> : null}
         {t("submit")}
       </Button>
