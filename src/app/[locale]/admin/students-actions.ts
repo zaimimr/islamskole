@@ -132,15 +132,13 @@ export async function createStudent(formData: FormData): Promise<ActionResult> {
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("students")
-    .insert(payload as never)
-    .select("id")
-    .single();
+  const { data, error } = await supabase.rpc("create_manual_family_student", {
+    p_student: payload,
+  });
 
   if (error) return { ok: false, error: error.message };
   revalidate();
-  return { ok: true, id: (data as unknown as { id: string }).id };
+  return { ok: true, id: data };
 }
 
 export async function createStudentFromApplication(
@@ -153,7 +151,7 @@ export async function createStudentFromApplication(
   const { data: application, error: appError } = await supabase
     .from("student_applications")
     .select(
-      "id, child_first_name, child_last_name, child_birth_date, child_gender, child_address, child_postal_code, child_city, child_email, child_phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, child_level_quran, child_level_arabic, child_level_islam, message",
+      "id, family_id, child_first_name, child_last_name, child_birth_date, child_gender, child_address, child_postal_code, child_city, child_email, child_phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, child_level_quran, child_level_arabic, child_level_islam, message",
     )
     .eq("id", applicationId)
     .maybeSingle();
@@ -162,6 +160,7 @@ export async function createStudentFromApplication(
   if (!application) return { ok: false, error: "Fant ikke påmeldingen" };
 
   const app = application as unknown as {
+    family_id: string | null;
     child_first_name: string | null;
     child_last_name: string | null;
     child_birth_date: string | null;
@@ -187,6 +186,7 @@ export async function createStudentFromApplication(
 
   const payload = {
     application_id: applicationId,
+    family_id: app.family_id,
     child_first_name: app.child_first_name,
     child_last_name: app.child_last_name,
     child_birth_date: app.child_birth_date,

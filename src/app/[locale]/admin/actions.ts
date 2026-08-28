@@ -14,6 +14,7 @@ import {
   sendTeacherApplicationEmail,
   sendTeacherApplicationConfirmationEmail,
 } from "@/lib/email";
+import type { Json } from "@/lib/supabase/types";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 type PasswordResult =
@@ -636,7 +637,7 @@ export async function createStudentEnrollment(
   }
 
   const fieldErrors: Record<string, string> = {};
-  const childPayloads: Record<string, unknown>[] = [];
+  const childPayloads: Json[] = [];
   const primaryGuardian = guardians[0]!;
   const motherGuardian =
     guardians.find((guardian) => guardian.role === "mor") ?? primaryGuardian;
@@ -727,39 +728,37 @@ export async function createStudentEnrollment(
   const amount = year.fee * 100 * childPayloads.length;
   const description = `Innmelding ${year.label} - ${childPayloads.length} barn`;
 
-  const { data: paymentRow, error: paymentError } = await admin
-    .from("payments")
-    .insert({
-      school_year_id: year.id,
-      reference,
-      amount,
-      currency: "NOK",
-      method: "vipps",
-      status: "opprettet",
-      description,
-    } as never)
-    .select("id")
-    .single();
+  const { data: enrollment, error: enrollmentError } = await admin.rpc(
+    "create_public_family_enrollment",
+    {
+      p_school_year_id: year.id,
+      p_reference: reference,
+      p_amount: amount,
+      p_description: description,
+      p_address: address,
+      p_postal_code: postalCode,
+      p_city: city,
+      p_guardians: guardians.map((guardian) => ({
+        first_name: guardian.firstName,
+        last_name: guardian.lastName,
+        email: guardian.email,
+        phone: guardian.phone,
+        role: guardian.role,
+      })),
+      p_children: childPayloads,
+    },
+  );
 
-  if (paymentError || !paymentRow) {
-    console.error("createStudentEnrollment payment error", paymentError);
-    return {
-      ok: false,
-      error: copy.failed,
-    };
-  }
+  const paymentId =
+    enrollment &&
+    typeof enrollment === "object" &&
+    !Array.isArray(enrollment) &&
+    typeof enrollment.payment_id === "string"
+      ? enrollment.payment_id
+      : null;
 
-  const paymentId = (paymentRow as unknown as { id: string }).id;
-
-  const { error: insertError } = await admin
-    .from("student_applications")
-    .insert(
-      childPayloads.map((row) => ({ ...row, payment_id: paymentId })) as never,
-    );
-
-  if (insertError) {
-    console.error("createStudentEnrollment insert error", insertError);
-    await admin.from("payments").delete().eq("id", paymentId);
+  if (enrollmentError || !paymentId) {
+    console.error("createStudentEnrollment transaction error", enrollmentError);
     return {
       ok: false,
       error: copy.failed,

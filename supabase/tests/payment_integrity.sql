@@ -16,12 +16,12 @@ begin
 
   insert into public.students (
     id,
-    full_name,
-    guardian_name
+    child_first_name,
+    child_last_name
   ) values (
     v_student,
-    'Payment Integrity Student',
-    'Payment Integrity Guardian'
+    'Payment Integrity',
+    'Student'
   );
 
   insert into public.student_fees (

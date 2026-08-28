@@ -20,23 +20,27 @@ values
 insert into public.family_guardians (
   family_id,
   guardian_id,
-  relationship_label
+  relationship_label,
+  is_primary_contact
 )
 values
   (
     '10000000-0000-0000-0000-000000000001',
     '20000000-0000-0000-0000-000000000001',
-    'guardian'
+    'guardian',
+    true
   ),
   (
     '10000000-0000-0000-0000-000000000001',
     '20000000-0000-0000-0000-000000000002',
-    'guardian'
+    'guardian',
+    false
   ),
   (
     '10000000-0000-0000-0000-000000000002',
     '20000000-0000-0000-0000-000000000003',
-    'guardian'
+    'guardian',
+    true
   );
 
 do $$
@@ -70,22 +74,16 @@ begin
 end;
 $$;
 
-select lives_ok(
-  $$
-    insert into public.student_guardians (
-      student_id,
-      family_id,
-      guardian_id,
-      is_primary
-    )
-    values (
-      '30000000-0000-0000-0000-000000000001',
-      '10000000-0000-0000-0000-000000000001',
-      '20000000-0000-0000-0000-000000000001',
-      true
-    )
-  $$,
-  'accepts a guardian linked to the student family'
+select ok(
+  exists (
+    select 1
+    from public.student_guardians
+    where student_id = '30000000-0000-0000-0000-000000000001'
+      and family_id = '10000000-0000-0000-0000-000000000001'
+      and guardian_id = '20000000-0000-0000-0000-000000000001'
+      and is_primary
+  ),
+  'automatically links the primary family guardian'
 );
 
 select throws_ok(
@@ -108,18 +106,10 @@ select throws_ok(
 
 select throws_ok(
   $$
-    insert into public.student_guardians (
-      student_id,
-      family_id,
-      guardian_id,
-      is_primary
-    )
-    values (
-      '30000000-0000-0000-0000-000000000001',
-      '10000000-0000-0000-0000-000000000001',
-      '20000000-0000-0000-0000-000000000002',
-      true
-    )
+    update public.student_guardians
+    set is_primary = true
+    where student_id = '30000000-0000-0000-0000-000000000001'
+      and guardian_id = '20000000-0000-0000-0000-000000000002'
   $$,
   '23505',
   'duplicate key value violates unique constraint "student_guardians_one_primary_idx"',

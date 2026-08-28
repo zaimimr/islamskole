@@ -1195,7 +1195,29 @@ export type Database = {
       }
     }
     Functions: {
+      create_manual_family_student: {
+        Args: { p_student: Json }
+        Returns: string
+      }
+      create_public_family_enrollment: {
+        Args: {
+          p_address: string
+          p_amount: number
+          p_children: Json
+          p_city: string
+          p_description: string
+          p_guardians: Json
+          p_postal_code: string
+          p_reference: string
+          p_school_year_id: string
+        }
+        Returns: Json
+      }
       is_admin: { Args: never; Returns: boolean }
+      replace_payment_allocations: {
+        Args: { p_allocations?: Json; p_payment_id: string }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
