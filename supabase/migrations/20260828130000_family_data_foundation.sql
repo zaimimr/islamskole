@@ -502,7 +502,7 @@ records_without_canonical_guardians as (
       ) is not null
   )
 ),
-legacy_candidates as (
+legacy_primary_candidates as (
   select
     source_entity,
     source_id,
@@ -513,7 +513,8 @@ legacy_candidates as (
     nullif(btrim(data ->> 'email'), '') as email,
     nullif(btrim(data ->> 'phone'), '') as phone
   from records_without_canonical_guardians
-  union all
+),
+legacy_secondary_candidates as (
   select
     source_entity,
     source_id,
@@ -523,7 +524,12 @@ legacy_candidates as (
     null::text,
     nullif(btrim(data ->> 'guardian2_email'), ''),
     nullif(btrim(data ->> 'guardian2_phone'), '')
-  from records_without_canonical_guardians
+  from records
+),
+legacy_candidates as (
+  select * from legacy_primary_candidates
+  union all
+  select * from legacy_secondary_candidates
 ),
 all_candidates as (
   select * from canonical_candidates
