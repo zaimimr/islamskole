@@ -206,6 +206,7 @@ function formatDueDate(value: string | null | undefined, lang: EmailLang) {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "Europe/Oslo",
   });
 }
 

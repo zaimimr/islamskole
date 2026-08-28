@@ -41,7 +41,10 @@ function formatDate(value: string | null) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString("nb-NO", { dateStyle: "medium" });
+  return date.toLocaleDateString("nb-NO", {
+    dateStyle: "medium",
+    timeZone: "Europe/Oslo",
+  });
 }
 
 export default async function SkolearPage({

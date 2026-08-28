@@ -74,7 +74,10 @@ function formatDate(value: string | null) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString("nb-NO", { dateStyle: "medium" });
+  return date.toLocaleDateString("nb-NO", {
+    dateStyle: "medium",
+    timeZone: "Europe/Oslo",
+  });
 }
 
 export default async function BrukerePage() {

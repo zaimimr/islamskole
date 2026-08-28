@@ -102,6 +102,7 @@ function formatLongDate(value: string | null) {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "Europe/Oslo",
   });
 }
 
@@ -113,7 +114,11 @@ function formatDate(value: string | null) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString("nb-NO", { day: "numeric", month: "short" });
+  return date.toLocaleDateString("nb-NO", {
+    day: "numeric",
+    month: "short",
+    timeZone: "Europe/Oslo",
+  });
 }
 
 function shortNote(payment: PaymentRow): string | null {
@@ -857,7 +862,11 @@ export function PaymentManager({
                           payment.captured_at
                             ? new Date(payment.captured_at).toLocaleString(
                                 "nb-NO",
-                                { dateStyle: "short", timeStyle: "short" },
+                                {
+                                  dateStyle: "short",
+                                  timeStyle: "short",
+                                  timeZone: "Europe/Oslo",
+                                },
                               )
                             : null
                         }
@@ -868,7 +877,11 @@ export function PaymentManager({
                           payment.last_synced_at
                             ? new Date(payment.last_synced_at).toLocaleString(
                                 "nb-NO",
-                                { dateStyle: "short", timeStyle: "short" },
+                                {
+                                  dateStyle: "short",
+                                  timeStyle: "short",
+                                  timeZone: "Europe/Oslo",
+                                },
                               )
                             : null
                         }

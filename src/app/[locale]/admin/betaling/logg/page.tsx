@@ -90,6 +90,7 @@ function formatDateTime(value: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleString("nb-NO", {
+    timeZone: "Europe/Oslo",
     dateStyle: "short",
     timeStyle: "short",
   });
@@ -297,7 +298,11 @@ export default async function PaymentLogPage({
                               Frist{" "}
                               {new Date(payment.due_date).toLocaleDateString(
                                 "nb-NO",
-                                { day: "numeric", month: "short" },
+                                {
+                                  day: "numeric",
+                                  month: "short",
+                                  timeZone: "Europe/Oslo",
+                                },
                               )}
                             </span>
                           ) : null}
