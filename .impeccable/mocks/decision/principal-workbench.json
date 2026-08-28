@@ -1,0 +1,73 @@
+{
+  "title": "Velg arbeidsflaten",
+  "question": "Hvilken struktur skal bli rektorens daglige arbeidsflate?",
+  "options": [
+    {
+      "id": "principal-brief",
+      "label": "Rektors morgenbilde",
+      "kicker": "THE ROLL",
+      "thesis": "Alt som krever en beslutning i dag samles i én prioritert arbeidskø.",
+      "palette": [
+        "#FDF9ED",
+        "#FFFFFF",
+        "#4EA85B",
+        "#344239",
+        "#E4B84C"
+      ],
+      "materials": [
+        "warm paper",
+        "soft ink",
+        "fine green rules"
+      ],
+      "viewport": "En gruppert sidemeny og rolig toppstripe rammer inn en stor oppmerksomhetskø til venstre, et kompakt dagsbilde til høyre og nylige familie- og betalingshendelser nedenfor.",
+      "risk": "Kan føles alarmdrevet hvis ferdige og sunne områder ikke får nok ro.",
+      "comp": ".impeccable/mocks/decision/principal-brief.png"
+    },
+    {
+      "id": "placement-atlas",
+      "label": "Plasseringskartet",
+      "thesis": "Klasser, kapasitet og nye barn blir ett visuelt kart for raske og trygge plasseringer.",
+      "palette": [
+        "#FDF9ED",
+        "#FFFFFF",
+        "#438F50",
+        "#344239",
+        "#73AFC9"
+      ],
+      "materials": [
+        "classroom register",
+        "soft capacity bands",
+        "precise ink lines"
+      ],
+      "viewport": "En smal søknadskø står ved siden av brede klassebånd med kapasitet, venteliste og anbefalte plasseringer, mens valgt familie åpnes i en rolig kontekstkolonne.",
+      "risk": "Kan overvekte plassering på dager der betaling og familieoppfølging haster mer.",
+      "comp": ".impeccable/mocks/decision/placement-atlas.png"
+    },
+    {
+      "id": "family-desk",
+      "label": "Familiebordet",
+      "thesis": "Familien er den faste arbeidsflaten, med alle barn, foresatte, skoleår og betalinger samlet.",
+      "palette": [
+        "#FDF9ED",
+        "#FFFFFF",
+        "#4EA85B",
+        "#344239",
+        "#C76B61"
+      ],
+      "materials": [
+        "family folder",
+        "layered record sheets",
+        "quiet status tabs"
+      ],
+      "viewport": "Globalt familiesøk leder til en stor familiemappe i midten, en søsken- og foresattoversikt til venstre og en handlingslogg med betaling og opptak til høyre.",
+      "risk": "Kan skjule tverrgående køer dersom familiesøket blir den eneste inngangen til arbeid.",
+      "comp": ".impeccable/mocks/decision/family-desk.png"
+    }
+  ],
+  "reroll": true,
+  "buildPath": {
+    "value": "comp",
+    "toggle": true
+  },
+  "steer": true
+}
