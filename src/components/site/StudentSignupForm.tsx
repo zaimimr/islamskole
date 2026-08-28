@@ -410,6 +410,7 @@ export function StudentSignupForm({
               name={field("email")}
               type="email"
               inputMode="email"
+              spellCheck={false}
               className={inputClassName}
               placeholder={t("placeholderEmail")}
               aria-invalid={invalid(field("email"))}
@@ -580,6 +581,7 @@ export function StudentSignupForm({
               name={field("email")}
               type="email"
               inputMode="email"
+              spellCheck={false}
               className={inputClassName}
               autoComplete={id === 0 ? "email" : "off"}
               placeholder={t("placeholderParentEmail")}

@@ -17,6 +17,10 @@ export async function getAdminFamilyById(
   return (await adminRepository()).findById(familyId);
 }
 
+export async function getAdminFamilies(): Promise<FamilyDetails[]> {
+  return (await adminRepository()).findAll();
+}
+
 export async function getAdminFamilyForStudent(
   studentId: string,
 ): Promise<FamilyDetails | null> {

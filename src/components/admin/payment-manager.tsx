@@ -143,7 +143,10 @@ function Detail({
   return (
     <div className="min-w-0">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className={`truncate ${mono ? "font-mono text-xs" : ""}`} title={value}>
+      <dd
+        className={`truncate ${mono ? "font-mono text-xs" : ""}`}
+        title={value}
+      >
         {value}
       </dd>
     </div>
@@ -353,10 +356,10 @@ export function PaymentManager({
             aria-valuemax={100}
           >
             <div
-              className={`h-full rounded-full transition-all ${
+              className={`h-full w-full origin-left rounded-full transition-transform ${
                 state === "betalt" ? "bg-primary" : "bg-amber-500"
               }`}
-              style={{ width: `${progress}%` }}
+              style={{ transform: `scaleX(${progress / 100})` }}
             />
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
@@ -625,203 +628,210 @@ export function PaymentManager({
                   className={voided ? "opacity-55" : undefined}
                 >
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 p-3">
-                  <span className="w-14 shrink-0 text-sm text-muted-foreground">
-                    {formatDate(payment.paid_at ?? payment.created_at)}
-                  </span>
+                    <span className="w-14 shrink-0 text-sm text-muted-foreground">
+                      {formatDate(payment.paid_at ?? payment.created_at)}
+                    </span>
 
-                  <span
-                    className={`w-24 shrink-0 font-medium ${
-                      voided ? "line-through" : ""
-                    }`}
-                  >
-                    {formatNok(shown)}
-                  </span>
-
-                  <Badge variant="outline" className="shrink-0">
-                    {methodLabels[payment.method] ?? payment.method}
-                  </Badge>
-
-                  {voided ? (
-                    <Badge variant="destructive" className="shrink-0">
-                      Annullert
-                    </Badge>
-                  ) : payment.status !== "fanget" ? (
-                    <Badge variant="secondary" className="shrink-0">
-                      {statusLabels[payment.status] ?? payment.status}
-                    </Badge>
-                  ) : null}
-
-                  {payment.due_date && payment.status !== "fanget" ? (
-                    <Badge variant="outline" className="shrink-0">
-                      Frist {formatDate(payment.due_date)}
-                    </Badge>
-                  ) : null}
-
-                  <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-                    {note}
-                    {payment.sharedWith ? (
-                      <span
-                        className="ml-2 inline-flex items-center gap-1"
-                        title={`Del av en samlet betaling på ${formatNok(
-                          payment.amount,
-                        )} for ${payment.sharedWith} barn`}
-                      >
-                        <Users className="size-3" />
-                        {payment.sharedWith} barn
-                      </span>
-                    ) : null}
-                  </span>
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Vis detaljer"
-                    aria-expanded={expanded === payment.id}
-                    onClick={() =>
-                      setExpanded((current) =>
-                        current === payment.id ? null : payment.id,
-                      )
-                    }
-                  >
-                    <ChevronDown
-                      className={`size-4 transition-transform ${
-                        expanded === payment.id ? "rotate-180" : ""
+                    <span
+                      className={`w-24 shrink-0 font-medium ${
+                        voided ? "line-through" : ""
                       }`}
-                    />
-                  </Button>
+                    >
+                      {formatNok(shown)}
+                    </span>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Handlinger"
-                          disabled={pending}
-                        />
+                    <Badge variant="outline" className="shrink-0">
+                      {methodLabels[payment.method] ?? payment.method}
+                    </Badge>
+
+                    {voided ? (
+                      <Badge variant="destructive" className="shrink-0">
+                        Annullert
+                      </Badge>
+                    ) : payment.status !== "fanget" ? (
+                      <Badge variant="secondary" className="shrink-0">
+                        {statusLabels[payment.status] ?? payment.status}
+                      </Badge>
+                    ) : null}
+
+                    {payment.due_date && payment.status !== "fanget" ? (
+                      <Badge variant="outline" className="shrink-0">
+                        Frist {formatDate(payment.due_date)}
+                      </Badge>
+                    ) : null}
+
+                    <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+                      {note}
+                      {payment.sharedWith ? (
+                        <span
+                          className="ml-2 inline-flex items-center gap-1"
+                          title={`Del av en samlet betaling på ${formatNok(
+                            payment.amount,
+                          )} for ${payment.sharedWith} barn`}
+                        >
+                          <Users className="size-3" />
+                          {payment.sharedWith} barn
+                        </span>
+                      ) : null}
+                    </span>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Vis detaljer"
+                      aria-expanded={expanded === payment.id}
+                      onClick={() =>
+                        setExpanded((current) =>
+                          current === payment.id ? null : payment.id,
+                        )
                       }
                     >
-                      <MoreHorizontal className="size-4" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {vippsLink ? (
-                        <>
-                          <DropdownMenuItem onClick={() => copyLink(payment.id)}>
-                            <Link2 className="size-4" />
-                            Kopier betalingslenke
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              run(
-                                () => sendPaymentLink(payment.id),
-                                "Betalingslenke sendt",
-                              )
-                            }
-                          >
-                            <Mail className="size-4" />
-                            Send på e-post
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              run(
-                                () => syncPaymentStatus(payment.id),
-                                "Status oppdatert",
-                              )
-                            }
-                          >
-                            <RefreshCw className="size-4" />
-                            Hent status fra Vipps
-                          </DropdownMenuItem>
-                          {payment.status === "autorisert" ? (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                run(
-                                  () => captureVippsPayment(payment.id),
-                                  "Betaling kapret",
-                                )
-                              }
-                            >
-                              <Check className="size-4" />
-                              Kapre reserverte penger
-                            </DropdownMenuItem>
-                          ) : null}
-                          {payment.status === "opprettet" ||
-                          payment.status === "autorisert" ? (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                run(
-                                  () => cancelVippsPayment(payment.id),
-                                  "Betaling avbrutt",
-                                )
-                              }
-                            >
-                              <Ban className="size-4" />
-                              Avbryt betaling
-                            </DropdownMenuItem>
-                          ) : null}
-                          {payment.status === "fanget" ? (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                run(
-                                  () => refundVippsPayment(payment.id),
-                                  "Betaling refundert",
-                                )
-                              }
-                            >
-                              <Undo2 className="size-4" />
-                              Refunder til foresatt
-                            </DropdownMenuItem>
-                          ) : null}
-                          <DropdownMenuSeparator />
-                        </>
-                      ) : null}
+                      <ChevronDown
+                        className={`size-4 transition-transform ${
+                          expanded === payment.id ? "rotate-180" : ""
+                        }`}
+                      />
+                    </Button>
 
-                      {voided ? (
-                        <DropdownMenuItem
-                          onClick={() =>
-                            run(
-                              () => restorePayment(payment.id),
-                              "Annullering angret",
-                            )
-                          }
-                        >
-                          <RotateCcw className="size-4" />
-                          Angre annullering
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem
-                          onClick={() =>
-                            run(
-                              () => voidPayment(payment.id, "Annullert manuelt"),
-                              "Betaling annullert",
-                            )
-                          }
-                        >
-                          <EyeOff className="size-4" />
-                          Annuller (tell ikke med)
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() =>
-                          run(
-                            () => deletePayment(payment.id),
-                            "Betaling slettet",
-                          )
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Handlinger"
+                            disabled={pending}
+                          />
                         }
                       >
-                        <Trash2 className="size-4" />
-                        Slett fra listen
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        <MoreHorizontal className="size-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {vippsLink ? (
+                          <>
+                            <DropdownMenuItem
+                              onClick={() => copyLink(payment.id)}
+                            >
+                              <Link2 className="size-4" />
+                              Kopier betalingslenke
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                run(
+                                  () => sendPaymentLink(payment.id),
+                                  "Betalingslenke sendt",
+                                )
+                              }
+                            >
+                              <Mail className="size-4" />
+                              Send på e-post
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                run(
+                                  () => syncPaymentStatus(payment.id),
+                                  "Status oppdatert",
+                                )
+                              }
+                            >
+                              <RefreshCw className="size-4" />
+                              Hent status fra Vipps
+                            </DropdownMenuItem>
+                            {payment.status === "autorisert" ? (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  run(
+                                    () => captureVippsPayment(payment.id),
+                                    "Betaling kapret",
+                                  )
+                                }
+                              >
+                                <Check className="size-4" />
+                                Kapre reserverte penger
+                              </DropdownMenuItem>
+                            ) : null}
+                            {payment.status === "opprettet" ||
+                            payment.status === "autorisert" ? (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  run(
+                                    () => cancelVippsPayment(payment.id),
+                                    "Betaling avbrutt",
+                                  )
+                                }
+                              >
+                                <Ban className="size-4" />
+                                Avbryt betaling
+                              </DropdownMenuItem>
+                            ) : null}
+                            {payment.status === "fanget" ? (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  run(
+                                    () => refundVippsPayment(payment.id),
+                                    "Betaling refundert",
+                                  )
+                                }
+                              >
+                                <Undo2 className="size-4" />
+                                Refunder til foresatt
+                              </DropdownMenuItem>
+                            ) : null}
+                            <DropdownMenuSeparator />
+                          </>
+                        ) : null}
+
+                        {voided ? (
+                          <DropdownMenuItem
+                            onClick={() =>
+                              run(
+                                () => restorePayment(payment.id),
+                                "Annullering angret",
+                              )
+                            }
+                          >
+                            <RotateCcw className="size-4" />
+                            Angre annullering
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem
+                            onClick={() =>
+                              run(
+                                () =>
+                                  voidPayment(payment.id, "Annullert manuelt"),
+                                "Betaling annullert",
+                              )
+                            }
+                          >
+                            <EyeOff className="size-4" />
+                            Annuller (tell ikke med)
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() =>
+                            run(
+                              () => deletePayment(payment.id),
+                              "Betaling slettet",
+                            )
+                          }
+                        >
+                          <Trash2 className="size-4" />
+                          Slett fra listen
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
 
                   {expanded === payment.id ? (
                     <dl className="grid gap-x-6 gap-y-2 border-t bg-muted/40 px-3 py-3 text-sm sm:grid-cols-2">
-                      <Detail label="Referanse" value={payment.reference} mono />
+                      <Detail
+                        label="Referanse"
+                        value={payment.reference}
+                        mono
+                      />
                       <Detail
                         label="Betalings-ID"
                         value={payment.psp_reference}
@@ -852,10 +862,7 @@ export function PaymentManager({
                       />
                       <Detail label="E-post" value={payment.payer_email} />
                       <Detail label="Telefon" value={payment.payer_phone} />
-                      <Detail
-                        label="Beskrivelse"
-                        value={payment.description}
-                      />
+                      <Detail label="Beskrivelse" value={payment.description} />
                       <Detail
                         label="Trukket"
                         value={

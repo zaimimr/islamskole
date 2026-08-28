@@ -37,7 +37,7 @@ function buildNavigation(basePath: string) {
     { href: basePath, label: "Arbeidsflate", icon: LayoutDashboard },
     { href: `${basePath}/register`, label: "Opptak", icon: ClipboardCheck },
     {
-      href: `${basePath}/elever`,
+      href: `${basePath}/familier`,
       label: "Familier og elever",
       icon: Users,
     },

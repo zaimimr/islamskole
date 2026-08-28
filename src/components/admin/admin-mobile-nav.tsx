@@ -49,7 +49,6 @@ export function AdminMobileNav({
               alt="Islamskole Bærum"
               width={125}
               height={51}
-              className="h-auto w-[7.75rem]"
               priority
             />
           </SheetTitle>

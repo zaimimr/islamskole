@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { adminBasePath } from "@/components/admin/paths";
 import { PageHeader } from "@/components/admin/page-header";
@@ -18,6 +19,7 @@ import { studentDisplayName } from "@/lib/student-name";
 
 type StudentData = {
   id: string;
+  family_id: string | null;
   child_first_name: string | null;
   child_last_name: string | null;
   child_birth_date: string | null;
@@ -63,7 +65,7 @@ export default async function ElevDetailPage({
     supabase
       .from("students")
       .select(
-        "id, child_first_name, child_last_name, child_birth_date, child_gender, child_address, child_postal_code, child_city, child_email, child_phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, child_level_quran, child_level_arabic, child_level_islam, notes",
+        "id, family_id, child_first_name, child_last_name, child_birth_date, child_gender, child_address, child_postal_code, child_city, child_email, child_phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, child_level_quran, child_level_arabic, child_level_islam, notes",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -101,8 +103,8 @@ export default async function ElevDetailPage({
 
   const classes = (
     (classData as
-      | { id: string; name_no: string | null; price: number | null }[]
-      | null) ?? []
+      { id: string; name_no: string | null; price: number | null }[] | null) ??
+    []
   ).map((c) => ({
     id: c.id,
     name: c.name_no ?? "(uten navn)",
@@ -258,12 +260,22 @@ export default async function ElevDetailPage({
         title={studentDisplayName(student) || "Elev"}
         description="Rediger elev, plassering og betaling."
         action={
-          <DeleteButton
-            id={student.id}
-            label="elev"
-            action={deleteStudent}
-            redirectTo={listHref}
-          />
+          <div className="flex flex-wrap gap-2">
+            {student.family_id ? (
+              <Link
+                href={`${basePath}/familier/${student.family_id}`}
+                className="inline-flex min-h-10 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium shadow-xs transition-colors hover:bg-accent hover:text-accent-foreground"
+              >
+                Åpne familie
+              </Link>
+            ) : null}
+            <DeleteButton
+              id={student.id}
+              label="elev"
+              action={deleteStudent}
+              redirectTo={listHref}
+            />
+          </div>
         }
       />
 

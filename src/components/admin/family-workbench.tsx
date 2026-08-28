@@ -19,11 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export type FamilyStatusTone =
-  | "success"
-  | "warning"
-  | "danger"
-  | "info"
-  | "neutral";
+  "success" | "warning" | "danger" | "info" | "neutral";
 
 export type FamilyFact = {
   value: string;
@@ -179,13 +175,7 @@ function formatTimestamp(value: string) {
   }).format(date);
 }
 
-function Fact({
-  label,
-  fact,
-}: {
-  label: string;
-  fact: FamilyFact;
-}) {
+function Fact({ label, fact }: { label: string; fact: FamilyFact }) {
   return (
     <div className="min-w-0">
       <dt className="text-[0.6875rem] font-bold tracking-[0.04em] text-admin-muted uppercase">
@@ -194,7 +184,10 @@ function Fact({
       <dd className="mt-1 flex items-center gap-2 text-sm font-bold">
         <span
           aria-hidden="true"
-          className={cn("size-2 shrink-0 rounded-full", statusDotClasses[fact.tone])}
+          className={cn(
+            "size-2 shrink-0 rounded-full",
+            statusDotClasses[fact.tone],
+          )}
         />
         <span className="truncate">{fact.value}</span>
       </dd>
@@ -227,12 +220,12 @@ function RelationshipMember({
       <span
         className={cn(
           "relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full border-4 border-white font-heading text-sm font-bold",
-          child
-            ? "bg-[#DDEEF9] text-[#245D84]"
-            : "bg-[#DCEDDD] text-[#216A2B]",
+          child ? "bg-[#DDEEF9] text-[#245D84]" : "bg-[#DCEDDD] text-[#216A2B]",
         )}
       >
-        {initials(name) || <CircleUserRound aria-hidden="true" className="size-5" />}
+        {initials(name) || (
+          <CircleUserRound aria-hidden="true" className="size-5" />
+        )}
       </span>
       <span className="min-w-0 pt-0.5">
         <span className="flex flex-wrap items-center gap-2">
@@ -247,7 +240,10 @@ function RelationshipMember({
           {role}
         </span>
         {meta?.map((line) => (
-          <span key={line} className="mt-0.5 block truncate text-xs text-admin-muted">
+          <span
+            key={line}
+            className="mt-0.5 block truncate text-xs text-admin-muted"
+          >
             {line}
           </span>
         ))}
@@ -275,10 +271,7 @@ function NextActionCard({ action }: { action?: FamilyNextAction }) {
   if (!action) {
     return (
       <div className="mt-3 flex gap-3 rounded-xl bg-[#F2F8F2] p-4 text-[#216A2B] ring-1 ring-[#C9E0CB]">
-        <CheckCircle2
-          aria-hidden="true"
-          className="mt-0.5 size-5 shrink-0"
-        />
+        <CheckCircle2 aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
         <div>
           <p className="font-bold">Ingen åpen handling</p>
           <p className="mt-0.5 text-sm text-[#356C3B]">
@@ -550,7 +543,9 @@ export function FamilyWorkbench({
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center justify-between gap-3">
                             <span>
-                              <span className="block font-bold">{child.name}</span>
+                              <span className="block font-bold">
+                                {child.name}
+                              </span>
                               {child.description ? (
                                 <span className="block text-xs text-admin-muted">
                                   {child.description}
@@ -562,7 +557,7 @@ export function FamilyWorkbench({
                               className="size-5 text-admin-muted transition-transform group-hover:translate-x-0.5"
                             />
                           </span>
-                          <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                          <dl className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))] gap-4">
                             <Fact label="Opptak" fact={child.admission} />
                             <Fact label="Plassering" fact={child.placement} />
                             <Fact label="Innmelding" fact={child.enrollment} />
@@ -680,10 +675,7 @@ export function FamilyWorkbench({
           className="mt-5 hidden xl:block"
           aria-labelledby={`next-action-${family.id}`}
         >
-          <h3
-            id={`next-action-${family.id}`}
-            className="text-sm font-bold"
-          >
+          <h3 id={`next-action-${family.id}`} className="text-sm font-bold">
             Neste handling
           </h3>
           <NextActionCard action={nextAction} />
@@ -776,10 +768,14 @@ export function FamilyWorkbench({
                       statusClasses[item.tone],
                     )}
                   >
-                    {item.count ?? <CircleAlert aria-hidden="true" className="size-4" />}
+                    {item.count ?? (
+                      <CircleAlert aria-hidden="true" className="size-4" />
+                    )}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-bold">{item.title}</span>
+                    <span className="block text-sm font-bold">
+                      {item.title}
+                    </span>
                     <span className="block truncate text-xs text-admin-muted">
                       {item.description}
                     </span>

@@ -62,7 +62,6 @@ export default async function AdminLayout({
             alt="Islamskole Bærum"
             width={125}
             height={51}
-            className="h-auto w-[7.75rem]"
             priority
           />
         </Link>
@@ -78,10 +77,7 @@ export default async function AdminLayout({
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 border-b border-[#E9E5DC] bg-[#FCFAF5]/95 px-4 py-3 supports-backdrop-filter:backdrop-blur-md sm:px-6 lg:px-8">
           <div className="mx-auto flex w-full max-w-[96rem] flex-wrap items-center gap-3 lg:flex-nowrap">
-            <AdminMobileNav
-              basePath={basePath}
-              loginHref={resolvedLoginPath}
-            />
+            <AdminMobileNav basePath={basePath} loginHref={resolvedLoginPath} />
             <Link
               href={basePath}
               aria-label="Gå til arbeidsflaten"
@@ -92,7 +88,6 @@ export default async function AdminLayout({
                 alt="Islamskole Bærum"
                 width={96}
                 height={39}
-                className="h-auto w-24"
                 priority
               />
             </Link>
@@ -111,7 +106,7 @@ export default async function AdminLayout({
 
             <form
               role="search"
-              action={`${basePath}/elever`}
+              action={`${basePath}/familier`}
               className="order-4 w-full lg:order-2 lg:mx-auto lg:max-w-[46rem]"
             >
               <label htmlFor="admin-global-search" className="sr-only">

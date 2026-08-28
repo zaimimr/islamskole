@@ -168,6 +168,10 @@ body:has([data-admin-shell]) #main-content {
   min-height: 100dvh;
 }
 
+html:has([data-admin-shell]) {
+  scroll-padding-top: 8rem;
+}
+
 [data-admin-shell] ::selection {
   background: #dceddd;
   color: #163b1c;
@@ -190,7 +194,7 @@ body:has([data-admin-shell]) #main-content {
 }
 
 @utility btn-pill {
-  @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-base font-semibold transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-base font-semibold transition-[color,background-color,border-color,transform,box-shadow] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50;
 }
 
 @layer components {

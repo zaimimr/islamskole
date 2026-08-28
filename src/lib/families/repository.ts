@@ -20,6 +20,10 @@ type FamilyGuardianQueryRow = {
   >;
 };
 
+type FamilyGuardianListQueryRow = FamilyGuardianQueryRow & {
+  family_id: string;
+};
+
 export type FamilyGuardian = {
   id: string;
   firstName: string | null;
@@ -35,8 +39,10 @@ export type FamilyGuardian = {
 
 export type FamilyStudent = {
   id: string;
+  applicationId: string | null;
   firstName: string | null;
   lastName: string | null;
+  birthDate: string | null;
 };
 
 export type FamilyApplication = {
@@ -44,7 +50,10 @@ export type FamilyApplication = {
   firstName: string | null;
   lastName: string | null;
   desiredClass: string | null;
+  birthDate: string | null;
+  paymentId: string | null;
   status: string;
+  createdAt: string;
 };
 
 export type FamilyDataReview = {
@@ -123,6 +132,128 @@ function assembleFamily(
 }
 
 export function createFamilyRepository(client: Client) {
+  async function findAll(): Promise<FamilyDetails[]> {
+    const familyResult = await client
+      .from("families")
+      .select(
+        "id, display_name, address, postal_code, city, origin, created_at, updated_at",
+      )
+      .order("updated_at", { ascending: false })
+      .order("id");
+
+    ensureSuccess("Could not load families", familyResult.error);
+    const families = familyResult.data ?? [];
+    if (families.length === 0) return [];
+
+    const familyIds = families.map((family) => family.id);
+    const [guardianResult, studentResult, applicationResult, reviewResult] =
+      await Promise.all([
+        client
+          .from("family_guardians")
+          .select(
+            "family_id, guardian_id, relationship_label, is_primary_contact, is_billing_contact, receives_communication, sort_order, guardian:guardians(id, first_name, last_name, email, phone)",
+          )
+          .in("family_id", familyIds)
+          .order("sort_order")
+          .order("guardian_id"),
+        client
+          .from("students")
+          .select(
+            "id, family_id, application_id, child_first_name, child_last_name, child_birth_date",
+          )
+          .in("family_id", familyIds)
+          .order("child_last_name")
+          .order("child_first_name")
+          .order("id"),
+        client
+          .from("student_applications")
+          .select(
+            "id, family_id, child_first_name, child_last_name, child_birth_date, desired_class, payment_id, status, created_at",
+          )
+          .in("family_id", familyIds)
+          .order("created_at")
+          .order("id"),
+        client
+          .from("family_data_reviews")
+          .select("id, family_id, category, details, status, created_at")
+          .in("family_id", familyIds)
+          .eq("status", "open")
+          .order("created_at", { ascending: false })
+          .order("id"),
+      ]);
+
+    ensureSuccess("Could not load family guardians", guardianResult.error);
+    ensureSuccess("Could not load family students", studentResult.error);
+    ensureSuccess(
+      "Could not load family applications",
+      applicationResult.error,
+    );
+    ensureSuccess("Could not load family reviews", reviewResult.error);
+
+    const guardiansByFamily = new Map<string, FamilyGuardian[]>();
+    for (const row of (guardianResult.data ??
+      []) as FamilyGuardianListQueryRow[]) {
+      const guardians = guardiansByFamily.get(row.family_id) ?? [];
+      guardians.push(mapGuardian(row));
+      guardiansByFamily.set(row.family_id, guardians);
+    }
+
+    const studentsByFamily = new Map<string, FamilyStudent[]>();
+    for (const student of studentResult.data ?? []) {
+      if (!student.family_id) continue;
+      const students = studentsByFamily.get(student.family_id) ?? [];
+      students.push({
+        id: student.id,
+        applicationId: student.application_id,
+        firstName: student.child_first_name,
+        lastName: student.child_last_name,
+        birthDate: student.child_birth_date,
+      });
+      studentsByFamily.set(student.family_id, students);
+    }
+
+    const applicationsByFamily = new Map<string, FamilyApplication[]>();
+    for (const application of applicationResult.data ?? []) {
+      if (!application.family_id) continue;
+      const applications =
+        applicationsByFamily.get(application.family_id) ?? [];
+      applications.push({
+        id: application.id,
+        firstName: application.child_first_name,
+        lastName: application.child_last_name,
+        desiredClass: application.desired_class,
+        birthDate: application.child_birth_date,
+        paymentId: application.payment_id,
+        status: application.status,
+        createdAt: application.created_at,
+      });
+      applicationsByFamily.set(application.family_id, applications);
+    }
+
+    const reviewsByFamily = new Map<string, FamilyDataReview[]>();
+    for (const review of reviewResult.data ?? []) {
+      const reviews = reviewsByFamily.get(review.family_id) ?? [];
+      reviews.push({
+        id: review.id,
+        category: review.category,
+        details: review.details,
+        status: review.status,
+        createdAt: review.created_at,
+      });
+      reviewsByFamily.set(review.family_id, reviews);
+    }
+
+    return families.map((family) =>
+      assembleFamily(
+        family,
+        guardiansByFamily.get(family.id) ?? [],
+        studentsByFamily.get(family.id) ?? [],
+        applicationsByFamily.get(family.id) ?? [],
+        reviewsByFamily.get(family.id) ?? [],
+      ),
+    );
+  }
+
   async function findById(familyId: string): Promise<FamilyDetails | null> {
     const familyResult = await client
       .from("families")
@@ -147,14 +278,18 @@ export function createFamilyRepository(client: Client) {
           .order("guardian_id"),
         client
           .from("students")
-          .select("id, child_first_name, child_last_name")
+          .select(
+            "id, application_id, child_first_name, child_last_name, child_birth_date",
+          )
           .eq("family_id", familyId)
           .order("child_last_name")
           .order("child_first_name")
           .order("id"),
         client
           .from("student_applications")
-          .select("id, child_first_name, child_last_name, desired_class, status")
+          .select(
+            "id, child_first_name, child_last_name, child_birth_date, desired_class, payment_id, status, created_at",
+          )
           .eq("family_id", familyId)
           .order("created_at")
           .order("id"),
@@ -169,7 +304,10 @@ export function createFamilyRepository(client: Client) {
 
     ensureSuccess("Could not load family guardians", guardianResult.error);
     ensureSuccess("Could not load family students", studentResult.error);
-    ensureSuccess("Could not load family applications", applicationResult.error);
+    ensureSuccess(
+      "Could not load family applications",
+      applicationResult.error,
+    );
     ensureSuccess("Could not load family reviews", reviewResult.error);
 
     const guardians = (
@@ -177,15 +315,20 @@ export function createFamilyRepository(client: Client) {
     ).map(mapGuardian);
     const students = (studentResult.data ?? []).map((student) => ({
       id: student.id,
+      applicationId: student.application_id,
       firstName: student.child_first_name,
       lastName: student.child_last_name,
+      birthDate: student.child_birth_date,
     }));
     const applications = (applicationResult.data ?? []).map((application) => ({
       id: application.id,
       firstName: application.child_first_name,
       lastName: application.child_last_name,
       desiredClass: application.desired_class,
+      birthDate: application.child_birth_date,
+      paymentId: application.payment_id,
       status: application.status,
+      createdAt: application.created_at,
     }));
     const openReviews = (reviewResult.data ?? []).map((review) => ({
       id: review.id,
@@ -230,5 +373,5 @@ export function createFamilyRepository(client: Client) {
     return result.data?.family_id ? findById(result.data.family_id) : null;
   }
 
-  return { findById, findForStudent, findForApplication };
+  return { findAll, findById, findForStudent, findForApplication };
 }
