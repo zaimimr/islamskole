@@ -19,6 +19,7 @@ import {
   balanceKey,
   ensureStudentFee,
   fetchBalances,
+  replacePaymentAllocations,
   setStudentFee,
 } from "@/lib/payment-ledger";
 import {
@@ -668,6 +669,7 @@ export async function registerManualPayment(
 
   await ensureStudentFee(supabase, payload.student_id, payload.school_year_id);
 
+  const amount = Math.round(payload.amount_nok * 100);
   const { data: inserted, error } = await supabase
     .from("payments")
     .insert({
@@ -676,7 +678,10 @@ export async function registerManualPayment(
       school_year_id: payload.school_year_id,
       reference: `manual-${randomUUID()}`,
       psp_reference: orderId,
-      amount: Math.round(payload.amount_nok * 100),
+      amount,
+      authorized_amount: amount,
+      captured_amount: amount,
+      refunded_amount: 0,
       description: descriptionParts.join(" · "),
       status: "fanget",
       method: payload.method,
@@ -1003,14 +1008,42 @@ export async function copyEnrollmentsToActiveYear(
 
 async function getPaymentReference(
   paymentId: string,
-): Promise<{ reference: string; amount: number } | null> {
+): Promise<{
+  reference: string;
+  amount: number;
+  authorizedAmount: number;
+  capturedAmount: number;
+  refundedAmount: number;
+  method: string;
+  status: string;
+} | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("payments")
-    .select("reference, amount")
+    .select(
+      "reference, amount, authorized_amount, captured_amount, refunded_amount, method, status",
+    )
     .eq("id", paymentId)
     .maybeSingle();
-  return (data as unknown as { reference: string; amount: number } | null) ?? null;
+  const row = data as unknown as {
+    reference: string;
+    amount: number;
+    authorized_amount: number;
+    captured_amount: number;
+    refunded_amount: number;
+    method: string;
+    status: string;
+  } | null;
+  if (!row) return null;
+  return {
+    reference: row.reference,
+    amount: row.amount,
+    authorizedAmount: row.authorized_amount,
+    capturedAmount: row.captured_amount,
+    refundedAmount: row.refunded_amount,
+    method: row.method,
+    status: row.status,
+  };
 }
 
 export async function syncPaymentStatus(
@@ -1039,8 +1072,19 @@ export async function captureVippsPayment(
   const row = await getPaymentReference(paymentId);
   if (!row) return { ok: false, error: "Fant ikke betalingen" };
 
+  const capturableAmount = row.authorizedAmount - row.capturedAmount;
+  if (capturableAmount <= 0) {
+    return { ok: false, error: "Betalingen har ikke noe beløp som kan fanges" };
+  }
+
   try {
-    await capturePayment(row.reference, row.amount);
+    await capturePayment(row.reference, capturableAmount);
+    await writeAudit({
+      action: "payment.capture_requested",
+      entityType: "payment",
+      entityId: paymentId,
+      metadata: { amount: capturableAmount },
+    });
     await syncPaymentByReference(row.reference);
   } catch (error) {
     return {
@@ -1059,8 +1103,20 @@ export async function refundVippsPayment(
   const row = await getPaymentReference(paymentId);
   if (!row) return { ok: false, error: "Fant ikke betalingen" };
 
+  const refundableAmount = row.capturedAmount - row.refundedAmount;
+  if (refundableAmount <= 0) {
+    return { ok: false, error: "Betalingen har ikke noe refunderbart beløp" };
+  }
+
   try {
-    await refundPayment(row.reference, row.amount);
+    await refundPayment(row.reference, refundableAmount);
+    await writeAudit({
+      action: "payment.refund_requested",
+      entityType: "payment",
+      entityId: paymentId,
+      metadata: { amount: refundableAmount },
+    });
+    await syncPaymentByReference(row.reference);
   } catch (error) {
     return {
       ok: false,
@@ -1068,12 +1124,6 @@ export async function refundVippsPayment(
     };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("payments")
-    .update({ status: "refundert" } as never)
-    .eq("id", paymentId);
-  if (error) return { ok: false, error: error.message };
   revalidate();
   return { ok: true, id: paymentId };
 }
@@ -1087,6 +1137,12 @@ export async function cancelVippsPayment(
 
   try {
     await cancelPayment(row.reference);
+    await writeAudit({
+      action: "payment.cancel_requested",
+      entityType: "payment",
+      entityId: paymentId,
+    });
+    await syncPaymentByReference(row.reference);
   } catch (error) {
     return {
       ok: false,
@@ -1094,12 +1150,6 @@ export async function cancelVippsPayment(
     };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("payments")
-    .update({ status: "avbrutt", vipps_state: "TERMINATED" } as never)
-    .eq("id", paymentId);
-  if (error) return { ok: false, error: error.message };
   revalidate();
   return { ok: true, id: paymentId };
 }
@@ -1166,8 +1216,25 @@ export async function sendPaymentLink(
 export async function deletePayment(id: string): Promise<ActionResult> {
   await requireAdmin();
   const supabase = await createClient();
+  const row = await getPaymentReference(id);
+  if (!row) return { ok: false, error: "Fant ikke betalingen" };
+  if (
+    row.capturedAmount > 0 ||
+    row.status === "fanget" ||
+    row.status === "refundert"
+  ) {
+    return {
+      ok: false,
+      error: "Registrerte betalinger kan ikke slettes. Bruk korrigering eller refusjon.",
+    };
+  }
   const { error } = await supabase.from("payments").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
+  await writeAudit({
+    action: "payment.delete",
+    entityType: "payment",
+    entityId: id,
+  });
   revalidate();
   return { ok: true, id };
 }
@@ -1221,6 +1288,20 @@ export async function voidPayment(
   await requireAdmin();
   const supabase = await createClient();
   const user = await getUser();
+  const row = await getPaymentReference(paymentId);
+  if (!row) return { ok: false, error: "Fant ikke betalingen" };
+  if (
+    row.method === "vipps" &&
+    !row.reference.startsWith("manual-") &&
+    (row.capturedAmount > 0 ||
+      row.status === "fanget" ||
+      row.status === "refundert")
+  ) {
+    return {
+      ok: false,
+      error: "En fanget Vipps-betaling må refunderes i Vipps og kan ikke annulleres lokalt.",
+    };
+  }
 
   const { error } = await supabase
     .from("payments")
@@ -1278,6 +1359,14 @@ export async function markPaymentAsDuplicate(
   const supabase = await createClient();
   const user = await getUser();
   const now = new Date().toISOString();
+  const row = await getPaymentReference(paymentId);
+  if (!row) return { ok: false, error: "Fant ikke betalingen" };
+  if (!row.reference.startsWith("manual-")) {
+    return {
+      ok: false,
+      error: "Bare manuelt registrerte betalinger kan merkes som dobbeltføring.",
+    };
+  }
 
   const { error } = await supabase
     .from("payments")
@@ -1360,14 +1449,15 @@ export async function reallocateYearPayments(
   );
   if (ids.length === 0) return { ok: true, count: 0 };
 
-  const { error: clearError } = await supabase
-    .from("payment_allocations")
-    .delete()
-    .in("payment_id", ids);
-  if (clearError) return { ok: false, error: clearError.message };
-
   for (const id of ids) {
-    await allocatePayment(supabase, id);
+    try {
+      await allocatePayment(supabase, id);
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "Fordelingen feilet",
+      };
+    }
   }
 
   await writeAudit({
@@ -1390,13 +1480,13 @@ export async function updatePaymentAllocations(
 
   const { data: paymentRow } = await supabase
     .from("payments")
-    .select("id, amount, school_year_id")
+    .select("id, net_paid_amount, school_year_id")
     .eq("id", paymentId)
     .maybeSingle();
 
   const payment = paymentRow as unknown as {
     id: string;
-    amount: number;
+    net_paid_amount: number;
     school_year_id: string | null;
   } | null;
 
@@ -1418,35 +1508,20 @@ export async function updatePaymentAllocations(
   }
 
   const total = cleaned.reduce((sum, row) => sum + row.amount, 0);
-  if (total > payment.amount) {
+  if (total > payment.net_paid_amount) {
     return {
       ok: false,
-      error: `Fordelt beløp (${(total / 100).toLocaleString("nb-NO")} kr) er større enn betalingen (${(payment.amount / 100).toLocaleString("nb-NO")} kr)`,
+      error: `Fordelt beløp (${(total / 100).toLocaleString("nb-NO")} kr) er større enn netto innbetalt beløp (${(payment.net_paid_amount / 100).toLocaleString("nb-NO")} kr)`,
     };
   }
 
-  for (const row of cleaned) {
-    await ensureStudentFee(supabase, row.studentId, payment.school_year_id);
-  }
-
-  const { error: deleteError } = await supabase
-    .from("payment_allocations")
-    .delete()
-    .eq("payment_id", paymentId);
-  if (deleteError) return { ok: false, error: deleteError.message };
-
-  if (cleaned.length > 0) {
-    const { error: insertError } = await supabase
-      .from("payment_allocations")
-      .insert(
-        cleaned.map((row) => ({
-          payment_id: paymentId,
-          student_id: row.studentId,
-          school_year_id: payment.school_year_id as string,
-          amount: row.amount,
-        })) as never,
-      );
-    if (insertError) return { ok: false, error: insertError.message };
+  try {
+    await replacePaymentAllocations(supabase, paymentId, cleaned);
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Fordelingen feilet",
+    };
   }
 
   await writeAudit({

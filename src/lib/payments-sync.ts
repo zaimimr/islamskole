@@ -6,6 +6,7 @@ import {
   capturePayment,
   type VippsPaymentState,
 } from "@/lib/vipps";
+import { mapVippsPaymentState } from "@/lib/payment-integrity";
 import {
   sendPaymentReceiptEmail,
   sendStudentApplicationEmail,
@@ -24,18 +25,7 @@ export function mapVippsState(
   capturedAmount: number,
   refundedAmount: number,
 ): string {
-  if (refundedAmount > 0) return "refundert";
-  if (capturedAmount > 0) return "fanget";
-  switch (state) {
-    case "AUTHORIZED":
-      return "autorisert";
-    case "ABORTED":
-    case "EXPIRED":
-    case "TERMINATED":
-      return "avbrutt";
-    default:
-      return "opprettet";
-  }
+  return mapVippsPaymentState(state, capturedAmount, refundedAmount);
 }
 
 type NamedPersonRow = {
@@ -130,6 +120,9 @@ export async function syncPaymentByReference(
   const update: Record<string, unknown> = {
     status,
     vipps_state: result.state,
+    authorized_amount: result.authorizedAmount,
+    captured_amount: capturedAmount,
+    refunded_amount: result.refundedAmount,
     last_synced_at: now,
   };
   if (result.payerName) update.payer_name = result.payerName;
@@ -139,21 +132,26 @@ export async function syncPaymentByReference(
     update.vipps_payment_method = result.paymentMethodType;
   }
   if (result.pspReference) update.psp_reference = result.pspReference;
-  if (status === "fanget") {
+  if (
+    capturedAmount > 0 &&
+    previousStatus !== "fanget" &&
+    previousStatus !== "refundert"
+  ) {
     update.captured_at = now;
     update.paid_at = now;
   }
 
-  await admin
+  const { error: updateError } = await admin
     .from("payments")
     .update(update as never)
     .eq("reference", reference);
+  if (updateError) throw new Error(updateError.message);
 
   await recordEvents(admin, reference, payment?.id ?? null);
 
   const justCaptured = status === "fanget" && previousStatus !== "fanget";
 
-  if (status === "fanget" && payment?.id) {
+  if (payment?.id) {
     try {
       await allocatePayment(admin, payment.id);
     } catch (error) {
@@ -163,7 +161,7 @@ export async function syncPaymentByReference(
 
   if (justCaptured && (await emailNotifications())) {
     const schoolYear = payment?.school_years?.label ?? null;
-    const amount = payment?.amount ?? 0;
+    const amount = capturedAmount || payment?.amount || 0;
 
     if (payment?.students) {
       const recipients = guardianEmails(payment.students);
