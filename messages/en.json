@@ -132,14 +132,14 @@
   "enrollForm": {
     "eyebrow": "Enrollment",
     "title": "Enroll your child",
-    "subtitle": "Fill in the form and pay the tuition with Vipps to secure the spot.",
+    "subtitle": "Enroll one or more children and pay the tuition with Vipps. The school reviews class placement afterwards.",
     "facts": {
       "schedule": "Lessons every Sunday 10:00-14:00",
       "season": "35 Sundays from August to June",
       "ages": "For children aged 6 to 18"
     },
     "formTitle": "Enrollment form",
-    "formSubtitle": "You pay with Vipps when you submit. The spot is secured once the payment is registered.",
+    "formSubtitle": "The amount is charged as soon as you approve it in Vipps. Payment confirms the enrollment, not a specific class placement.",
     "fieldChildName": "Child's name",
     "placeholderChildName": "First and last name",
     "fieldChildAge": "Child's age",
@@ -169,7 +169,7 @@
     "placeholderCity": "e.g. Vøyenenga",
     "fieldParentPhone": "Mobile (contact)",
     "fieldParentEmail": "Email (contact)",
-    "parentsHint": "Fill in name, email and phone for both guardians. Tick single parent if the child only has one.",
+    "parentsHint": "Add the guardians who should be connected to the family.",
     "feeNote": "Tuition {fee} kr per child per school year. Paid with Vipps at enrollment.",
     "termsLead": "I confirm I have read the rules and accept the",
     "termsLink": "terms of sale",
@@ -190,7 +190,7 @@
     },
     "fieldMessage": "Message",
     "placeholderMessage": "Anything we should know?",
-    "submit": "Pay and enroll",
+    "submit": "Continue to Vipps",
     "toastSuccess": "Thank you! We have received your enrollment.",
     "thanksTitle": "Thank you!",
     "thanksBody": "We have received your enrollment and will be in touch as soon as we can.",
@@ -215,7 +215,43 @@
     "redirecting": "Redirecting you to Vipps ...",
     "singleParentLabel": "The child has only one guardian (single parent)",
     "sectionAddress": "Address",
-    "addressHint": "The address applies to all children in this enrollment."
+    "addressHint": "The address applies to the family and all children in this enrollment.",
+    "progressLabel": "Enrollment progress",
+    "stepChildren": "Children",
+    "stepGuardians": "Guardians and address",
+    "stepReview": "Review and pay",
+    "stepSummary": "Complete the highlighted fields before continuing.",
+    "childrenStepTitle": "Who are you enrolling?",
+    "childrenStepHint": "Add every sibling who should be enrolled at the same time.",
+    "childrenTabsLabel": "Children in this enrollment",
+    "removeCurrentChild": "Remove this child",
+    "optionalLearningDetails": "Level, class preference and message (optional)",
+    "guardiansStepTitle": "Family and contacts",
+    "guardiansStepHint": "One guardian is required. You can add more without choosing a specific family type.",
+    "primaryGuardian": "Primary guardian",
+    "guardianLabel": "Guardian {n}",
+    "guardianRole": "Relationship to the child",
+    "guardianRolePlaceholder": "Choose relationship",
+    "guardianRoles": {
+      "foresatt": "Guardian",
+      "mor": "Mother",
+      "far": "Father",
+      "steforelder": "Step-parent",
+      "verge": "Legal guardian",
+      "annet": "Other caregiver"
+    },
+    "primaryGuardianHint": "This person becomes the family's primary contact. The school can change it later.",
+    "addGuardian": "Add a guardian",
+    "removeGuardian": "Remove guardian",
+    "reviewStepTitle": "Review before payment",
+    "reviewStepHint": "Check the family and total before continuing to Vipps.",
+    "reviewChildren": "Children",
+    "reviewGuardians": "Guardians",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "paymentImmediateTitle": "Payment is captured immediately",
+    "paymentImmediateBody": "When you approve in Vipps, the full amount is charged immediately. The school processes enrollment and class placement separately."
   },
   "about": {
     "title": "About us",
@@ -335,15 +371,15 @@
       {
         "heading": "Payment",
         "body": [
-          "Payment is made with Vipps on enrollment. The amount is charged when the enrollment is confirmed.",
-          "The enrollment is binding once payment is completed. You receive a confirmation by email."
+          "Payment is made with Vipps on enrollment. The amount is charged immediately when you approve the payment in Vipps.",
+          "Payment confirms that the enrollment was received. Class placement is handled separately and depends on capacity. You receive a confirmation by email."
         ]
       },
       {
         "heading": "Delivery",
         "body": [
           "The service is delivered as teaching at Skuiveien 40, 1339 Vøyenenga during the stated school year (August to June).",
-          "Enrollment grants the right to take part in the school year that has been paid for."
+          "Once the school has confirmed a place, the paid enrollment applies to the stated school year."
         ]
       },
       {
