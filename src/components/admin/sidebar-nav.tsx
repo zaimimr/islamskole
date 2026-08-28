@@ -6,6 +6,7 @@ import {
   CalendarDays,
   CalendarRange,
   CircleUserRound,
+  CircleAlert,
   ClipboardCheck,
   ContactRound,
   GraduationCap,
@@ -72,7 +73,7 @@ function buildNavigation(basePath: string) {
         {
           href: `${basePath}/betaling/dobbeltforinger`,
           label: "Dobbeltføringer",
-          icon: UserCheck,
+          icon: CircleAlert,
         },
       ],
     },
@@ -156,7 +157,7 @@ export function SidebarNav({
             "size-[1.125rem] shrink-0 stroke-[1.8]",
             active
               ? "text-[#3C8F44]"
-              : "text-foreground/55 group-hover:text-foreground/75",
+              : "text-admin-muted group-hover:text-foreground/75",
           )}
         />
         <span>{link.label}</span>
@@ -165,7 +166,10 @@ export function SidebarNav({
   }
 
   return (
-    <nav aria-label="Administrasjon" className="flex min-h-0 flex-1 flex-col">
+    <nav
+      aria-label="Administrasjon"
+      className="flex min-h-0 flex-1 flex-col overflow-y-auto pr-1"
+    >
       <ul className="grid gap-1">
         {navigation.primary.map((link) => (
           <li key={link.href}>
@@ -181,7 +185,7 @@ export function SidebarNav({
           <section key={group.label} aria-labelledby={`nav-${group.label}`}>
             <h2
               id={`nav-${group.label}`}
-              className="mb-1 px-3 font-sans text-[0.6875rem] font-bold tracking-[0.08em] text-foreground/45 uppercase"
+              className="mb-1 px-3 font-sans text-[0.6875rem] font-bold tracking-[0.08em] text-admin-muted uppercase"
             >
               {group.label}
             </h2>
@@ -206,7 +210,7 @@ export function SidebarNav({
         >
           <CircleUserRound
             aria-hidden="true"
-            className="size-[1.125rem] shrink-0 stroke-[1.8] text-foreground/55 group-aria-[current=page]:text-[#3C8F44]"
+            className="size-[1.125rem] shrink-0 stroke-[1.8] text-admin-muted group-aria-[current=page]:text-[#3C8F44]"
           />
           {navigation.account.label}
         </Link>

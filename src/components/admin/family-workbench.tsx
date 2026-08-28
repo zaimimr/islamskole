@@ -82,6 +82,14 @@ export type FamilyWorkbenchTab = {
   href: string;
 };
 
+export type FamilyNextAction = {
+  title: string;
+  description: string;
+  href: string;
+  label: string;
+  tone: "warning" | "danger" | "info";
+};
+
 export type FamilyWorkbenchProps = {
   family: {
     id: string;
@@ -104,13 +112,7 @@ export type FamilyWorkbenchProps = {
   editFamilyHref?: string;
   addGuardianHref?: string;
   editRelationshipsHref?: string;
-  nextAction?: {
-    title: string;
-    description: string;
-    href: string;
-    label: string;
-    tone: "warning" | "danger" | "info";
-  };
+  nextAction?: FamilyNextAction;
   recentActivity: FamilyActivity[];
   historyHref?: string;
   attentionItems?: FamilyAttentionItem[];
@@ -139,6 +141,12 @@ const activityIcons = {
   placement: GraduationCap,
   guardian: UserRound,
   record: ReceiptText,
+};
+
+const nextActionClasses: Record<FamilyNextAction["tone"], string> = {
+  danger: "bg-[#FFF3F1] ring-[#F1C7C3]",
+  info: "bg-[#EEF7FE] ring-[#BFDDF2]",
+  warning: "bg-[#FFF8E9] ring-[#EDD49A]",
 };
 
 function initials(name: string) {
@@ -180,7 +188,7 @@ function Fact({
 }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[0.6875rem] font-bold tracking-[0.04em] text-foreground/48 uppercase">
+      <dt className="text-[0.6875rem] font-bold tracking-[0.04em] text-admin-muted uppercase">
         {label}
       </dt>
       <dd className="mt-1 flex items-center gap-2 text-sm font-bold">
@@ -191,7 +199,7 @@ function Fact({
         <span className="truncate">{fact.value}</span>
       </dd>
       {fact.detail ? (
-        <dd className="mt-0.5 truncate pl-4 text-xs text-foreground/50">
+        <dd className="mt-0.5 truncate pl-4 text-xs text-admin-muted">
           {fact.detail}
         </dd>
       ) : null}
@@ -235,11 +243,11 @@ function RelationshipMember({
             </span>
           ) : null}
         </span>
-        <span className="mt-0.5 block text-xs font-semibold text-foreground/54">
+        <span className="mt-0.5 block text-xs font-semibold text-admin-muted">
           {role}
         </span>
         {meta?.map((line) => (
-          <span key={line} className="mt-0.5 block truncate text-xs text-foreground/52">
+          <span key={line} className="mt-0.5 block truncate text-xs text-admin-muted">
             {line}
           </span>
         ))}
@@ -263,6 +271,44 @@ function RelationshipMember({
   );
 }
 
+function NextActionCard({ action }: { action?: FamilyNextAction }) {
+  if (!action) {
+    return (
+      <div className="mt-3 flex gap-3 rounded-xl bg-[#F2F8F2] p-4 text-[#216A2B] ring-1 ring-[#C9E0CB]">
+        <CheckCircle2
+          aria-hidden="true"
+          className="mt-0.5 size-5 shrink-0"
+        />
+        <div>
+          <p className="font-bold">Ingen åpen handling</p>
+          <p className="mt-0.5 text-sm text-[#356C3B]">
+            Familien har ingen registrerte avvik.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "mt-3 rounded-xl p-4 ring-1",
+        nextActionClasses[action.tone],
+      )}
+    >
+      <h3 className="font-bold">{action.title}</h3>
+      <p className="mt-1 text-sm text-admin-muted">{action.description}</p>
+      <Link
+        href={action.href}
+        className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#E9B63B] px-3 text-sm font-bold text-[#392B08] outline-none transition-colors hover:bg-[#DDA726] focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        {action.label}
+        <ArrowRight aria-hidden="true" className="size-4" />
+      </Link>
+    </div>
+  );
+}
+
 export function FamilyWorkbench({
   family,
   tabs,
@@ -283,10 +329,12 @@ export function FamilyWorkbench({
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(14rem,0.72fr)_minmax(0,2.25fr)_minmax(15rem,0.82fr)]">
       <aside className="order-3 rounded-2xl bg-white p-5 ring-1 ring-[#E3DED3] xl:order-1">
-        <h2 className="font-heading text-2xl font-bold">{family.name}</h2>
+        <h2 className="text-balance font-heading text-2xl font-bold">
+          {family.name}
+        </h2>
         <address className="mt-5 grid gap-3 not-italic">
           {family.address ? (
-            <p className="flex gap-3 text-sm text-foreground/60">
+            <p className="flex gap-3 text-sm text-admin-muted">
               <MapPin
                 aria-hidden="true"
                 className="mt-0.5 size-4 shrink-0 text-[#3C8F44]"
@@ -295,7 +343,7 @@ export function FamilyWorkbench({
             </p>
           ) : null}
           {family.phone ? (
-            <p className="flex gap-3 text-sm text-foreground/60">
+            <p className="flex gap-3 text-sm text-admin-muted">
               <Phone
                 aria-hidden="true"
                 className="mt-0.5 size-4 shrink-0 text-[#3C8F44]"
@@ -304,7 +352,7 @@ export function FamilyWorkbench({
             </p>
           ) : null}
           {family.email ? (
-            <p className="flex min-w-0 gap-3 text-sm text-foreground/60">
+            <p className="flex min-w-0 gap-3 text-sm text-admin-muted">
               <Mail
                 aria-hidden="true"
                 className="mt-0.5 size-4 shrink-0 text-[#3C8F44]"
@@ -318,7 +366,7 @@ export function FamilyWorkbench({
 
         <h3 className="font-heading text-base font-bold">Foresatte og barn</h3>
         {family.guardians.length === 0 && family.children.length === 0 ? (
-          <p className="mt-3 text-sm text-foreground/55">
+          <p className="mt-3 text-sm text-admin-muted">
             Ingen relasjoner er registrert.
           </p>
         ) : (
@@ -362,7 +410,7 @@ export function FamilyWorkbench({
         <header className="flex flex-wrap items-start justify-between gap-4 px-5 pt-5 sm:px-6 sm:pt-6">
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="font-heading text-[1.875rem] leading-tight font-bold tracking-[-0.02em]">
+              <h1 className="text-balance font-heading text-[1.875rem] leading-tight font-bold tracking-[-0.02em]">
                 {family.name}
               </h1>
               {family.status ? (
@@ -384,7 +432,7 @@ export function FamilyWorkbench({
               ) : null}
             </div>
             {family.updatedAt ? (
-              <p className="mt-1 flex items-center gap-1.5 text-xs text-foreground/50">
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-admin-muted">
                 <Clock3 aria-hidden="true" className="size-3.5" />
                 Sist oppdatert {formatTimestamp(family.updatedAt)}
               </p>
@@ -401,6 +449,19 @@ export function FamilyWorkbench({
           ) : null}
         </header>
 
+        <section
+          className="px-5 pt-5 sm:px-6 xl:hidden"
+          aria-labelledby={`mobile-next-action-${family.id}`}
+        >
+          <h2
+            id={`mobile-next-action-${family.id}`}
+            className="font-heading text-lg font-bold"
+          >
+            Neste handling
+          </h2>
+          <NextActionCard action={nextAction} />
+        </section>
+
         <nav
           aria-label="Familieopplysninger"
           className="mt-5 overflow-x-auto border-b border-[#ECE8DF] px-3 sm:px-5"
@@ -411,7 +472,7 @@ export function FamilyWorkbench({
                 <Link
                   href={tab.href}
                   aria-current={activeTab === tab.id ? "page" : undefined}
-                  className="relative inline-flex min-h-11 items-center px-3 text-sm font-bold text-foreground/62 outline-none transition-colors hover:text-foreground focus-visible:rounded-lg focus-visible:ring-3 focus-visible:ring-ring/50 aria-[current=page]:text-[#277A31] aria-[current=page]:after:absolute aria-[current=page]:after:right-3 aria-[current=page]:after:bottom-0 aria-[current=page]:after:left-3 aria-[current=page]:after:h-0.5 aria-[current=page]:after:bg-[#3C8F44]"
+                  className="relative inline-flex min-h-11 items-center px-3 text-sm font-bold text-admin-muted outline-none transition-colors hover:text-foreground focus-visible:rounded-lg focus-visible:ring-3 focus-visible:ring-ring/50 aria-[current=page]:text-[#277A31] aria-[current=page]:after:absolute aria-[current=page]:after:right-3 aria-[current=page]:after:bottom-0 aria-[current=page]:after:left-3 aria-[current=page]:after:h-0.5 aria-[current=page]:after:bg-[#3C8F44]"
                 >
                   {tab.label}
                 </Link>
@@ -430,26 +491,26 @@ export function FamilyWorkbench({
             </h2>
             <dl className="mt-4 grid gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
               <div>
-                <dt className="text-foreground/48">Hjemmeadresse</dt>
+                <dt className="text-admin-muted">Hjemmeadresse</dt>
                 <dd className="mt-0.5 font-semibold">
                   {family.address ?? "Ikke registrert"}
                 </dd>
               </div>
               <div>
-                <dt className="text-foreground/48">E-post</dt>
+                <dt className="text-admin-muted">E-post</dt>
                 <dd className="mt-0.5 break-words font-semibold">
                   {family.email ?? "Ikke registrert"}
                 </dd>
               </div>
               <div>
-                <dt className="text-foreground/48">Primær kontakt</dt>
+                <dt className="text-admin-muted">Primær kontakt</dt>
                 <dd className="mt-0.5 font-semibold">
                   {primaryGuardian?.name ?? "Ikke registrert"}
                   {primaryGuardian?.phone ? `, ${primaryGuardian.phone}` : ""}
                 </dd>
               </div>
               <div>
-                <dt className="text-foreground/48">Familiespråk</dt>
+                <dt className="text-admin-muted">Familiespråk</dt>
                 <dd className="mt-0.5 font-semibold">
                   {family.language ?? "Ikke registrert"}
                 </dd>
@@ -468,7 +529,7 @@ export function FamilyWorkbench({
               Barn ({family.children.length})
             </h2>
             {family.children.length === 0 ? (
-              <p className="mt-3 rounded-xl bg-[#F7F6F1] px-4 py-5 text-sm text-foreground/55">
+              <p className="mt-3 rounded-xl bg-[#F7F6F1] px-4 py-5 text-sm text-admin-muted">
                 Ingen barn er knyttet til familien.
               </p>
             ) : (
@@ -491,14 +552,14 @@ export function FamilyWorkbench({
                             <span>
                               <span className="block font-bold">{child.name}</span>
                               {child.description ? (
-                                <span className="block text-xs text-foreground/52">
+                                <span className="block text-xs text-admin-muted">
                                   {child.description}
                                 </span>
                               ) : null}
                             </span>
                             <ArrowRight
                               aria-hidden="true"
-                              className="size-5 text-foreground/40 transition-transform group-hover:translate-x-0.5"
+                              className="size-5 text-admin-muted transition-transform group-hover:translate-x-0.5"
                             />
                           </span>
                           <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -506,7 +567,7 @@ export function FamilyWorkbench({
                             <Fact label="Plassering" fact={child.placement} />
                             <Fact label="Innmelding" fact={child.enrollment} />
                             <div className="min-w-0">
-                              <dt className="text-[0.6875rem] font-bold tracking-[0.04em] text-foreground/48 uppercase">
+                              <dt className="text-[0.6875rem] font-bold tracking-[0.04em] text-admin-muted uppercase">
                                 Kontingent
                               </dt>
                               <dd className="mt-1 text-sm font-bold tabular-nums">
@@ -536,7 +597,7 @@ export function FamilyWorkbench({
                 className="mt-0.5 size-5 shrink-0 text-[#3C8F44]"
               />
               <div>
-                <p className="text-xs text-foreground/48">Skoleår</p>
+                <p className="text-xs text-admin-muted">Skoleår</p>
                 <p className="mt-0.5 font-bold">
                   {family.schoolYearLabel ?? "Ikke valgt"}
                 </p>
@@ -548,7 +609,7 @@ export function FamilyWorkbench({
                 className="mt-0.5 size-5 shrink-0 text-[#3C8F44]"
               />
               <div>
-                <p className="text-xs text-foreground/48">Kontingent totalt</p>
+                <p className="text-xs text-admin-muted">Kontingent totalt</p>
                 <p className="mt-0.5 font-bold tabular-nums">
                   {family.totalFeeOre == null
                     ? "Ikke fastsatt"
@@ -562,7 +623,7 @@ export function FamilyWorkbench({
                 className="mt-0.5 size-5 shrink-0 text-[#3C8F44]"
               />
               <div>
-                <p className="text-xs text-foreground/48">Fordeling</p>
+                <p className="text-xs text-admin-muted">Fordeling</p>
                 {family.allocations?.length ? (
                   <ul className="mt-0.5 grid gap-0.5 text-xs">
                     {family.allocations.map((allocation) => (
@@ -610,63 +671,33 @@ export function FamilyWorkbench({
       </section>
 
       <aside className="order-2 rounded-2xl bg-white p-5 ring-1 ring-[#E3DED3] xl:order-3">
-        <h2 className="font-heading text-xl font-bold">Neste og nylig</h2>
+        <h2 className="font-heading text-xl font-bold">
+          <span className="xl:hidden">Nylig aktivitet</span>
+          <span className="hidden xl:inline">Neste og nylig</span>
+        </h2>
 
-        <section className="mt-5" aria-labelledby={`next-action-${family.id}`}>
+        <section
+          className="mt-5 hidden xl:block"
+          aria-labelledby={`next-action-${family.id}`}
+        >
           <h3
             id={`next-action-${family.id}`}
             className="text-sm font-bold"
           >
             Neste handling
           </h3>
-          {nextAction ? (
-            <div
-              className={cn(
-                "mt-3 rounded-xl p-4 ring-1",
-                nextAction.tone === "danger"
-                  ? "bg-[#FFF3F1] ring-[#F1C7C3]"
-                  : nextAction.tone === "info"
-                    ? "bg-[#EEF7FE] ring-[#BFDDF2]"
-                    : "bg-[#FFF8E9] ring-[#EDD49A]",
-              )}
-            >
-              <h4 className="font-bold">{nextAction.title}</h4>
-              <p className="mt-1 text-sm text-foreground/60">
-                {nextAction.description}
-              </p>
-              <Link
-                href={nextAction.href}
-                className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#E9B63B] px-3 text-sm font-bold text-[#392B08] outline-none transition-colors hover:bg-[#DDA726] focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                {nextAction.label}
-                <ArrowRight aria-hidden="true" className="size-4" />
-              </Link>
-            </div>
-          ) : (
-            <div className="mt-3 flex gap-3 rounded-xl bg-[#F2F8F2] p-4 text-[#216A2B] ring-1 ring-[#C9E0CB]">
-              <CheckCircle2
-                aria-hidden="true"
-                className="mt-0.5 size-5 shrink-0"
-              />
-              <div>
-                <p className="font-bold">Ingen åpen handling</p>
-                <p className="mt-0.5 text-sm text-[#356C3B]">
-                  Familien har ingen registrerte avvik.
-                </p>
-              </div>
-            </div>
-          )}
+          <NextActionCard action={nextAction} />
         </section>
 
         <section
-          className="mt-6 border-t border-[#ECE8DF] pt-5"
+          className="mt-4 xl:mt-6 xl:border-t xl:border-[#ECE8DF] xl:pt-5"
           aria-labelledby={`activity-${family.id}`}
         >
           <h3 id={`activity-${family.id}`} className="text-sm font-bold">
             Nylig aktivitet
           </h3>
           {recentActivity.length === 0 ? (
-            <p className="mt-3 text-sm text-foreground/55">
+            <p className="mt-3 text-sm text-admin-muted">
               Ingen aktivitet er registrert.
             </p>
           ) : (
@@ -675,19 +706,19 @@ export function FamilyWorkbench({
                 const Icon = activityIcons[activity.kind];
                 return (
                   <li key={activity.id} className="relative flex gap-3 py-2">
-                    <span className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full border-4 border-white bg-[#F0F0ED] text-foreground/65">
+                    <span className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full border-4 border-white bg-[#F0F0ED] text-admin-muted">
                       <Icon aria-hidden="true" className="size-4" />
                     </span>
                     <div className="min-w-0 pt-0.5">
                       <p className="text-sm font-bold">{activity.title}</p>
                       {activity.description ? (
-                        <p className="mt-0.5 text-xs text-foreground/55">
+                        <p className="mt-0.5 text-xs text-admin-muted">
                           {activity.description}
                         </p>
                       ) : null}
                       <time
                         dateTime={activity.occurredAt}
-                        className="mt-1 block text-[0.6875rem] text-foreground/45"
+                        className="mt-1 block text-[0.6875rem] text-admin-muted"
                       >
                         {formatTimestamp(activity.occurredAt)}
                       </time>
@@ -749,13 +780,13 @@ export function FamilyWorkbench({
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-bold">{item.title}</span>
-                    <span className="block truncate text-xs text-foreground/52">
+                    <span className="block truncate text-xs text-admin-muted">
                       {item.description}
                     </span>
                   </span>
                   <ArrowRight
                     aria-hidden="true"
-                    className="size-4 shrink-0 text-foreground/40 transition-transform group-hover:translate-x-0.5"
+                    className="size-4 shrink-0 text-admin-muted transition-transform group-hover:translate-x-0.5"
                   />
                 </Link>
               </li>

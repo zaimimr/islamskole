@@ -45,6 +45,8 @@
   --color-brand-sky: var(--brand-sky);
   --color-brand-berry: var(--brand-berry);
   --color-brand-cream: var(--brand-cream);
+  --color-admin-muted: var(--admin-muted);
+  --color-admin-action: var(--admin-action);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -61,6 +63,8 @@
   --brand-sky: oklch(0.72 0.12 235);
   --brand-berry: oklch(0.66 0.17 18);
   --brand-cream: oklch(0.985 0.014 95);
+  --admin-muted: #5a625c;
+  --admin-action: #2f7938;
 
   --background: oklch(0.985 0.014 95);
   --foreground: oklch(0.24 0.02 150);
@@ -171,6 +175,14 @@ body:has([data-admin-shell]) #main-content {
 
 [data-admin-shell] input {
   caret-color: #3c8f44;
+}
+
+[data-admin-shell] a,
+[data-admin-shell] button,
+[data-admin-shell] input,
+[data-admin-shell] select {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgb(60 143 68 / 12%);
 }
 
 @utility text-balance-pretty {

@@ -213,6 +213,17 @@ function formatDate(value: string) {
   });
 }
 
+function applicationStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    ny: "Ny",
+    kontaktet: "Kontaktet",
+    akseptert: "Akseptert",
+    avslatt: "Avslått",
+    arkivert: "Arkivert",
+  };
+  return labels[status] ?? status;
+}
+
 type AttentionItem = {
   title: string;
   description: string;
@@ -240,7 +251,7 @@ function AttentionList({ items }: { items: AttentionItem[] }) {
         <h3 className="font-heading text-xl font-semibold">
           Ingen åpne oppgaver
         </h3>
-        <p className="mt-1 max-w-sm text-sm text-foreground/58">
+        <p className="mt-1 max-w-sm text-sm text-admin-muted">
           Nye saker og avvik vil vises her når de trenger behandling.
         </p>
       </div>
@@ -274,7 +285,7 @@ function AttentionList({ items }: { items: AttentionItem[] }) {
                     </span>
                   ) : null}
                 </span>
-                <span className="mt-0.5 block text-sm text-foreground/58">
+                <span className="mt-0.5 block text-sm text-admin-muted">
                   {item.description}
                 </span>
               </span>
@@ -287,7 +298,7 @@ function AttentionList({ items }: { items: AttentionItem[] }) {
               </span>
               <ArrowRight
                 aria-hidden="true"
-                className="size-5 text-foreground/45 sm:hidden"
+                className="size-5 text-admin-muted sm:hidden"
               />
             </Link>
           </li>
@@ -319,14 +330,14 @@ export default async function AdminDashboardPage({
         >
           Arbeidsflaten kunne ikke lastes
         </h1>
-        <p className="mt-2 max-w-prose text-foreground/62">
+        <p className="mt-2 max-w-prose text-admin-muted">
           Ingen tall er skjult eller erstattet med null. Prøv å laste siden på
           nytt, eller gå videre til området du skal arbeide i.
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
           <Link
             href={basePath}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#3C8F44] px-4 text-sm font-bold text-white outline-none transition-colors hover:bg-[#2F7A37] focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-admin-action px-4 text-sm font-bold text-white outline-none transition-colors hover:bg-[#27672F] focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             Prøv igjen
           </Link>
@@ -403,10 +414,10 @@ export default async function AdminDashboardPage({
     <div className="grid gap-7 lg:gap-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-heading text-[2rem] leading-tight font-bold tracking-[-0.02em] sm:text-4xl">
+          <h1 className="text-balance font-heading text-[2rem] leading-tight font-bold tracking-[-0.02em] sm:text-4xl">
             Arbeidsflate
           </h1>
-          <p className="mt-1 max-w-2xl text-foreground/60">
+          <p className="mt-1 max-w-2xl text-admin-muted">
             Start med sakene som trenger en beslutning eller oppfølging.
           </p>
         </div>
@@ -429,7 +440,7 @@ export default async function AdminDashboardPage({
               <h2 id="attention-title" className="font-heading text-xl font-bold">
                 Krever oppmerksomhet
               </h2>
-              <p className="mt-0.5 text-sm text-foreground/55">
+              <p className="mt-0.5 text-sm text-admin-muted">
                 Prioritert etter hva som stopper neste steg.
               </p>
             </div>
@@ -456,7 +467,7 @@ export default async function AdminDashboardPage({
                 >
                   Skoleåret
                 </h2>
-                <p className="mt-0.5 text-sm text-foreground/55">
+                <p className="mt-0.5 text-sm text-admin-muted">
                   Aktiv driftskontekst
                 </p>
               </div>
@@ -469,13 +480,13 @@ export default async function AdminDashboardPage({
             </p>
             <dl className="mt-5 grid gap-3 border-t border-[#ECE8DF] pt-4 text-sm">
               <div className="flex items-center justify-between gap-4">
-                <dt className="text-foreground/58">Elever med plass</dt>
+                <dt className="text-admin-muted">Elever med plass</dt>
                 <dd className="font-bold tabular-nums">
                   {data.enrolledStudents}
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <dt className="text-foreground/58">Utestående</dt>
+                <dt className="text-admin-muted">Utestående</dt>
                 <dd className="font-bold tabular-nums">
                   {formatNok(data.outstandingAmount)}
                 </dd>
@@ -483,7 +494,7 @@ export default async function AdminDashboardPage({
             </dl>
             <Link
               href={`${basePath}/skolear`}
-              className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#3C8F44] px-4 text-sm font-bold text-white outline-none transition-colors hover:bg-[#2F7A37] focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-admin-action px-4 text-sm font-bold text-white outline-none transition-colors hover:bg-[#27672F] focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               Åpne skoleår
               <ArrowRight aria-hidden="true" className="size-4" />
@@ -512,7 +523,7 @@ export default async function AdminDashboardPage({
               </span>
               <ArrowRight
                 aria-hidden="true"
-                className="size-4 text-foreground/45 transition-transform group-hover:translate-x-0.5"
+                className="size-4 text-admin-muted transition-transform group-hover:translate-x-0.5"
               />
             </Link>
           </section>
@@ -528,7 +539,7 @@ export default async function AdminDashboardPage({
             <h2 id="recent-title" className="font-heading text-xl font-bold">
               Siste innmeldinger
             </h2>
-            <p className="mt-0.5 text-sm text-foreground/55">
+            <p className="mt-0.5 text-sm text-admin-muted">
               Nyeste registreringer, uavhengig av status.
             </p>
           </div>
@@ -545,10 +556,10 @@ export default async function AdminDashboardPage({
           <div className="px-5 py-10 text-center">
             <Users
               aria-hidden="true"
-              className="mx-auto size-7 text-foreground/30"
+              className="mx-auto size-7 text-admin-muted"
             />
             <p className="mt-3 font-bold">Ingen innmeldinger ennå</p>
-            <p className="mt-1 text-sm text-foreground/55">
+            <p className="mt-1 text-sm text-admin-muted">
               Nye innmeldinger vises her når de kommer inn.
             </p>
           </div>
@@ -564,22 +575,14 @@ export default async function AdminDashboardPage({
                     <span className="block truncate font-bold">
                       {application.name}
                     </span>
-                    <span className="block truncate text-sm text-foreground/55">
+                    <span className="block truncate text-sm text-admin-muted">
                       {application.email ?? "E-post mangler"}
                     </span>
                   </span>
-                  <span className="w-fit rounded-full bg-[#F2F1EB] px-2.5 py-1 text-xs font-bold text-foreground/65">
-                    {application.status === "ny"
-                      ? "Ny"
-                      : application.status === "kontaktet"
-                        ? "Kontaktet"
-                        : application.status === "akseptert"
-                          ? "Akseptert"
-                          : application.status === "avslatt"
-                            ? "Avslått"
-                            : "Arkivert"}
+                  <span className="w-fit rounded-full bg-[#F2F1EB] px-2.5 py-1 text-xs font-bold text-admin-muted">
+                    {applicationStatusLabel(application.status)}
                   </span>
-                  <span className="flex items-center justify-between gap-3 text-xs text-foreground/50 sm:min-w-28 sm:justify-end">
+                  <span className="flex items-center justify-between gap-3 text-xs text-admin-muted sm:min-w-28 sm:justify-end">
                     {formatDate(application.createdAt)}
                     <ArrowRight
                       aria-hidden="true"

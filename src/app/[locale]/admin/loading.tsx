@@ -2,7 +2,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AdminLoading() {
   return (
-    <div className="grid gap-7" aria-label="Laster arbeidsflaten">
+    <div className="grid gap-7" role="status" aria-live="polite">
+      <span className="sr-only">Laster arbeidsflaten …</span>
       <div className="flex items-end justify-between gap-4">
         <div className="grid gap-2">
           <Skeleton className="h-9 w-48 rounded-lg" />

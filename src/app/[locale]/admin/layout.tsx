@@ -36,7 +36,6 @@ export default async function AdminLayout({
     getIsAdmin(),
     getActiveSchoolYear(),
   ]);
-
   if (!isAdmin) {
     redirect(loginPath(locale));
   }
@@ -50,7 +49,7 @@ export default async function AdminLayout({
   return (
     <div
       data-admin-shell
-      className="flex min-h-dvh w-full bg-[#FCFAF5] text-[#18201A]"
+      className="flex min-h-dvh w-full overflow-x-hidden bg-[#FCFAF5] text-[#18201A]"
     >
       <aside className="sticky top-0 hidden h-dvh w-[16.5rem] shrink-0 flex-col border-r border-[#E9E5DC] bg-[#FEFEFE] px-4 py-5 lg:flex">
         <Link
@@ -86,7 +85,7 @@ export default async function AdminLayout({
             <Link
               href={basePath}
               aria-label="Gå til arbeidsflaten"
-              className="mr-auto inline-flex rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50 lg:hidden"
+              className="mr-auto inline-flex min-h-11 items-center rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50 lg:hidden"
             >
               <Image
                 src="/brand/logo.png"
@@ -127,9 +126,9 @@ export default async function AdminLayout({
                   id="admin-global-search"
                   name="q"
                   type="search"
-                  placeholder="Søk etter elev eller foresatt"
+                  placeholder="Søk etter elev eller foresatt …"
                   autoComplete="off"
-                  className="min-h-11 w-full rounded-xl border border-[#AFCFB3] bg-white pr-4 pl-11 text-base outline-none transition-shadow placeholder:text-foreground/48 focus-visible:border-[#3C8F44] focus-visible:ring-3 focus-visible:ring-[#3C8F44]/18 lg:text-sm"
+                  className="min-h-11 w-full rounded-xl border border-[#AFCFB3] bg-white pr-4 pl-11 text-base outline-none transition-shadow placeholder:text-admin-muted focus-visible:border-[#3C8F44] focus-visible:ring-3 focus-visible:ring-[#3C8F44]/18 lg:text-sm"
                 />
               </div>
             </form>

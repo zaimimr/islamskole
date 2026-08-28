@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Menu } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { SidebarNav } from "@/components/admin/sidebar-nav";
 import { SignOutButton } from "@/components/admin/sign-out-button";
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -38,7 +39,8 @@ export function AdminMobileNav({
       </SheetTrigger>
       <SheetContent
         side="left"
-        className="w-[88%] max-w-[20rem] gap-0 border-[#E4E1D8] bg-[#FEFEFE] p-0"
+        showCloseButton={false}
+        className="w-[88%] max-w-[20rem] gap-0 overscroll-contain border-[#E4E1D8] bg-[#FEFEFE] p-0"
       >
         <SheetHeader className="border-b border-[#E9E5DC] px-5 py-4">
           <SheetTitle className="pr-10">
@@ -54,6 +56,17 @@ export function AdminMobileNav({
           <SheetDescription className="sr-only">
             Navigasjon for administrasjonssystemet
           </SheetDescription>
+          <SheetClose
+            render={
+              <button
+                type="button"
+                aria-label="Lukk administrasjonsmenyen"
+                className="absolute top-3 right-3 inline-flex size-11 items-center justify-center rounded-xl text-admin-muted outline-none transition-colors hover:bg-[#F2F1EB] hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+              />
+            }
+          >
+            <X aria-hidden="true" className="size-5" />
+          </SheetClose>
         </SheetHeader>
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5">
           <SidebarNav basePath={basePath} onNavigate={() => setOpen(false)} />
