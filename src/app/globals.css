@@ -154,6 +154,25 @@
   }
 }
 
+body:has([data-admin-shell]) .site-header,
+body:has([data-admin-shell]) .site-footer {
+  display: none;
+}
+
+body:has([data-admin-shell]) #main-content {
+  display: block;
+  min-height: 100dvh;
+}
+
+[data-admin-shell] ::selection {
+  background: #dceddd;
+  color: #163b1c;
+}
+
+[data-admin-shell] input {
+  caret-color: #3c8f44;
+}
+
 @utility text-balance-pretty {
   text-wrap: pretty;
 }

@@ -41,7 +41,7 @@ export async function SiteFooter({
   const instagram = settings?.instagram_url ?? null;
 
   return (
-    <footer className="mt-auto text-primary-foreground">
+    <footer className="site-footer mt-auto text-primary-foreground">
       <div className="bg-background text-primary">
         <WaveDivider className="text-brand-green-dark" />
       </div>

@@ -37,7 +37,7 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-foreground/8 bg-background/85 backdrop-blur-md">
+    <header className="site-header sticky top-0 z-50 border-b border-foreground/8 bg-background/85 backdrop-blur-md">
       <div className="section-shell flex h-18 items-center justify-between gap-4 py-3">
         <Logo priority />
 
