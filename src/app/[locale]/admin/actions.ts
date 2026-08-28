@@ -17,8 +17,7 @@ import {
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 type PasswordResult =
-  | { ok: true; password: string; email?: string }
-  | { ok: false; error: string };
+  { ok: true; password: string; email?: string } | { ok: false; error: string };
 
 function generatePassword() {
   const raw = randomBytes(12)
@@ -198,7 +197,11 @@ export async function deleteEvent(id: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { error } = await supabase.from("events").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
-  await writeAudit({ action: "event.delete", entityType: "events", entityId: id });
+  await writeAudit({
+    action: "event.delete",
+    entityType: "events",
+    entityId: id,
+  });
   revalidateAdminAndSite();
   return { ok: true, id };
 }
@@ -307,12 +310,18 @@ export async function deleteClass(id: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { error } = await supabase.from("classes").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
-  await writeAudit({ action: "class.delete", entityType: "classes", entityId: id });
+  await writeAudit({
+    action: "class.delete",
+    entityType: "classes",
+    entityId: id,
+  });
   revalidateAdminAndSite();
   return { ok: true, id };
 }
 
-export async function updateSettings(formData: FormData): Promise<ActionResult> {
+export async function updateSettings(
+  formData: FormData,
+): Promise<ActionResult> {
   await requireAdmin();
 
   const payload = {
@@ -491,6 +500,15 @@ const enrollChildSchema = z.object({
   gender: z.string().min(1, "Kjønn er påkrevd"),
   email: z.union([z.literal(""), z.string().email("Ugyldig e-postadresse")]),
 });
+const enrollGuardianSchema = z.object({
+  first_name: z.string().min(1),
+  last_name: z.string().min(1),
+  email: z.string().email(),
+  phone: z
+    .string()
+    .refine((value) => /^\+?\d{8,15}$/.test(value.replace(/[\s-]/g, ""))),
+  role: z.enum(["foresatt", "mor", "far", "steforelder", "verge", "annet"]),
+});
 const studentStatusSchema = z.enum([
   "ny",
   "kontaktet",
@@ -502,83 +520,130 @@ const studentStatusSchema = z.enum([
 export async function createStudentEnrollment(
   formData: FormData,
 ): Promise<SignupResult> {
+  const english = readString(formData, "locale") === "en";
+  const copy = english
+    ? {
+        rateLimit: "Too many attempts. Please try again later.",
+        terms: "You must accept the terms of sale",
+        required: "This field is required",
+        email: "Enter a valid email address",
+        phone: "Enter a valid phone number",
+        guardians: "Add at least one guardian.",
+        children: "Add at least one child.",
+        unavailable: "Enrollment is not open yet. Please contact the school.",
+        failed:
+          "Something went wrong during enrollment. Please try again later.",
+      }
+    : {
+        rateLimit: "For mange forsøk, prøv igjen senere.",
+        terms: "Du må godta salgsbetingelsene",
+        required: "Dette feltet er påkrevd",
+        email: "Skriv inn en gyldig e-postadresse",
+        phone: "Skriv inn et gyldig telefonnummer",
+        guardians: "Legg til minst én foresatt.",
+        children: "Legg til minst ett barn.",
+        unavailable: "Innmelding er ikke åpen ennå. Ta kontakt med skolen.",
+        failed: "Noe gikk galt under registreringen. Prøv igjen senere.",
+      };
   const ip =
     (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ??
     "unknown";
   const limit = rateLimit(`apply:${ip}`, { limit: 5, windowMs: 60_000 });
   if (!limit.ok) {
-    return { ok: false, error: "For mange forsøk, prøv igjen senere." };
+    return { ok: false, error: copy.rateLimit };
   }
 
   const termsAccepted = formData.get("terms_accepted") != null;
   if (!termsAccepted) {
     return {
       ok: false,
-      fieldErrors: { terms_accepted: "Du må godta salgsbetingelsene" },
+      fieldErrors: { terms_accepted: copy.terms },
     };
   }
 
-  const emailOk = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-  const phoneOk = (v: string) => /^\+?\d{8,15}$/.test(v.replace(/[\s-]/g, ""));
-  const singleParent = formData.get("single_parent") != null;
-
-  const readParent = (prefix: string) => {
-    const first = readString(formData, `${prefix}_first_name`);
-    const last = readString(formData, `${prefix}_last_name`);
-    const email = readString(formData, `${prefix}_email`);
-    const phone = readString(formData, `${prefix}_phone`);
-    return {
-      first,
-      last,
-      email,
-      phone,
-      complete: Boolean(first && last && emailOk(email) && phoneOk(phone)),
-    };
-  };
-  const parents = { mother: readParent("mother"), father: readParent("father") };
   const parentErrors: Record<string, string> = {};
+  const guardianIndices = Array.from(
+    new Set(
+      readString(formData, "guardian_indices")
+        .split(",")
+        .map((value) => value.trim())
+        .filter((value) => /^\d+$/.test(value)),
+    ),
+  ).slice(0, 6);
+  if (guardianIndices.length === 0) {
+    return { ok: false, error: copy.guardians };
+  }
 
-  if (singleParent) {
-    if (!parents.mother.complete && !parents.father.complete) {
-      parentErrors.parents =
-        "Fyll ut navn, e-post og telefon for minst én foresatt";
+  const guardians: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    role: z.infer<typeof enrollGuardianSchema>["role"];
+    isPrimary: boolean;
+  }[] = [];
+
+  for (const [index, id] of guardianIndices.entries()) {
+    const payload = {
+      first_name: readString(formData, `guardian_${id}_first_name`),
+      last_name: readString(formData, `guardian_${id}_last_name`),
+      email: readString(formData, `guardian_${id}_email`),
+      phone: readString(formData, `guardian_${id}_phone`),
+      role: readString(formData, `guardian_${id}_role`),
+    };
+    const parsed = enrollGuardianSchema.safeParse(payload);
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) {
+        const field = String(issue.path[0] ?? "");
+        const key = `guardian_${id}_${field}`;
+        if (field === "email") parentErrors[key] = copy.email;
+        else if (field === "phone") parentErrors[key] = copy.phone;
+        else parentErrors[key] = copy.required;
+      }
+      continue;
     }
-  } else {
-    for (const prefix of ["mother", "father"] as const) {
-      const p = parents[prefix];
-      if (!p.first) parentErrors[`${prefix}_first_name`] = "Fornavn er påkrevd";
-      if (!p.last) parentErrors[`${prefix}_last_name`] = "Etternavn er påkrevd";
-      if (!p.email) parentErrors[`${prefix}_email`] = "E-post er påkrevd";
-      else if (!emailOk(p.email))
-        parentErrors[`${prefix}_email`] = "Ugyldig e-postadresse";
-      if (!p.phone) parentErrors[`${prefix}_phone`] = "Telefon er påkrevd";
-      else if (!phoneOk(p.phone))
-        parentErrors[`${prefix}_phone`] = "Ugyldig telefonnummer";
-    }
+    guardians.push({
+      firstName: parsed.data.first_name,
+      lastName: parsed.data.last_name,
+      email: parsed.data.email.toLowerCase(),
+      phone: parsed.data.phone,
+      role: parsed.data.role,
+      isPrimary: index === 0,
+    });
   }
 
   const address = readString(formData, "address");
   const postalCode = readString(formData, "postal_code");
   const city = readString(formData, "city");
-  if (!address) parentErrors.address = "Adresse er påkrevd";
-  if (!postalCode) parentErrors.postal_code = "Postnummer er påkrevd";
-  if (!city) parentErrors.city = "Poststed er påkrevd";
+  if (!address) parentErrors.address = copy.required;
+  if (!postalCode) parentErrors.postal_code = copy.required;
+  if (!city) parentErrors.city = copy.required;
 
   if (Object.keys(parentErrors).length > 0) {
     return { ok: false, fieldErrors: parentErrors };
   }
 
-  const indices = readString(formData, "child_indices")
-    .split(",")
-    .map((value) => value.trim())
-    .filter((value) => value !== "");
+  const indices = Array.from(
+    new Set(
+      readString(formData, "child_indices")
+        .split(",")
+        .map((value) => value.trim())
+        .filter((value) => /^\d+$/.test(value)),
+    ),
+  ).slice(0, 10);
   if (indices.length === 0) {
-    return { ok: false, error: "Legg til minst ett barn." };
+    return { ok: false, error: copy.children };
   }
 
   const fieldErrors: Record<string, string> = {};
   const childPayloads: Record<string, unknown>[] = [];
-  const childNames: string[] = [];
+  const primaryGuardian = guardians[0]!;
+  const motherGuardian =
+    guardians.find((guardian) => guardian.role === "mor") ?? primaryGuardian;
+  const fatherGuardian =
+    guardians.find((guardian) => guardian.role === "far") ??
+    guardians.find((guardian) => guardian !== motherGuardian) ??
+    null;
 
   for (const i of indices) {
     const childFirstName = readString(formData, `child_${i}_child_first_name`);
@@ -605,7 +670,6 @@ export async function createStudentEnrollment(
       continue;
     }
 
-    childNames.push(`${childFirstName} ${childLastName}`.trim());
     childPayloads.push({
       child_first_name: childFirstName,
       child_last_name: childLastName,
@@ -616,14 +680,14 @@ export async function createStudentEnrollment(
       child_city: city,
       child_email: childEmail || null,
       child_phone: readOptionalString(formData, `child_${i}_phone`),
-      mother_first_name: readOptionalString(formData, "mother_first_name"),
-      mother_last_name: readOptionalString(formData, "mother_last_name"),
-      mother_phone: readOptionalString(formData, "mother_phone"),
-      mother_email: readOptionalString(formData, "mother_email"),
-      father_first_name: readOptionalString(formData, "father_first_name"),
-      father_last_name: readOptionalString(formData, "father_last_name"),
-      father_phone: readOptionalString(formData, "father_phone"),
-      father_email: readOptionalString(formData, "father_email"),
+      mother_first_name: motherGuardian.firstName,
+      mother_last_name: motherGuardian.lastName,
+      mother_phone: motherGuardian.phone,
+      mother_email: motherGuardian.email,
+      father_first_name: fatherGuardian?.firstName ?? null,
+      father_last_name: fatherGuardian?.lastName ?? null,
+      father_phone: fatherGuardian?.phone ?? null,
+      father_email: fatherGuardian?.email ?? null,
       desired_class: readOptionalString(formData, `child_${i}_desired_class`),
       child_level_quran: readOptionalString(formData, `child_${i}_level_quran`),
       child_level_arabic: readOptionalString(
@@ -655,13 +719,13 @@ export async function createStudentEnrollment(
   if (!year?.fee) {
     return {
       ok: false,
-      error: "Innmelding er ikke åpen ennå. Ta kontakt med skolen.",
+      error: copy.unavailable,
     };
   }
 
   const reference = `isk-${randomUUID()}`;
   const amount = year.fee * 100 * childPayloads.length;
-  const description = `Innmelding ${year.label} - ${childNames.join(", ")}`;
+  const description = `Innmelding ${year.label} - ${childPayloads.length} barn`;
 
   const { data: paymentRow, error: paymentError } = await admin
     .from("payments")
@@ -681,7 +745,7 @@ export async function createStudentEnrollment(
     console.error("createStudentEnrollment payment error", paymentError);
     return {
       ok: false,
-      error: "Noe gikk galt under registreringen. Prøv igjen senere.",
+      error: copy.failed,
     };
   }
 
@@ -689,14 +753,16 @@ export async function createStudentEnrollment(
 
   const { error: insertError } = await admin
     .from("student_applications")
-    .insert(childPayloads.map((row) => ({ ...row, payment_id: paymentId })) as never);
+    .insert(
+      childPayloads.map((row) => ({ ...row, payment_id: paymentId })) as never,
+    );
 
   if (insertError) {
     console.error("createStudentEnrollment insert error", insertError);
     await admin.from("payments").delete().eq("id", paymentId);
     return {
       ok: false,
-      error: "Noe gikk galt under registreringen. Prøv igjen senere.",
+      error: copy.failed,
     };
   }
 
