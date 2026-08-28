@@ -1,8 +1,13 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import {
+  ArrowLeft,
+  CircleDollarSign,
+  GraduationCap,
+  UsersRound,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { adminBasePath } from "@/components/admin/paths";
-import { PageHeader } from "@/components/admin/page-header";
 import { DeleteButton } from "@/components/admin/delete-button";
 import { StudentForm } from "@/components/admin/student-form";
 import {
@@ -103,8 +108,8 @@ export default async function ElevDetailPage({
 
   const classes = (
     (classData as
-      { id: string; name_no: string | null; price: number | null }[] | null) ??
-    []
+      | { id: string; name_no: string | null; price: number | null }[]
+      | null) ?? []
   ).map((c) => ({
     id: c.id,
     name: c.name_no ?? "(uten navn)",
@@ -254,30 +259,87 @@ export default async function ElevDetailPage({
     }
   }
 
+  const activeBalance = defaultSchoolYearId
+    ? balancesByYear[defaultSchoolYearId]
+    : null;
+  const activeClass = activeEnrollment?.classes?.name_no ?? "Ikke plassert";
+
+  const formatNok = (amount: number) =>
+    `${(amount / 100).toLocaleString("nb-NO")} kr`;
+
   return (
-    <div className="grid gap-6">
-      <PageHeader
-        title={studentDisplayName(student) || "Elev"}
-        description="Rediger elev, plassering og betaling."
-        action={
-          <div className="flex flex-wrap gap-2">
-            {student.family_id ? (
-              <Link
-                href={`${basePath}/familier/${student.family_id}`}
-                className="inline-flex min-h-10 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium shadow-xs transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                Åpne familie
-              </Link>
-            ) : null}
-            <DeleteButton
-              id={student.id}
-              label="elev"
-              action={deleteStudent}
-              redirectTo={listHref}
-            />
+    <div className="grid gap-5 sm:gap-6">
+      <header>
+        <Link
+          href={listHref}
+          className="inline-flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm font-bold text-[#277A31] outline-none hover:bg-[#F2F7F2] focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <ArrowLeft aria-hidden="true" className="size-4" />
+          Tilbake til elever
+        </Link>
+        <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h1 className="text-balance font-heading text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
+              {studentDisplayName(student) || "Elev"}
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm text-admin-muted sm:text-base">
+              Følg opp skoleplass, betaling og elevopplysninger uten å miste
+              familiekonteksten.
+            </p>
           </div>
-        }
-      />
+          {student.family_id ? (
+            <Link
+              href={`${basePath}/familier/${student.family_id}`}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#CFC9BD] bg-white px-4 text-sm font-bold outline-none transition-colors hover:bg-[#F2F1EB] focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <UsersRound
+                aria-hidden="true"
+                className="size-4 text-[#2F7938]"
+              />
+              Åpne familie
+            </Link>
+          ) : null}
+        </div>
+      </header>
+
+      <section
+        aria-label="Aktiv elevstatus"
+        className="grid overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3] sm:grid-cols-3"
+      >
+        <div className="flex min-h-24 items-center gap-3 px-4 py-4 sm:px-5">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B]">
+            <GraduationCap aria-hidden="true" className="size-5" />
+          </span>
+          <div>
+            <p className="text-xs font-bold text-admin-muted">Aktiv klasse</p>
+            <p className="mt-1 font-heading text-xl font-bold">{activeClass}</p>
+          </div>
+        </div>
+        <div className="flex min-h-24 items-center gap-3 border-t border-[#ECE8DF] px-4 py-4 sm:border-t-0 sm:border-l sm:px-5">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#EFF8FD] text-[#245D7C]">
+            <GraduationCap aria-hidden="true" className="size-5" />
+          </span>
+          <div>
+            <p className="text-xs font-bold text-admin-muted">Skoleår</p>
+            <p className="mt-1 font-heading text-xl font-bold">
+              {activeYear?.label ?? "Ikke valgt"}
+            </p>
+          </div>
+        </div>
+        <div className="flex min-h-24 items-center gap-3 border-t border-[#ECE8DF] px-4 py-4 sm:border-t-0 sm:border-l sm:px-5">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#FEEDCA] text-[#775108]">
+            <CircleDollarSign aria-hidden="true" className="size-5" />
+          </span>
+          <div>
+            <p className="text-xs font-bold text-admin-muted">
+              Gjenstår å betale
+            </p>
+            <p className="mt-1 font-heading text-xl font-bold tabular-nums">
+              {formatNok(activeBalance?.remaining ?? 0)}
+            </p>
+          </div>
+        </div>
+      </section>
 
       <PaymentManager
         studentId={student.id}
@@ -299,6 +361,28 @@ export default async function ElevDetailPage({
       />
 
       <StudentForm student={student} listHref={listHref} />
+
+      <section className="flex flex-col gap-3 rounded-2xl bg-[#FFF2F1] p-4 ring-1 ring-[#E7B8B4] sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div>
+          <h2 className="font-heading text-lg font-bold text-[#7F2923]">
+            Slett elevoppføringen
+          </h2>
+          <p className="mt-1 text-sm text-[#7F2923]">
+            Dette fjerner elevoppføringen permanent og kan ikke angres.
+          </p>
+        </div>
+        <div className="flex min-h-11 items-center justify-end rounded-xl bg-white px-2 ring-1 ring-[#E7B8B4]">
+          <span className="pl-2 text-sm font-bold text-[#9A3028]">
+            Slett elev
+          </span>
+          <DeleteButton
+            id={student.id}
+            label="elev"
+            action={deleteStudent}
+            redirectTo={listHref}
+          />
+        </div>
+      </section>
     </div>
   );
 }

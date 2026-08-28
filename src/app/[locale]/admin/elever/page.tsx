@@ -1,14 +1,20 @@
-import { ChevronRight } from "lucide-react";
+import Link from "next/link";
+import {
+  ArrowRight,
+  CircleCheck,
+  CircleDollarSign,
+  CircleUserRound,
+  UserRoundPlus,
+  Users,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { guardianName, studentDisplayName } from "@/lib/student-name";
 import { formatAge, schoolYearStart } from "@/lib/age";
 import { adminBasePath } from "@/components/admin/paths";
-import { PageHeader } from "@/components/admin/page-header";
 import { EleverFilters } from "@/components/admin/elever-filters";
 import { ClickableRow } from "@/components/admin/clickable-row";
 import { Pagination } from "@/components/admin/pagination";
 import { ExportButton } from "@/components/admin/export-button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -87,9 +93,9 @@ async function getClasses() {
       .from("classes")
       .select("id, name_no")
       .order("sort_order", { ascending: true });
-    return ((data as { id: string; name_no: string | null }[] | null) ?? []).map(
-      (c) => ({ id: c.id, name: c.name_no ?? "(uten navn)" }),
-    );
+    return (
+      (data as { id: string; name_no: string | null }[] | null) ?? []
+    ).map((c) => ({ id: c.id, name: c.name_no ?? "(uten navn)" }));
   } catch {
     return [];
   }
@@ -128,7 +134,9 @@ function yearLabels(enrollments: StudentRow["enrollments"]) {
         .map((e) => e.school_years?.label)
         .filter((l): l is string => Boolean(l)),
     ),
-  ].sort().reverse();
+  ]
+    .sort()
+    .reverse();
 }
 
 type Ledger = { owed: number; paid: number; remaining: number };
@@ -159,7 +167,10 @@ type PayState = "betalt" | "delvis" | "venter" | "ubetalt";
 function payState(ledger: Ledger, payments: StudentRow["payments"]): PayState {
   if (ledger.owed > 0 && ledger.remaining <= 0) return "betalt";
   if (ledger.paid > 0) return "delvis";
-  if (ledger.owed === 0 && (payments ?? []).some((p) => p.status === "fanget")) {
+  if (
+    ledger.owed === 0 &&
+    (payments ?? []).some((p) => p.status === "fanget")
+  ) {
     return "betalt";
   }
   if (hasPendingLink(payments)) return "venter";
@@ -213,15 +224,12 @@ export default async function RegistrertePage({
 
   const filterYearLabel =
     schoolYears.find((y) => y.id === yearFilter)?.label ?? activeYearLabel;
-  const ageYear =
-    schoolYearStart(filterYearLabel) ?? new Date().getFullYear();
+  const ageYear = schoolYearStart(filterYearLabel) ?? new Date().getFullYear();
 
   const realYear =
     yearFilter && yearFilter !== "needs_rollover" ? yearFilter : null;
   const scoped = (payments: StudentRow["payments"]) =>
-    realYear
-      ? payments.filter((p) => p.school_year_id === realYear)
-      : payments;
+    realYear ? payments.filter((p) => p.school_year_id === realYear) : payments;
 
   const ledgerFor = (studentId: string): Ledger => {
     const byYear = balancesByStudent.get(studentId);
@@ -273,155 +281,297 @@ export default async function RegistrertePage({
   const filtered = Boolean(q || classFilter || payFilter || yearFilter);
 
   return (
-    <div>
-      <PageHeader
-        title="Elever"
-        description="Registrerte elever, klasseplassering og betaling."
-        newHref={`${basePath}/elever/ny`}
-        newLabel="Ny elev"
-      />
+    <div className="grid gap-5 sm:gap-6">
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="text-balance font-heading text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
+            Elever
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-admin-muted sm:text-base">
+            Finn elevens familie, klasseplassering og betalingsstatus i ett
+            samlet register.
+          </p>
+        </div>
+        <Link
+          href={`${basePath}/elever/ny`}
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-admin-action px-4 text-sm font-bold text-white outline-none transition-colors hover:bg-[#245E2B] focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <UserRoundPlus aria-hidden="true" className="size-4" />
+          Ny elev
+        </Link>
+      </header>
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Antall elever</p>
-            <p className="text-2xl font-bold">{students.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Betalt</p>
-            <p className="text-2xl font-bold">{formatNok(totalPaid)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Gjenstår</p>
-            <p className="text-2xl font-bold">{formatNok(totalRemaining)}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="mb-2 flex justify-end">
-        <ExportButton entity="students" />
-      </div>
-
-      <EleverFilters classes={classes} schoolYears={schoolYears} />
-
-      <Card>
-        <CardContent className="p-0">
-          {pageStudents.length === 0 ? (
-            <p className="p-6 text-sm text-muted-foreground">
-              {filtered
-                ? "Ingen elever samsvarer med søket."
-                : "Ingen registrerte elever ennå."}
+      <section
+        aria-label="Status for elevregisteret"
+        className="grid overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3] sm:grid-cols-3"
+      >
+        <div className="flex min-h-24 items-center gap-3 px-4 py-4 sm:px-5">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#EFF8FD] text-[#245D7C]">
+            <Users aria-hidden="true" className="size-5" />
+          </span>
+          <div>
+            <p className="font-heading text-2xl font-bold tabular-nums">
+              {students.length}
             </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Navn</TableHead>
-                  <TableHead>Alder</TableHead>
-                  <TableHead>Foresatt</TableHead>
-                  <TableHead>Klasse</TableHead>
-                  <TableHead>Skoleår</TableHead>
-                  <TableHead>Betalt</TableHead>
-                  <TableHead>Betaling</TableHead>
-                  <TableHead className="w-8" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pageStudents.map((student) => {
-                  const studentPayments = scoped(student.payments);
-                  const ledger = ledgerFor(student.id);
-                  const state = payState(ledger, studentPayments);
-                  return (
-                    <ClickableRow
-                      key={student.id}
-                      href={`${basePath}/elever/${student.id}`}
-                    >
-                      <TableCell className="font-medium">
-                        {studentDisplayName(student) || "-"}
-                      </TableCell>
-                      <TableCell>
-                        {formatAge(student.child_birth_date, ageYear)}
-                      </TableCell>
-                      <TableCell>{guardianName(student) ?? "-"}</TableCell>
-                      <TableCell>{classLabel(student.enrollments)}</TableCell>
-                      <TableCell>
-                        {(() => {
-                          const years = yearLabels(student.enrollments);
-                          if (years.length === 0)
-                            return <span className="text-muted-foreground">-</span>;
-                          const missingActive =
-                            activeYearLabel != null &&
-                            !years.includes(activeYearLabel);
-                          return (
-                            <div className="flex flex-wrap items-center gap-1">
-                              {years.map((y) => (
-                                <Badge key={y} variant="outline">
-                                  {y}
-                                </Badge>
-                              ))}
-                              {missingActive ? (
-                                <Badge variant="secondary" title={`Ikke i ${activeYearLabel}`}>
-                                  Ny termin?
-                                </Badge>
-                              ) : null}
-                            </div>
-                          );
-                        })()}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {formatNok(ledger.paid)}
-                        {ledger.owed > 0 ? (
-                          <span className="text-muted-foreground">
-                            {" "}
-                            av {formatNok(ledger.owed)}
-                          </span>
-                        ) : null}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap items-center gap-1">
-                          {state === "betalt" ? (
-                            <Badge>Betalt</Badge>
-                          ) : state === "delvis" ? (
-                            <Badge
-                              variant="secondary"
-                              title={`Gjenstår ${formatNok(ledger.remaining)}`}
-                            >
-                              Delvis · {formatNok(ledger.remaining)} igjen
-                            </Badge>
-                          ) : state === "venter" ? (
-                            <Badge variant="secondary">Lenke sendt</Badge>
-                          ) : (
-                            <Badge variant="outline">Ikke sendt</Badge>
-                          )}
-                          {state === "delvis" && hasPendingLink(studentPayments) ? (
-                            <Badge variant="outline">Lenke ute</Badge>
+            <p className="text-sm text-admin-muted">Elever i utvalget</p>
+          </div>
+        </div>
+        <div className="flex min-h-24 items-center gap-3 border-t border-[#ECE8DF] px-4 py-4 sm:border-t-0 sm:border-l sm:px-5">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B]">
+            <CircleCheck aria-hidden="true" className="size-5" />
+          </span>
+          <div>
+            <p className="font-heading text-2xl font-bold tabular-nums">
+              {formatNok(totalPaid)}
+            </p>
+            <p className="text-sm text-admin-muted">Registrert betalt</p>
+          </div>
+        </div>
+        <div className="flex min-h-24 items-center gap-3 border-t border-[#ECE8DF] px-4 py-4 sm:border-t-0 sm:border-l sm:px-5">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#FEEDCA] text-[#775108]">
+            <CircleDollarSign aria-hidden="true" className="size-5" />
+          </span>
+          <div>
+            <p className="font-heading text-2xl font-bold tabular-nums">
+              {formatNok(totalRemaining)}
+            </p>
+            <p className="text-sm text-admin-muted">Gjenstår å betale</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl bg-white p-4 ring-1 ring-[#E3DED3] sm:p-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end">
+          <div className="min-w-0 flex-1">
+            <EleverFilters classes={classes} schoolYears={schoolYears} />
+          </div>
+          <ExportButton entity="students" />
+        </div>
+      </section>
+
+      <section
+        aria-labelledby="student-register-title"
+        className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]"
+      >
+        <div className="flex items-center justify-between gap-4 border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
+          <div>
+            <h2
+              id="student-register-title"
+              className="font-heading text-xl font-bold"
+            >
+              Elevregister
+            </h2>
+            <p className="mt-0.5 text-sm text-admin-muted" aria-live="polite">
+              {total} {total === 1 ? "elev" : "elever"}
+              {filterYearLabel ? `, skoleår ${filterYearLabel}` : ""}
+            </p>
+          </div>
+          <CircleUserRound
+            aria-hidden="true"
+            className="size-5 text-admin-muted"
+          />
+        </div>
+        {pageStudents.length === 0 ? (
+          <div className="flex min-h-56 flex-col items-center justify-center px-6 py-10 text-center">
+            <span className="flex size-12 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B]">
+              <Users aria-hidden="true" className="size-6" />
+            </span>
+            <p className="mt-4 font-heading text-xl font-bold">
+              {filtered ? "Ingen elever passer filtrene" : "Ingen elever ennå"}
+            </p>
+            <p className="mt-1 max-w-md text-sm text-admin-muted">
+              {filtered
+                ? "Juster søket, skoleåret, klassen eller betalingsstatusen."
+                : "Registrerte elever vises her med plassering og betaling."}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="hidden lg:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Navn</TableHead>
+                    <TableHead>Alder</TableHead>
+                    <TableHead>Foresatt</TableHead>
+                    <TableHead>Klasse</TableHead>
+                    <TableHead>Skoleår</TableHead>
+                    <TableHead>Betalt</TableHead>
+                    <TableHead>Betaling</TableHead>
+                    <TableHead className="w-8" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pageStudents.map((student) => {
+                    const studentPayments = scoped(student.payments);
+                    const ledger = ledgerFor(student.id);
+                    const state = payState(ledger, studentPayments);
+                    return (
+                      <ClickableRow
+                        key={student.id}
+                        href={`${basePath}/elever/${student.id}`}
+                      >
+                        <TableCell className="font-medium">
+                          {studentDisplayName(student) || "-"}
+                        </TableCell>
+                        <TableCell>
+                          {formatAge(student.child_birth_date, ageYear)}
+                        </TableCell>
+                        <TableCell>{guardianName(student) ?? "-"}</TableCell>
+                        <TableCell>{classLabel(student.enrollments)}</TableCell>
+                        <TableCell>
+                          {(() => {
+                            const years = yearLabels(student.enrollments);
+                            if (years.length === 0)
+                              return (
+                                <span className="text-muted-foreground">-</span>
+                              );
+                            const missingActive =
+                              activeYearLabel != null &&
+                              !years.includes(activeYearLabel);
+                            return (
+                              <div className="flex flex-wrap items-center gap-1">
+                                {years.map((y) => (
+                                  <Badge key={y} variant="outline">
+                                    {y}
+                                  </Badge>
+                                ))}
+                                {missingActive ? (
+                                  <Badge
+                                    variant="secondary"
+                                    title={`Ikke i ${activeYearLabel}`}
+                                  >
+                                    Ny termin?
+                                  </Badge>
+                                ) : null}
+                              </div>
+                            );
+                          })()}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {formatNok(ledger.paid)}
+                          {ledger.owed > 0 ? (
+                            <span className="text-muted-foreground">
+                              {" "}
+                              av {formatNok(ledger.owed)}
+                            </span>
                           ) : null}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap items-center gap-1">
+                            {state === "betalt" ? (
+                              <Badge>Betalt</Badge>
+                            ) : state === "delvis" ? (
+                              <Badge
+                                variant="secondary"
+                                title={`Gjenstår ${formatNok(ledger.remaining)}`}
+                              >
+                                Delvis · {formatNok(ledger.remaining)} igjen
+                              </Badge>
+                            ) : state === "venter" ? (
+                              <Badge variant="secondary">Lenke sendt</Badge>
+                            ) : (
+                              <Badge variant="outline">Ikke sendt</Badge>
+                            )}
+                            {state === "delvis" &&
+                            hasPendingLink(studentPayments) ? (
+                              <Badge variant="outline">Lenke ute</Badge>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-admin-muted">
+                          <ArrowRight className="size-4" />
+                        </TableCell>
+                      </ClickableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+            <ul className="divide-y divide-[#ECE8DF] lg:hidden">
+              {pageStudents.map((student) => {
+                const studentPayments = scoped(student.payments);
+                const ledger = ledgerFor(student.id);
+                const state = payState(ledger, studentPayments);
+                const years = yearLabels(student.enrollments);
+                return (
+                  <li key={student.id}>
+                    <Link
+                      href={`${basePath}/elever/${student.id}`}
+                      className="group block px-4 py-4 outline-none transition-colors hover:bg-[#FBFAF6] focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50 sm:px-5"
+                    >
+                      <span className="flex items-start justify-between gap-4">
+                        <span className="min-w-0">
+                          <span className="block font-heading text-lg font-bold">
+                            {studentDisplayName(student) || "-"}
+                          </span>
+                          <span className="mt-0.5 block text-sm text-admin-muted">
+                            {formatAge(student.child_birth_date, ageYear)} år,{" "}
+                            {guardianName(student) ?? "foresatt mangler"}
+                          </span>
+                        </span>
+                        <ArrowRight
+                          aria-hidden="true"
+                          className="mt-1 size-5 shrink-0 text-admin-muted transition-transform group-hover:translate-x-0.5"
+                        />
+                      </span>
+                      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-[#F8F6F0] p-3 text-sm">
+                        <div>
+                          <dt className="text-xs font-bold text-admin-muted">
+                            Klasse
+                          </dt>
+                          <dd className="mt-1 font-bold">
+                            {classLabel(student.enrollments)}
+                          </dd>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        <ChevronRight className="size-4" />
-                      </TableCell>
-                    </ClickableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-          {total > PAGE_SIZE ? (
-            <Pagination
-              page={page}
-              pageSize={PAGE_SIZE}
-              total={total}
-              basePath={`${basePath}/elever`}
-              searchParams={sp}
-            />
-          ) : null}
-        </CardContent>
-      </Card>
+                        <div>
+                          <dt className="text-xs font-bold text-admin-muted">
+                            Skoleår
+                          </dt>
+                          <dd className="mt-1 font-bold">
+                            {years.join(", ") || "Ikke plassert"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-bold text-admin-muted">
+                            Betalt
+                          </dt>
+                          <dd className="mt-1 font-bold tabular-nums">
+                            {formatNok(ledger.paid)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-bold text-admin-muted">
+                            Status
+                          </dt>
+                          <dd className="mt-1 font-bold">
+                            {state === "betalt"
+                              ? "Betalt"
+                              : state === "delvis"
+                                ? `${formatNok(ledger.remaining)} igjen`
+                                : state === "venter"
+                                  ? "Lenke sendt"
+                                  : "Ikke sendt"}
+                          </dd>
+                        </div>
+                      </dl>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+        {total > PAGE_SIZE ? (
+          <Pagination
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            basePath={`${basePath}/elever`}
+            searchParams={sp}
+          />
+        ) : null}
+      </section>
     </div>
   );
 }
