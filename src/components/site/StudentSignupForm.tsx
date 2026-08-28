@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
@@ -27,6 +27,15 @@ const inputClassName = "h-12";
 const selectClassName =
   "h-12 w-full rounded-xl border border-input bg-card px-3 py-1 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DRAFT_KEY = "islamskole-enrollment-draft-v1";
+
+type EnrollmentDraft = {
+  values: Record<string, string>;
+  children: number[];
+  guardians: number[];
+  activeChild: number;
+  step: number;
+};
 
 type ReviewSummary = {
   children: string[];
@@ -74,13 +83,119 @@ export function StudentSignupForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string>();
   const [review, setReview] = useState<ReviewSummary>();
+  const [draftValues, setDraftValues] = useState<Record<string, string> | null>(
+    null,
+  );
+  const [draftReady, setDraftReady] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const dirtyRef = useRef(false);
 
   const steps = [t("stepChildren"), t("stepGuardians"), t("stepReview")];
   const childField = (id: number, name: string) => `child_${id}_${name}`;
   const guardianField = (id: number, name: string) => `guardian_${id}_${name}`;
   const busy = pending || redirecting;
   const total = fee * children.length;
+
+  const persistDraft = useCallback(() => {
+    const form = formRef.current;
+    if (!form) return;
+    const values = Object.fromEntries(
+      [...new FormData(form).entries()]
+        .filter((entry): entry is [string, string] =>
+          entry.every((value) => typeof value === "string"),
+        )
+        .filter(
+          ([name]) =>
+            !["locale", "child_indices", "guardian_indices"].includes(name),
+        ),
+    );
+    const draft: EnrollmentDraft = {
+      values,
+      children,
+      guardians,
+      activeChild,
+      step: Math.min(step, 1),
+    };
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch {}
+  }, [activeChild, children, guardians, step]);
+
+  useEffect(() => {
+    const restore = window.setTimeout(() => {
+      try {
+        const stored = localStorage.getItem(DRAFT_KEY);
+        if (!stored) {
+          setDraftReady(true);
+          return;
+        }
+        const draft = JSON.parse(stored) as Partial<EnrollmentDraft>;
+        const storedChildren = Array.isArray(draft.children)
+          ? draft.children.filter(Number.isInteger).slice(0, 10)
+          : [];
+        const storedGuardians = Array.isArray(draft.guardians)
+          ? draft.guardians.filter(Number.isInteger).slice(0, 6)
+          : [];
+        const restoredChildren = storedChildren.length ? storedChildren : [0];
+        const restoredGuardians = storedGuardians.length
+          ? storedGuardians
+          : [0];
+        setChildren(restoredChildren);
+        setGuardians(restoredGuardians);
+        setActiveChild(
+          restoredChildren.includes(draft.activeChild ?? -1)
+            ? (draft.activeChild ?? restoredChildren[0])
+            : restoredChildren[0],
+        );
+        setNextChildId(Math.max(...restoredChildren) + 1);
+        setNextGuardianId(Math.max(...restoredGuardians) + 1);
+        setStep(Math.min(Math.max(draft.step ?? 0, 0), 1));
+        setDraftValues(draft.values ?? {});
+      } catch {
+        localStorage.removeItem(DRAFT_KEY);
+        setDraftReady(true);
+      }
+    }, 0);
+    return () => window.clearTimeout(restore);
+  }, []);
+
+  useEffect(() => {
+    if (!draftValues || !formRef.current) return;
+    for (const [name, value] of Object.entries(draftValues)) {
+      const field = formRef.current.elements.namedItem(name);
+      if (
+        field instanceof HTMLInputElement ||
+        field instanceof HTMLSelectElement ||
+        field instanceof HTMLTextAreaElement
+      ) {
+        if (field instanceof HTMLInputElement && field.type === "checkbox") {
+          field.checked = true;
+        } else {
+          field.value = value;
+        }
+      }
+    }
+    const finishRestore = window.setTimeout(() => {
+      dirtyRef.current = Object.keys(draftValues).length > 0;
+      setDraftReady(true);
+      setDraftValues(null);
+    }, 0);
+    return () => window.clearTimeout(finishRestore);
+  }, [children, draftValues, guardians]);
+
+  useEffect(() => {
+    if (draftReady) persistDraft();
+  }, [draftReady, persistDraft]);
+
+  useEffect(() => {
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      if (!dirtyRef.current || busy) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [busy]);
 
   function clearFieldError(name: string) {
     setFieldErrors((current) => {
@@ -296,6 +411,8 @@ export function StudentSignupForm({
     startTransition(async () => {
       const result = await createStudentEnrollment(formData);
       if (result.ok) {
+        localStorage.removeItem(DRAFT_KEY);
+        dirtyRef.current = false;
         setRedirecting(true);
         window.location.href = result.redirectUrl;
         return;
@@ -668,6 +785,10 @@ export function StudentSignupForm({
     <form
       ref={formRef}
       onSubmit={handleSubmit}
+      onChangeCapture={() => {
+        dirtyRef.current = true;
+        window.setTimeout(persistDraft, 0);
+      }}
       noValidate
       className="grid gap-8"
     >

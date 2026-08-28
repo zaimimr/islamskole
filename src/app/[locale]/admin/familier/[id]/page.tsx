@@ -123,6 +123,8 @@ export default async function FamilyPage({
   const basePath = adminBasePath(locale);
   const family = await getAdminFamilyById(id);
   if (!family) notFound();
+  const familyHref = `${basePath}/familier/${family.id}`;
+  const editFamilyHref = `${familyHref}/rediger`;
 
   const supabase = await createClient();
   const studentIds = family.students.map((student) => student.id);
@@ -312,7 +314,7 @@ export default async function FamilyPage({
     nextAction = {
       title: "Kontroller familierelasjonene",
       description: `${family.openReviews.length} datakontroll må avklares før familien kan brukes videre uten forbehold.`,
-      href: `${basePath}/familier/${family.id}`,
+      href: editFamilyHref,
       label: "Se opplysningene",
       tone: "danger",
     };
@@ -404,8 +406,12 @@ export default async function FamilyPage({
       }}
       tabs={tabs}
       activeTab="overview"
+      editFamilyHref={editFamilyHref}
+      addGuardianHref={`${editFamilyHref}#new-guardian`}
+      editRelationshipsHref={editFamilyHref}
       nextAction={nextAction}
       recentActivity={recentActivity}
+      historyHref={`${familyHref}#activity-${family.id}`}
     />
   );
 }

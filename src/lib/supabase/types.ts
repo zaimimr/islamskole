@@ -1213,6 +1213,15 @@ export type Database = {
         }
         Returns: Json
       }
+      update_family_relationships: {
+        Args: {
+          p_family: Json
+          p_family_id: string
+          p_guardians: Json
+          p_resolve_reviews?: boolean
+        }
+        Returns: undefined
+      }
       is_admin: { Args: never; Returns: boolean }
       replace_payment_allocations: {
         Args: { p_allocations?: Json; p_payment_id: string }

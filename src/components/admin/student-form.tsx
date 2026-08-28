@@ -56,6 +56,15 @@ const genderOptions = [
   { value: "jente", label: "Jente" },
 ];
 
+const guardianRoleOptions = [
+  { value: "foresatt", label: "Foresatt" },
+  { value: "mor", label: "Mor" },
+  { value: "far", label: "Far" },
+  { value: "steforelder", label: "Steforelder" },
+  { value: "verge", label: "Verge" },
+  { value: "annet", label: "Annen relasjon" },
+];
+
 function LevelSelect({
   name,
   label,
@@ -217,9 +226,24 @@ export function StudentForm({
 
       <Card>
         <CardHeader>
-          <CardTitle>Mor</CardTitle>
+          <CardTitle>Foresatt 1</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="mother_relationship">Relasjon</Label>
+            <select
+              id="mother_relationship"
+              name="mother_relationship"
+              defaultValue="foresatt"
+              className={selectClassName}
+            >
+              {guardianRoleOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="mother_first_name">Fornavn</Label>
@@ -263,9 +287,24 @@ export function StudentForm({
 
       <Card>
         <CardHeader>
-          <CardTitle>Far</CardTitle>
+          <CardTitle>Foresatt 2 (valgfritt)</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="father_relationship">Relasjon</Label>
+            <select
+              id="father_relationship"
+              name="father_relationship"
+              defaultValue="foresatt"
+              className={selectClassName}
+            >
+              {guardianRoleOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="father_first_name">Fornavn</Label>
@@ -305,8 +344,8 @@ export function StudentForm({
             </div>
           </div>
           <p className="text-sm text-muted-foreground">
-            Betalingslenken sendes til e-posten til begge foresatte. Når én har
-            betalt, ser den andre kvitteringssiden.
+            Betalingslenken kan sendes til begge foresatte. Når én har betalt,
+            ser den andre kvitteringssiden.
           </p>
         </CardContent>
       </Card>

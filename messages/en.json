@@ -140,6 +140,8 @@
     },
     "formTitle": "Enrollment form",
     "formSubtitle": "The amount is charged as soon as you approve it in Vipps. Payment confirms the enrollment, not a specific class placement.",
+    "unavailableTitle": "Enrollment is not open yet",
+    "unavailableBody": "The school must open an active school year and set the fee before you can enroll and pay. Contact the school if you need help.",
     "fieldChildName": "Child's name",
     "placeholderChildName": "First and last name",
     "fieldChildAge": "Child's age",

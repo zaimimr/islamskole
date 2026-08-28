@@ -4,7 +4,9 @@ create extension if not exists pgtap with schema extensions;
 
 set local search_path = public, extensions;
 
-select plan(4);
+select plan(9);
+
+select set_config('request.jwt.claims', '{"role":"service_role"}', true);
 
 insert into public.families (id, origin)
 values
@@ -134,6 +136,100 @@ select throws_ok(
   '23514',
   'new row for relation "family_data_reviews" violates check constraint "family_data_reviews_resolution_check"',
   'keeps open review items unresolved'
+);
+
+insert into public.family_data_reviews (
+  family_id,
+  category,
+  details
+) values (
+  '10000000-0000-0000-0000-000000000001',
+  'possible_duplicate_family',
+  '{}'::jsonb
+);
+
+select lives_ok(
+  $$
+    select public.update_family_relationships(
+      '10000000-0000-0000-0000-000000000001',
+      jsonb_build_object(
+        'display_name', 'Familien Test',
+        'address', 'Nyveien 4',
+        'postal_code', '1300',
+        'city', 'Sandvika'
+      ),
+      jsonb_build_array(
+        jsonb_build_object(
+          'id', '20000000-0000-0000-0000-000000000002',
+          'first_name', 'Foresatt',
+          'last_name', 'To',
+          'email', 'to@example.no',
+          'phone', '+4790000002',
+          'role', 'verge'
+        ),
+        jsonb_build_object(
+          'id', '20000000-0000-0000-0000-000000000001',
+          'first_name', 'Foresatt',
+          'last_name', 'En',
+          'email', 'en@example.no',
+          'phone', '+4790000001',
+          'role', 'foresatt'
+        ),
+        jsonb_build_object(
+          'first_name', 'Foresatt',
+          'last_name', 'Fire',
+          'email', 'fire@example.no',
+          'phone', '+4790000004',
+          'role', 'steforelder'
+        )
+      ),
+      true
+    )
+  $$,
+  'updates family details and relationships atomically'
+);
+
+select is(
+  (
+    select display_name
+    from public.families
+    where id = '10000000-0000-0000-0000-000000000001'
+  ),
+  'Familien Test',
+  'stores a deliberate family name override'
+);
+
+select ok(
+  exists (
+    select 1
+    from public.family_guardians
+    where family_id = '10000000-0000-0000-0000-000000000001'
+      and guardian_id = '20000000-0000-0000-0000-000000000002'
+      and is_primary_contact
+      and relationship_label = 'verge'
+  ),
+  'changes the primary contact and relationship'
+);
+
+select is(
+  (
+    select count(*)
+    from public.family_guardians
+    where family_id = '10000000-0000-0000-0000-000000000001'
+  ),
+  3::bigint,
+  'adds a new guardian to the family'
+);
+
+select is(
+  (
+    select status
+    from public.family_data_reviews
+    where family_id = '10000000-0000-0000-0000-000000000001'
+      and category = 'possible_duplicate_family'
+  ),
+  'resolved',
+  'resolves reviewed family data after confirmation'
 );
 
 select * from finish();

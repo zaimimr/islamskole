@@ -55,4 +55,6 @@ Islamskole Bærum feels welcoming, trustworthy, and rooted in its local school c
 - The shell exposes six primary destinations, grouped secondary tools, the active school year, family search, account access, and a scrollable mobile drawer.
 - `--admin-muted` is the minimum muted text tone on light admin surfaces. `--admin-action` is the accessible green used for primary admin actions.
 - Child summaries use an auto-fitting fact grid with a minimum readable column width. Mobile keeps the next action before detailed records and relationship history.
+- Family editing keeps the primary contact, relationship labels, address, new guardians, and data-review resolution in one task-focused surface.
+- Public enrollment fails closed when no active fee exists and restores an unfinished family draft after refresh or accidental navigation.
 - Healthy, pending, informational, blocked, and neutral states pair color with labels and status marks. Captured payments, refunds, admission decisions, and placement are never collapsed into one status.

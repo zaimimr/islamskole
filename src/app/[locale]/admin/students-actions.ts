@@ -22,10 +22,7 @@ import {
   replacePaymentAllocations,
   setStudentFee,
 } from "@/lib/payment-ledger";
-import {
-  buildReference,
-  describeForStudent,
-} from "@/lib/payment-descriptor";
+import { buildReference, describeForStudent } from "@/lib/payment-descriptor";
 import { sendPaymentLinkEmail } from "@/lib/email";
 import {
   guardianEmails,
@@ -93,7 +90,7 @@ const studentSchema = z
         father_first_name: value.father_first_name,
         father_last_name: value.father_last_name,
       }) != null,
-    { message: "Minst én forelder må fylles ut" },
+    { message: "Minst én foresatt må fylles ut" },
   );
 
 function readStudentPayload(formData: FormData) {
@@ -122,6 +119,25 @@ function readStudentPayload(formData: FormData) {
   };
 }
 
+function readManualGuardians(formData: FormData) {
+  return [
+    {
+      first_name: readOptionalString(formData, "mother_first_name"),
+      last_name: readOptionalString(formData, "mother_last_name"),
+      phone: readOptionalString(formData, "mother_phone"),
+      email: readOptionalString(formData, "mother_email"),
+      role: readString(formData, "mother_relationship") || "foresatt",
+    },
+    {
+      first_name: readOptionalString(formData, "father_first_name"),
+      last_name: readOptionalString(formData, "father_last_name"),
+      phone: readOptionalString(formData, "father_phone"),
+      email: readOptionalString(formData, "father_email"),
+      role: readString(formData, "father_relationship") || "foresatt",
+    },
+  ].filter((guardian) => guardian.first_name || guardian.last_name);
+}
+
 export async function createStudent(formData: FormData): Promise<ActionResult> {
   await requireAdmin();
   const payload = readStudentPayload(formData);
@@ -133,7 +149,7 @@ export async function createStudent(formData: FormData): Promise<ActionResult> {
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("create_manual_family_student", {
-    p_student: payload,
+    p_student: { ...payload, guardians: readManualGuardians(formData) },
   });
 
   if (error) return { ok: false, error: error.message };
@@ -361,8 +377,8 @@ export async function getClassCapacityInfo(
     .from("classes")
     .select("id, capacity");
   const classes =
-    (classRows as unknown as { id: string; capacity: number | null }[] | null) ??
-    [];
+    (classRows as unknown as
+      { id: string; capacity: number | null }[] | null) ?? [];
 
   const { data: enrollmentRows } = await supabase
     .from("enrollments")
@@ -425,7 +441,10 @@ export async function placeStudentInClass(
 
   if (error) {
     if (error.code === "23505") {
-      return { ok: false, error: "Eleven er allerede plassert i denne klassen for terminen" };
+      return {
+        ok: false,
+        error: "Eleven er allerede plassert i denne klassen for terminen",
+      };
     }
     return { ok: false, error: error.message };
   }
@@ -520,7 +539,8 @@ export async function createVippsPayment(
     .select("label")
     .eq("id", schoolYearId)
     .maybeSingle();
-  const yearLabel = (year as unknown as { label: string } | null)?.label ?? null;
+  const yearLabel =
+    (year as unknown as { label: string } | null)?.label ?? null;
 
   const descriptor = studentRow
     ? describeForStudent(studentRow, yearLabel, amount)
@@ -531,7 +551,11 @@ export async function createVippsPayment(
     descriptor?.description ??
     `Skolepenger${yearLabel ? ` ${yearLabel}` : ""}`;
 
-  const reference = buildReference(yearLabel, descriptor?.familyName ?? null, 1);
+  const reference = buildReference(
+    yearLabel,
+    descriptor?.familyName ?? null,
+    1,
+  );
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
   const returnUrl = `${siteUrl}/api/vipps/return?reference=${reference}`;
 
@@ -580,7 +604,7 @@ export async function createVippsPayment(
   if (recipients.length) {
     emailed = await sendPaymentLinkEmail({
       to: recipients,
-      guardianName: studentRow ? guardianName(studentRow) ?? "" : "",
+      guardianName: studentRow ? (guardianName(studentRow) ?? "") : "",
       childName: studentRow ? studentDisplayName(studentRow) : "",
       amount,
       schoolYear: yearLabel,
@@ -648,7 +672,8 @@ export async function registerManualPayment(
     .select("label")
     .eq("id", payload.school_year_id)
     .maybeSingle();
-  const yearLabel = (year as unknown as { label: string } | null)?.label ?? null;
+  const yearLabel =
+    (year as unknown as { label: string } | null)?.label ?? null;
   const className = enrollment?.classes?.name_no ?? null;
 
   const methodLabels: Record<string, string> = {
@@ -799,7 +824,7 @@ export async function batchSendPaymentLinks(
     if (pending) {
       const ok = await sendPaymentLinkEmail({
         to: recipients,
-        guardianName: st ? guardianName(st) ?? "" : "",
+        guardianName: st ? (guardianName(st) ?? "") : "",
         childName: st ? studentDisplayName(st) : "",
         amount: pending.amount,
         schoolYear: yearLabel,
@@ -817,7 +842,8 @@ export async function batchSendPaymentLinks(
       noPrice++;
       continue;
     }
-    const amount = remaining > 0 ? remaining : Math.round((price as number) * 100);
+    const amount =
+      remaining > 0 ? remaining : Math.round((price as number) * 100);
     const reference = `isk-${randomUUID()}`;
     const returnUrl = `${siteUrl}/api/vipps/return?reference=${reference}`;
 
@@ -850,7 +876,7 @@ export async function batchSendPaymentLinks(
       }
       const ok = await sendPaymentLinkEmail({
         to: recipients,
-        guardianName: st ? guardianName(st) ?? "" : "",
+        guardianName: st ? (guardianName(st) ?? "") : "",
         childName: st ? studentDisplayName(st) : "",
         amount,
         schoolYear: yearLabel,
@@ -903,7 +929,8 @@ export async function syncAllPaymentsForYear(
 export async function copyEnrollmentsToActiveYear(
   fromYearId: string,
 ): Promise<
-  { ok: true; moved: number; skipped: number; note?: string } | { ok: false; error: string }
+  | { ok: true; moved: number; skipped: number; note?: string }
+  | { ok: false; error: string }
 > {
   await requireAdmin();
   if (!fromYearId) return { ok: false, error: "Mangler skoleår" };
@@ -930,11 +957,13 @@ export async function copyEnrollmentsToActiveYear(
     .eq("school_year_id", fromYearId)
     .eq("status", "aktiv");
   const source =
-    (src as unknown as {
-      student_id: string;
-      class_id: string;
-      price_snapshot: number | null;
-    }[] | null) ?? [];
+    (src as unknown as
+      | {
+          student_id: string;
+          class_id: string;
+          price_snapshot: number | null;
+        }[]
+      | null) ?? [];
 
   const { data: existing } = await supabase
     .from("enrollments")
@@ -942,8 +971,8 @@ export async function copyEnrollmentsToActiveYear(
     .eq("school_year_id", activeYear.id);
   const existingPairs = new Set(
     (
-      (existing as unknown as { student_id: string; class_id: string }[] | null) ??
-      []
+      (existing as unknown as
+        { student_id: string; class_id: string }[] | null) ?? []
     ).map((e) => `${e.student_id}:${e.class_id}`),
   );
 
@@ -952,16 +981,19 @@ export async function copyEnrollmentsToActiveYear(
     .select("id, capacity, price");
   const classInfo = new Map(
     (
-      (classRows as unknown as {
-        id: string;
-        capacity: number | null;
-        price: number | null;
-      }[] | null) ?? []
+      (classRows as unknown as
+        | {
+            id: string;
+            capacity: number | null;
+            price: number | null;
+          }[]
+        | null) ?? []
     ).map((c) => [c.id, c]),
   );
 
   const targetCounts = new Map<string, number>();
-  for (const e of (existing as unknown as { class_id: string }[] | null) ?? []) {
+  for (const e of (existing as unknown as { class_id: string }[] | null) ??
+    []) {
     targetCounts.set(e.class_id, (targetCounts.get(e.class_id) ?? 0) + 1);
   }
 
@@ -1006,9 +1038,7 @@ export async function copyEnrollmentsToActiveYear(
   return { ok: true, moved, skipped: skipped + full, note };
 }
 
-async function getPaymentReference(
-  paymentId: string,
-): Promise<{
+async function getPaymentReference(paymentId: string): Promise<{
   reference: string;
   amount: number;
   authorizedAmount: number;
@@ -1186,9 +1216,7 @@ export async function sendPaymentLink(
   } | null;
 
   if (!payment) return { ok: false, error: "Fant ikke betalingen" };
-  const recipients = payment.students
-    ? guardianEmails(payment.students)
-    : [];
+  const recipients = payment.students ? guardianEmails(payment.students) : [];
   if (recipients.length === 0) {
     return { ok: false, error: "Foresatt mangler e-postadresse" };
   }
@@ -1196,10 +1224,10 @@ export async function sendPaymentLink(
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
   const ok = await sendPaymentLinkEmail({
     to: recipients,
-    guardianName: payment.students ? guardianName(payment.students) ?? "" : "",
-    childName: payment.students
-      ? studentDisplayName(payment.students)
+    guardianName: payment.students
+      ? (guardianName(payment.students) ?? "")
       : "",
+    childName: payment.students ? studentDisplayName(payment.students) : "",
     amount: payment.amount,
     schoolYear: payment.school_years?.label ?? null,
     className: payment.enrollments?.classes?.name_no ?? null,
@@ -1225,7 +1253,8 @@ export async function deletePayment(id: string): Promise<ActionResult> {
   ) {
     return {
       ok: false,
-      error: "Registrerte betalinger kan ikke slettes. Bruk korrigering eller refusjon.",
+      error:
+        "Registrerte betalinger kan ikke slettes. Bruk korrigering eller refusjon.",
     };
   }
   const { error } = await supabase.from("payments").delete().eq("id", id);
@@ -1299,7 +1328,8 @@ export async function voidPayment(
   ) {
     return {
       ok: false,
-      error: "En fanget Vipps-betaling må refunderes i Vipps og kan ikke annulleres lokalt.",
+      error:
+        "En fanget Vipps-betaling må refunderes i Vipps og kan ikke annulleres lokalt.",
     };
   }
 
@@ -1364,7 +1394,8 @@ export async function markPaymentAsDuplicate(
   if (!row.reference.startsWith("manual-")) {
     return {
       ok: false,
-      error: "Bare manuelt registrerte betalinger kan merkes som dobbeltføring.",
+      error:
+        "Bare manuelt registrerte betalinger kan merkes som dobbeltføring.",
     };
   }
 

@@ -467,22 +467,26 @@ begin
   for v_guardian in
     select value
     from jsonb_array_elements(
-      jsonb_build_array(
-        jsonb_build_object(
-          'first_name', p_student ->> 'mother_first_name',
-          'last_name', p_student ->> 'mother_last_name',
-          'email', p_student ->> 'mother_email',
-          'phone', p_student ->> 'mother_phone',
-          'role', 'mor'
-        ),
-        jsonb_build_object(
-          'first_name', p_student ->> 'father_first_name',
-          'last_name', p_student ->> 'father_last_name',
-          'email', p_student ->> 'father_email',
-          'phone', p_student ->> 'father_phone',
-          'role', 'far'
+      case
+        when jsonb_typeof(p_student -> 'guardians') = 'array'
+          then p_student -> 'guardians'
+        else jsonb_build_array(
+          jsonb_build_object(
+            'first_name', p_student ->> 'mother_first_name',
+            'last_name', p_student ->> 'mother_last_name',
+            'email', p_student ->> 'mother_email',
+            'phone', p_student ->> 'mother_phone',
+            'role', 'mor'
+          ),
+          jsonb_build_object(
+            'first_name', p_student ->> 'father_first_name',
+            'last_name', p_student ->> 'father_last_name',
+            'email', p_student ->> 'father_email',
+            'phone', p_student ->> 'father_phone',
+            'role', 'far'
+          )
         )
-      )
+      end
     )
   loop
     if nullif(

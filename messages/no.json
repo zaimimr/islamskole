@@ -140,6 +140,8 @@
     },
     "formTitle": "Innmeldingsskjema",
     "formSubtitle": "Beløpet trekkes med en gang du godkjenner i Vipps. Betalingen bekrefter innmeldingen, ikke en bestemt klasseplass.",
+    "unavailableTitle": "Innmelding er ikke åpnet ennå",
+    "unavailableBody": "Skolen må åpne et aktivt skoleår og fastsette skoleavgiften før du kan melde på og betale. Ta kontakt med skolen hvis du trenger hjelp.",
     "fieldChildName": "Barnets navn",
     "placeholderChildName": "Fornavn og etternavn",
     "fieldChildAge": "Barnets alder",

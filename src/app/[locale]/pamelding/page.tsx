@@ -5,17 +5,17 @@ import { PageHeader } from "@/components/site/PageHeader";
 import { Section } from "@/components/site/Section";
 import { StudentSignupForm } from "@/components/site/StudentSignupForm";
 import { contentMetadata } from "@/lib/seo";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { Locale } from "@/i18n/routing";
 
 async function getActiveFee() {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data } = await supabase
     .from("school_years")
     .select("fee")
     .eq("is_active", true)
     .maybeSingle();
-  return (data as unknown as { fee: number | null } | null)?.fee ?? 5000;
+  return (data as unknown as { fee: number | null } | null)?.fee ?? null;
 }
 
 export async function generateMetadata({
@@ -78,7 +78,18 @@ export default async function PameldingPage({
             <p className="mt-2 mb-7 text-base text-muted-foreground">
               {t("formSubtitle")}
             </p>
-            <StudentSignupForm fee={fee} locale={locale} />
+            {fee ? (
+              <StudentSignupForm fee={fee} locale={locale} />
+            ) : (
+              <div className="rounded-2xl bg-amber-50 p-5 ring-1 ring-amber-200">
+                <h3 className="font-heading text-lg font-bold">
+                  {t("unavailableTitle")}
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {t("unavailableBody")}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </Section>

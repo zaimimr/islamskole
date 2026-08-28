@@ -4,7 +4,7 @@ create extension if not exists pgtap with schema extensions;
 
 set local search_path = public, extensions;
 
-select plan(9);
+select plan(11);
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
 
 insert into public.school_years (id, label, fee)
@@ -212,6 +212,53 @@ select is(
   ),
   1::bigint,
   'links a manual student to the entered guardian'
+);
+
+create temporary table flexible_manual_family_student_result as
+select public.create_manual_family_student(
+  jsonb_build_object(
+    'child_first_name', 'Ilyas',
+    'child_last_name', 'Nilsen',
+    'guardians', jsonb_build_array(
+      jsonb_build_object(
+        'first_name', 'Samira',
+        'last_name', 'Nilsen',
+        'email', 'samira@example.no',
+        'phone', '+4790000004',
+        'role', 'verge'
+      ),
+      jsonb_build_object(
+        'first_name', 'Adam',
+        'last_name', 'Nilsen',
+        'email', 'adam@example.no',
+        'phone', '+4790000005',
+        'role', 'steforelder'
+      )
+    )
+  )
+) as student_id;
+
+select is(
+  (
+    select count(*)
+    from public.student_guardians relationship
+    join flexible_manual_family_student_result result
+      on relationship.student_id = result.student_id
+  ),
+  2::bigint,
+  'links flexible manual guardians without assuming mother and father'
+);
+
+select ok(
+  exists (
+    select 1
+    from public.student_guardians relationship
+    join flexible_manual_family_student_result result
+      on relationship.student_id = result.student_id
+    where relationship.relationship_label = 'verge'
+      and relationship.is_primary
+  ),
+  'preserves the selected relationship for the primary manual guardian'
 );
 
 select * from finish();
