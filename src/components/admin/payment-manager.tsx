@@ -18,9 +18,11 @@ import {
   Plus,
   Users,
   ChevronDown,
+  Pencil,
 } from "lucide-react";
 import {
   createVippsPayment,
+  updateStudentFee,
   voidPayment,
   restorePayment,
   registerManualPayment,
@@ -55,6 +57,7 @@ export type PaymentRow = {
   status: string;
   method: string;
   paid_at: string | null;
+  due_date: string | null;
   redirect_url: string | null;
   created_at: string | null;
   reference: string | null;
@@ -73,6 +76,7 @@ export type PaymentRow = {
 };
 
 export type YearBalance = { owed: number; paid: number; remaining: number };
+export type YearFee = { amount: number; discount: number; note: string | null };
 
 const statusLabels: Record<string, string> = {
   opprettet: "Venter",
@@ -89,6 +93,17 @@ const methodLabels: Record<string, string> = {
   bank: "Bank",
   annet: "Annet",
 };
+
+function formatLongDate(value: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString("nb-NO", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
 
 function formatNok(ore: number) {
   return `${(ore / 100).toLocaleString("nb-NO")} kr`;
@@ -137,6 +152,7 @@ export function PaymentManager({
   defaultSchoolYearId,
   defaultAmount,
   balancesByYear,
+  feesByYear,
   payments,
 }: {
   studentId: string;
@@ -145,6 +161,7 @@ export function PaymentManager({
   defaultSchoolYearId: string | null;
   defaultAmount: number | null;
   balancesByYear: Record<string, YearBalance>;
+  feesByYear: Record<string, YearFee>;
   payments: PaymentRow[];
 }) {
   const router = useRouter();
@@ -153,16 +170,25 @@ export function PaymentManager({
     defaultSchoolYearId ?? schoolYears[0]?.id ?? "",
   );
   const [formOpen, setFormOpen] = useState(false);
+  const [feeOpen, setFeeOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [mode, setMode] = useState<"vipps" | "manual">("vipps");
+  const [manualMethod, setManualMethod] = useState("kontant");
 
   const currentClass = classByYear[year] ?? null;
   const balance = balancesByYear[year] ?? null;
+  const fee = feesByYear[year] ?? null;
   const remainingNok =
     balance && balance.remaining > 0
       ? Math.round(balance.remaining / 100)
       : null;
   const suggestedAmount = remainingNok ?? defaultAmount ?? null;
+  const feeBaseNok =
+    fee && fee.amount > 0
+      ? Math.round(fee.amount / 100)
+      : balance && balance.owed > 0
+        ? Math.round(balance.owed / 100)
+        : (defaultAmount ?? 0);
 
   const yearPayments = payments.filter(
     (payment) => payment.schoolYearId === year || payment.schoolYearId === null,
@@ -218,6 +244,30 @@ export function PaymentManager({
     });
   }
 
+  function handleFee(formData: FormData) {
+    formData.set("student_id", studentId);
+    formData.set("school_year_id", year);
+    startTransition(async () => {
+      const result = await updateStudentFee(formData);
+      if (result.ok) {
+        toast.success("Kravet er oppdatert");
+        setFeeOpen(false);
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
+
+  function exemptStudent() {
+    const owedNok = feeBaseNok;
+    const formData = new FormData();
+    formData.set("amount_nok", String(owedNok));
+    formData.set("discount_nok", String(owedNok));
+    formData.set("note", fee?.note ?? "Skal ikke betale");
+    handleFee(formData);
+  }
+
   function run(
     action: () => Promise<{ ok: boolean; error?: string }>,
     success: string,
@@ -249,7 +299,9 @@ export function PaymentManager({
           {currentClass ? (
             <Badge variant="outline">{currentClass}</Badge>
           ) : (
-            <Badge variant="destructive">Ingen klasse</Badge>
+            <Badge variant="secondary" title="Betaling kan registreres uansett">
+              Ingen klasse
+            </Badge>
           )}
           <select
             aria-label="Skoleår"
@@ -276,7 +328,9 @@ export function PaymentManager({
                 av {formatNok(balance?.owed ?? 0)}
               </span>
             </p>
-            {state === "betalt" ? (
+            {(fee?.discount ?? 0) > 0 && (balance?.owed ?? 0) === 0 ? (
+              <Badge variant="secondary">Skal ikke betale</Badge>
+            ) : state === "betalt" ? (
               <Badge>Ferdig betalt</Badge>
             ) : state === "delvis" ? (
               <Badge variant="secondary">
@@ -300,7 +354,96 @@ export function PaymentManager({
               style={{ width: `${progress}%` }}
             />
           </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+            <span>
+              Krav {formatNok(fee?.amount ?? balance?.owed ?? 0)}
+              {(fee?.discount ?? 0) > 0
+                ? ` · moderasjon ${formatNok(fee?.discount ?? 0)}`
+                : ""}
+            </span>
+            {fee?.note ? <span>· {fee.note}</span> : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2"
+              onClick={() => setFeeOpen((open) => !open)}
+            >
+              <Pencil className="size-3.5" />
+              Endre krav
+            </Button>
+          </div>
         </div>
+
+        {feeOpen ? (
+          <form
+            key={`fee-${year}`}
+            action={handleFee}
+            className="grid gap-3 rounded-lg border p-4 sm:grid-cols-3 sm:items-end"
+          >
+            <div className="grid gap-2">
+              <Label htmlFor="fee_amount" required>
+                Skal betale (kr)
+              </Label>
+              <Input
+                id="fee_amount"
+                name="amount_nok"
+                type="number"
+                min="0"
+                step="1"
+                required
+                defaultValue={feeBaseNok}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="fee_discount">Moderasjon (kr)</Label>
+              <Input
+                id="fee_discount"
+                name="discount_nok"
+                type="number"
+                min="0"
+                step="1"
+                defaultValue={Math.round((fee?.discount ?? 0) / 100)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="fee_note">Notat</Label>
+              <Input
+                id="fee_note"
+                name="note"
+                type="text"
+                placeholder="Hvorfor mindre eller fritatt?"
+                defaultValue={fee?.note ?? ""}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:col-span-3">
+              <Button type="submit" disabled={pending}>
+                {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+                Lagre
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={exemptStudent}
+              >
+                Skal ikke betale
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={pending}
+                onClick={() => setFeeOpen(false)}
+              >
+                Avbryt
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground sm:col-span-3">
+              Moderasjon trekkes fra kravet. Full moderasjon betyr at eleven
+              ikke skal betale, og beløpet forsvinner fra totalt utestående.
+            </p>
+          </form>
+        ) : null}
 
         {formOpen ? (
           <div className="grid gap-3 rounded-lg border p-4">
@@ -336,7 +479,7 @@ export function PaymentManager({
               <form
                 key={`vipps-${year}`}
                 action={handleCreate}
-                className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end"
+                className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
               >
                 <div className="grid gap-2">
                   <Label htmlFor="amount_nok" required>
@@ -352,7 +495,11 @@ export function PaymentManager({
                     defaultValue={suggestedAmount ?? ""}
                   />
                 </div>
-                <Button type="submit" disabled={pending || !currentClass}>
+                <div className="grid gap-2">
+                  <Label htmlFor="due_date">Betalingsfrist</Label>
+                  <Input id="due_date" name="due_date" type="date" />
+                </div>
+                <Button type="submit" disabled={pending}>
                   {pending ? <Loader2 className="size-4 animate-spin" /> : null}
                   Opprett og send
                 </Button>
@@ -396,14 +543,27 @@ export function PaymentManager({
                     id="manual_method"
                     name="method"
                     required
-                    defaultValue="kontant"
+                    value={manualMethod}
+                    onChange={(event) => setManualMethod(event.target.value)}
                     className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
                   >
                     <option value="kontant">Kontant</option>
                     <option value="bank">Bankoverføring</option>
+                    <option value="vipps">Vipps</option>
                     <option value="annet">Annet</option>
                   </select>
                 </div>
+                {manualMethod === "vipps" ? (
+                  <div className="grid gap-2">
+                    <Label htmlFor="manual_order_id">Ordre-ID fra Vipps</Label>
+                    <Input
+                      id="manual_order_id"
+                      name="order_id"
+                      type="text"
+                      placeholder="13808360132"
+                    />
+                  </div>
+                ) : null}
                 <div className="grid gap-2">
                   <Label htmlFor="manual_note">Notat</Label>
                   <Input
@@ -415,8 +575,8 @@ export function PaymentManager({
                 </div>
                 <Button
                   type="submit"
-                  disabled={pending || !currentClass}
-                  className="lg:col-start-4"
+                  disabled={pending}
+                  className="justify-self-start sm:col-span-2 lg:col-span-4"
                 >
                   {pending ? <Loader2 className="size-4 animate-spin" /> : null}
                   Registrer
@@ -425,7 +585,8 @@ export function PaymentManager({
             )}
 
             <p className="text-xs text-muted-foreground">
-              Delbetaling er lov - skriv beløpet som faktisk kom inn.
+              Delbetaling er lov - skriv beløpet som faktisk kom inn. Eleven
+              trenger ikke være plassert i en klasse.
             </p>
           </div>
         ) : (
@@ -434,7 +595,6 @@ export function PaymentManager({
             variant="outline"
             className="justify-self-start"
             onClick={() => setFormOpen(true)}
-            disabled={!currentClass}
           >
             <Plus className="size-4" />
             Registrer betaling
@@ -449,6 +609,9 @@ export function PaymentManager({
           <ul className="divide-y rounded-lg border">
             {yearPayments.map((payment) => {
               const voided = Boolean(payment.voided_at);
+              const vippsLink =
+                payment.method === "vipps" &&
+                !(payment.reference ?? "").startsWith("manual-");
               const note = shortNote(payment);
               const shown = payment.allocatedAmount ?? payment.amount;
               return (
@@ -480,6 +643,12 @@ export function PaymentManager({
                   ) : payment.status !== "fanget" ? (
                     <Badge variant="secondary" className="shrink-0">
                       {statusLabels[payment.status] ?? payment.status}
+                    </Badge>
+                  ) : null}
+
+                  {payment.due_date && payment.status !== "fanget" ? (
+                    <Badge variant="outline" className="shrink-0">
+                      Frist {formatDate(payment.due_date)}
                     </Badge>
                   ) : null}
 
@@ -532,7 +701,7 @@ export function PaymentManager({
                       <MoreHorizontal className="size-4" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      {payment.method === "vipps" ? (
+                      {vippsLink ? (
                         <>
                           <DropdownMenuItem onClick={() => copyLink(payment.id)}>
                             <Link2 className="size-4" />
@@ -664,6 +833,10 @@ export function PaymentManager({
                           value={formatNok(payment.allocatedAmount)}
                         />
                       ) : null}
+                      <Detail
+                        label="Betalingsfrist"
+                        value={formatLongDate(payment.due_date)}
+                      />
                       <Detail
                         label="Status i Vipps"
                         value={payment.vipps_state}

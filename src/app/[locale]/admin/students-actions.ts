@@ -16,7 +16,9 @@ import { syncPaymentByReference } from "@/lib/payments-sync";
 import {
   allocatePayment,
   allocatePaymentsForStudent,
+  balanceKey,
   ensureStudentFee,
+  fetchBalances,
   setStudentFee,
 } from "@/lib/payment-ledger";
 import {
@@ -482,34 +484,13 @@ export async function createVippsPayment(
     price_snapshot: number | null;
     classes: { name_no: string | null } | null;
   } | null;
-  if (!enrollment) {
-    return {
-      ok: false,
-      error:
-        "Eleven må plasseres i en klasse for dette skoleåret før du kan opprette betaling.",
-    };
-  }
-  const className = enrollment.classes?.name_no ?? null;
-  const enrollmentId = enrollment.id;
+  const className = enrollment?.classes?.name_no ?? null;
+  const enrollmentId = enrollment?.id ?? null;
 
   await ensureStudentFee(supabase, studentId, schoolYearId);
 
   const amount = Math.round((amountNok as number) * 100);
-
-  const { data: existing } = await supabase
-    .from("payments")
-    .select("id, status")
-    .eq("student_id", studentId)
-    .eq("school_year_id", schoolYearId)
-    .in("status", ["opprettet", "autorisert"])
-    .limit(1);
-  if ((existing as unknown[] | null)?.length) {
-    return {
-      ok: false,
-      error:
-        "Det finnes allerede en ubetalt Vipps-lenke for denne eleven dette skoleåret. Bruk Send-knappen for å sende den på nytt, eller avbryt den først.",
-    };
-  }
+  const dueDate = readOptionalString(formData, "due_date");
 
   const { data: student } = await supabase
     .from("students")
@@ -581,6 +562,7 @@ export async function createVippsPayment(
       reference,
       amount,
       description,
+      due_date: dueDate,
       status: "opprettet",
       vipps_state: "CREATED",
       redirect_url: redirectUrl,
@@ -602,6 +584,7 @@ export async function createVippsPayment(
       amount,
       schoolYear: yearLabel,
       className,
+      dueDate,
       url: payLink,
     });
   }
@@ -621,7 +604,7 @@ const manualPaymentSchema = z.object({
   school_year_id: z.string().min(1, "Velg et skoleår"),
   amount_nok: z.number().positive("Beløp må være større enn 0"),
   paid_at: z.string().min(1, "Velg dato for betalingen"),
-  method: z.enum(["kontant", "bank", "annet"], {
+  method: z.enum(["vipps", "kontant", "bank", "annet"], {
     message: "Velg betalingsmåte",
   }),
 });
@@ -658,13 +641,6 @@ export async function registerManualPayment(
     id: string;
     classes: { name_no: string | null } | null;
   } | null;
-  if (!enrollment) {
-    return {
-      ok: false,
-      error:
-        "Eleven må plasseres i en klasse for dette skoleåret før du kan registrere betaling.",
-    };
-  }
 
   const { data: year } = await supabase
     .from("school_years")
@@ -672,18 +648,21 @@ export async function registerManualPayment(
     .eq("id", payload.school_year_id)
     .maybeSingle();
   const yearLabel = (year as unknown as { label: string } | null)?.label ?? null;
-  const className = enrollment.classes?.name_no ?? null;
+  const className = enrollment?.classes?.name_no ?? null;
 
   const methodLabels: Record<string, string> = {
+    vipps: "Vipps",
     kontant: "Kontant",
     bank: "Bankoverføring",
     annet: "Annet",
   };
   const note = readOptionalString(formData, "note");
+  const orderId = readOptionalString(formData, "order_id");
   const descriptionParts = [
     `Skolepenger${yearLabel ? ` ${yearLabel}` : ""}`,
     className,
     methodLabels[payload.method],
+    orderId ? `Ordre-ID ${orderId}` : null,
     note,
   ].filter(Boolean);
 
@@ -693,9 +672,10 @@ export async function registerManualPayment(
     .from("payments")
     .insert({
       student_id: payload.student_id,
-      enrollment_id: enrollment.id,
+      enrollment_id: enrollment?.id ?? null,
       school_year_id: payload.school_year_id,
       reference: `manual-${randomUUID()}`,
+      psp_reference: orderId,
       amount: Math.round(payload.amount_nok * 100),
       description: descriptionParts.join(" · "),
       status: "fanget",
@@ -774,9 +754,7 @@ export async function batchSendPaymentLinks(
     .eq("school_year_id", schoolYearId);
   const payments = (pays as unknown as BatchPayment[] | null) ?? [];
 
-  const paidStudents = new Set(
-    payments.filter((p) => p.status === "fanget").map((p) => p.student_id),
-  );
+  const balances = await fetchBalances(supabase, schoolYearId);
   const pendingByStudent = new Map<string, BatchPayment>();
   for (const p of payments) {
     if (
@@ -800,7 +778,8 @@ export async function batchSendPaymentLinks(
     seen.add(e.student_id);
 
     const st = e.students;
-    if (paidStudents.has(e.student_id)) {
+    const balance = balances.get(balanceKey(e.student_id, schoolYearId));
+    if (balance && balance.owed > 0 && balance.remaining <= 0) {
       alreadyPaid++;
       continue;
     }
@@ -828,11 +807,12 @@ export async function batchSendPaymentLinks(
     }
 
     const price = e.price_snapshot ?? e.classes?.price ?? yearFee;
-    if (price == null) {
+    const remaining = balance?.remaining ?? 0;
+    if (remaining <= 0 && price == null) {
       noPrice++;
       continue;
     }
-    const amount = Math.round(price * 100);
+    const amount = remaining > 0 ? remaining : Math.round((price as number) * 100);
     const reference = `isk-${randomUUID()}`;
     const returnUrl = `${siteUrl}/api/vipps/return?reference=${reference}`;
 
@@ -1132,13 +1112,14 @@ export async function sendPaymentLink(
   const { data } = await supabase
     .from("payments")
     .select(
-      "amount, school_years(label), enrollments(classes(name_no)), students(child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name, child_email, mother_email, father_email)",
+      "amount, due_date, school_years(label), enrollments(classes(name_no)), students(child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name, child_email, mother_email, father_email)",
     )
     .eq("id", paymentId)
     .maybeSingle();
 
   const payment = data as unknown as {
     amount: number;
+    due_date: string | null;
     school_years: { label: string } | null;
     enrollments: { classes: { name_no: string | null } | null } | null;
     students: {
@@ -1172,6 +1153,7 @@ export async function sendPaymentLink(
     amount: payment.amount,
     schoolYear: payment.school_years?.label ?? null,
     className: payment.enrollments?.classes?.name_no ?? null,
+    dueDate: payment.due_date,
     url: `${siteUrl}/api/vipps/pay/${paymentId}`,
   });
   if (!ok) {
@@ -1356,6 +1338,47 @@ export async function reallocatePayment(
   await allocatePayment(supabase, paymentId);
   revalidate();
   return { ok: true, id: paymentId };
+}
+
+export async function reallocateYearPayments(
+  schoolYearId: string,
+): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  await requireAdmin();
+  if (!schoolYearId) return { ok: false, error: "Mangler skoleår" };
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("payments")
+    .select("id")
+    .eq("school_year_id", schoolYearId)
+    .eq("status", "fanget")
+    .is("voided_at", null)
+    .order("created_at", { ascending: true });
+
+  const ids = ((data as unknown as { id: string }[] | null) ?? []).map(
+    (row) => row.id,
+  );
+  if (ids.length === 0) return { ok: true, count: 0 };
+
+  const { error: clearError } = await supabase
+    .from("payment_allocations")
+    .delete()
+    .in("payment_id", ids);
+  if (clearError) return { ok: false, error: clearError.message };
+
+  for (const id of ids) {
+    await allocatePayment(supabase, id);
+  }
+
+  await writeAudit({
+    action: "payment.reallocate_year",
+    entityType: "school_year",
+    entityId: schoolYearId,
+    metadata: { payments: ids.length },
+  });
+
+  revalidate();
+  return { ok: true, count: ids.length };
 }
 
 export async function updatePaymentAllocations(

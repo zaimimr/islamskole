@@ -383,6 +383,7 @@ export type Database = {
           created_at: string
           currency: string
           description: string | null
+          due_date: string | null
           duplicate_of_payment_id: string | null
           duplicate_reviewed_at: string | null
           duplicate_reviewed_by: string | null
@@ -412,6 +413,7 @@ export type Database = {
           created_at?: string
           currency?: string
           description?: string | null
+          due_date?: string | null
           duplicate_of_payment_id?: string | null
           duplicate_reviewed_at?: string | null
           duplicate_reviewed_by?: string | null
@@ -441,6 +443,7 @@ export type Database = {
           created_at?: string
           currency?: string
           description?: string | null
+          due_date?: string | null
           duplicate_of_payment_id?: string | null
           duplicate_reviewed_at?: string | null
           duplicate_reviewed_by?: string | null

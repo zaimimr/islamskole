@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { studentDisplayName } from "@/lib/student-name";
+import { formatAge, schoolYearStart } from "@/lib/age";
 import { deleteStudentApplication } from "@/app/[locale]/admin/actions";
 import { adminBasePath } from "@/components/admin/paths";
 import { PageHeader } from "@/components/admin/page-header";
@@ -86,22 +87,6 @@ function addressLine(app: StudentApplicationRow): string {
     [app.child_postal_code, app.child_city].filter(Boolean).join(" "),
   ].filter((p) => p && p.length > 0);
   return parts.length ? parts.join(", ") : "-";
-}
-
-function ageFromBirthDate(value: string | null): number | null {
-  if (!value) return null;
-  const b = new Date(value);
-  if (Number.isNaN(b.getTime())) return null;
-  const now = new Date();
-  let age = now.getFullYear() - b.getFullYear();
-  const m = now.getMonth() - b.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age--;
-  return age >= 0 ? age : null;
-}
-
-function displayAge(app: StudentApplicationRow): string {
-  const age = ageFromBirthDate(app.child_birth_date);
-  return age != null ? String(age) : "-";
 }
 
 const levelLabels: Record<string, string> = {
@@ -233,8 +218,10 @@ export default async function PameldingerPage({
   const total = unregistered.length;
   const from = (page - 1) * PAGE_SIZE;
   const applications = unregistered.slice(from, from + PAGE_SIZE);
-  const defaultSchoolYearId =
-    placement.schoolYears.find((y) => y.is_active)?.id ?? null;
+  const activeYear = placement.schoolYears.find((y) => y.is_active);
+  const defaultSchoolYearId = activeYear?.id ?? null;
+  const ageYear =
+    schoolYearStart(activeYear?.label) ?? new Date().getFullYear();
   const filtered = Boolean(q || status);
   const pageIds = applications.map((a) => a.id);
 
@@ -287,7 +274,8 @@ export default async function PameldingerPage({
                             {studentDisplayName(application) || "-"}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {displayAge(application)} år ·{" "}
+                            {formatAge(application.child_birth_date, ageYear)}{" "}
+                            år ·{" "}
                             {genderLabel(application.child_gender)}
                             {application.desired_class
                               ? ` · ønsker ${application.desired_class}`

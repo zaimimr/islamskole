@@ -1,6 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { guardianName, studentDisplayName } from "@/lib/student-name";
+import { formatAge, schoolYearStart } from "@/lib/age";
 import { adminBasePath } from "@/components/admin/paths";
 import { PageHeader } from "@/components/admin/page-header";
 import { EleverFilters } from "@/components/admin/elever-filters";
@@ -34,22 +35,6 @@ type StudentRow = {
   }[];
   payments: { status: string; amount: number; school_year_id: string | null }[];
 };
-
-function ageFromBirthDate(value: string | null): number | null {
-  if (!value) return null;
-  const b = new Date(value);
-  if (Number.isNaN(b.getTime())) return null;
-  const now = new Date();
-  let age = now.getFullYear() - b.getFullYear();
-  const m = now.getMonth() - b.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age--;
-  return age >= 0 ? age : null;
-}
-
-function displayAge(student: StudentRow): string {
-  const age = ageFromBirthDate(student.child_birth_date);
-  return age != null ? String(age) : "-";
-}
 
 async function getStudents(q: string): Promise<StudentRow[]> {
   try {
@@ -226,6 +211,11 @@ export default async function RegistrertePage({
   const activeYearId = activeYear?.id ?? null;
   const activeYearLabel = activeYear?.label ?? null;
 
+  const filterYearLabel =
+    schoolYears.find((y) => y.id === yearFilter)?.label ?? activeYearLabel;
+  const ageYear =
+    schoolYearStart(filterYearLabel) ?? new Date().getFullYear();
+
   const realYear =
     yearFilter && yearFilter !== "needs_rollover" ? yearFilter : null;
   const scoped = (payments: StudentRow["payments"]) =>
@@ -353,7 +343,9 @@ export default async function RegistrertePage({
                       <TableCell className="font-medium">
                         {studentDisplayName(student) || "-"}
                       </TableCell>
-                      <TableCell>{displayAge(student)}</TableCell>
+                      <TableCell>
+                        {formatAge(student.child_birth_date, ageYear)}
+                      </TableCell>
                       <TableCell>{guardianName(student) ?? "-"}</TableCell>
                       <TableCell>{classLabel(student.enrollments)}</TableCell>
                       <TableCell>
@@ -390,20 +382,25 @@ export default async function RegistrertePage({
                         ) : null}
                       </TableCell>
                       <TableCell>
-                        {state === "betalt" ? (
-                          <Badge>Betalt</Badge>
-                        ) : state === "delvis" ? (
-                          <Badge
-                            variant="secondary"
-                            title={`Gjenstår ${formatNok(ledger.remaining)}`}
-                          >
-                            Delvis · {formatNok(ledger.remaining)} igjen
-                          </Badge>
-                        ) : state === "venter" ? (
-                          <Badge variant="secondary">Lenke sendt</Badge>
-                        ) : (
-                          <Badge variant="outline">Ikke sendt</Badge>
-                        )}
+                        <div className="flex flex-wrap items-center gap-1">
+                          {state === "betalt" ? (
+                            <Badge>Betalt</Badge>
+                          ) : state === "delvis" ? (
+                            <Badge
+                              variant="secondary"
+                              title={`Gjenstår ${formatNok(ledger.remaining)}`}
+                            >
+                              Delvis · {formatNok(ledger.remaining)} igjen
+                            </Badge>
+                          ) : state === "venter" ? (
+                            <Badge variant="secondary">Lenke sendt</Badge>
+                          ) : (
+                            <Badge variant="outline">Ikke sendt</Badge>
+                          )}
+                          {state === "delvis" && hasPendingLink(studentPayments) ? (
+                            <Badge variant="outline">Lenke ute</Badge>
+                          ) : null}
+                        </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         <ChevronRight className="size-4" />

@@ -5,6 +5,7 @@ import {
   UserPlus,
   Users,
   Inbox,
+  Wallet,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { adminBasePath } from "@/components/admin/paths";
@@ -29,6 +30,11 @@ async function getDashboard() {
   const empty = {
     students: 0,
     studentsNew: 0,
+    studentsPaid: 0,
+    enrolled: 0,
+    enrolledPaid: 0,
+    activeYearLabel: null as string | null,
+    outstanding: 0,
     teachers: 0,
     teachersNew: 0,
     events: 0,
@@ -47,6 +53,8 @@ async function getDashboard() {
       classes,
       recentStudents,
       recentTeachers,
+      applicationPayments,
+      activeYear,
     ] = await Promise.all([
       supabase
         .from("student_applications")
@@ -76,11 +84,57 @@ async function getDashboard() {
         .select("id, full_name, email, status, created_at")
         .order("created_at", { ascending: false })
         .limit(5),
+      supabase.from("student_applications").select("payments(status)"),
+      supabase
+        .from("school_years")
+        .select("id, label")
+        .eq("is_active", true)
+        .maybeSingle(),
     ]);
+
+    const activeYearRow = activeYear.data as unknown as {
+      id: string;
+      label: string;
+    } | null;
+
+    const studentsPaid = (
+      (applicationPayments.data as
+        | { payments: { status: string | null } | null }[]
+        | null) ?? []
+    ).filter((row) => row.payments?.status === "fanget").length;
+
+    const balances = activeYearRow
+      ? ((
+          await supabase
+            .from("student_balances")
+            .select("student_id, owed, paid, remaining")
+            .eq("school_year_id", activeYearRow.id)
+        ).data as
+          | {
+              student_id: string | null;
+              owed: number | null;
+              paid: number | null;
+              remaining: number | null;
+            }[]
+          | null) ?? []
+      : [];
+
+    const enrolledPaid = balances.filter(
+      (row) => (row.owed ?? 0) > 0 && (row.remaining ?? 0) <= 0,
+    ).length;
+    const outstanding = balances.reduce(
+      (sum, row) => sum + (row.remaining ?? 0),
+      0,
+    );
 
     return {
       students: students.count ?? 0,
       studentsNew: studentsNew.count ?? 0,
+      studentsPaid,
+      enrolled: balances.length,
+      enrolledPaid,
+      activeYearLabel: activeYearRow?.label ?? null,
+      outstanding,
       teachers: teachers.count ?? 0,
       teachersNew: teachersNew.count ?? 0,
       events: events.count ?? 0,
@@ -185,9 +239,25 @@ export default async function AdminDashboardPage({
     {
       label: "Påmeldinger",
       value: d.students,
-      hint: `${d.studentsNew} nye`,
+      hint: `${d.studentsPaid} betalt · ${d.studentsNew} nye`,
       icon: UserPlus,
       href: `${basePath}/register`,
+    },
+    {
+      label: "Elever med krav",
+      value: d.enrolled,
+      hint: `${d.enrolledPaid} ferdig betalt${
+        d.activeYearLabel ? ` · ${d.activeYearLabel}` : ""
+      }`,
+      icon: GraduationCap,
+      href: `${basePath}/betaling`,
+    },
+    {
+      label: "Utestående",
+      value: `${(d.outstanding / 100).toLocaleString("nb-NO")} kr`,
+      hint: "etter fritak og moderasjon",
+      icon: Wallet,
+      href: `${basePath}/betaling`,
     },
     {
       label: "Lærersøknader",
@@ -221,7 +291,7 @@ export default async function AdminDashboardPage({
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {stats.map(({ label, value, hint, icon: Icon, href }) => (
           <Link key={label} href={href} className="group">
             <Card className="transition-colors group-hover:border-primary/40">
@@ -232,7 +302,7 @@ export default async function AdminDashboardPage({
                 <Icon className="size-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold">{value}</p>
+                <p className="text-2xl font-bold">{value}</p>
                 <p className="text-xs text-muted-foreground">{hint}</p>
               </CardContent>
             </Card>

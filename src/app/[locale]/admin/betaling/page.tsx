@@ -4,6 +4,7 @@ import { studentDisplayName, type NamedRecord } from "@/lib/student-name";
 import { adminBasePath } from "@/components/admin/paths";
 import { PageHeader } from "@/components/admin/page-header";
 import { BatchSendButton } from "@/components/admin/batch-send-button";
+import { ReallocateYearButton } from "@/components/admin/reallocate-year-button";
 import { ExportButton } from "@/components/admin/export-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +34,14 @@ type PaymentRow = {
   school_year_id: string;
   status: string;
   amount: number;
+};
+
+type FeeRow = {
+  student_id: string;
+  school_year_id: string;
+  amount: number | null;
+  discount: number | null;
+  note: string | null;
 };
 
 type BalanceRow = {
@@ -67,20 +76,25 @@ async function getData() {
       supabase.from("payments").select("student_id, school_year_id, status, amount"),
     ]);
 
-  const [{ data: balances }, { count: duplicateCount }] = await Promise.all([
-    supabase
-      .from("student_balances")
-      .select("student_id, school_year_id, owed, paid, remaining, state"),
-    supabase
-      .from("duplicate_payment_candidates")
-      .select("payment_id", { count: "exact", head: true }),
-  ]);
+  const [{ data: balances }, { data: fees }, { count: duplicateCount }] =
+    await Promise.all([
+      supabase
+        .from("student_balances")
+        .select("student_id, school_year_id, owed, paid, remaining, state"),
+      supabase
+        .from("student_fees")
+        .select("student_id, school_year_id, amount, discount, note"),
+      supabase
+        .from("duplicate_payment_candidates")
+        .select("payment_id", { count: "exact", head: true }),
+    ]);
 
   return {
     years: (years as YearRow[] | null) ?? [],
     enrollments: (enrollments as EnrollmentRow[] | null) ?? [],
     payments: (payments as PaymentRow[] | null) ?? [],
     balances: (balances as BalanceRow[] | null) ?? [],
+    fees: (fees as FeeRow[] | null) ?? [],
     duplicateCount: duplicateCount ?? 0,
   };
 }
@@ -92,7 +106,7 @@ export default async function BetalingPage({
 }) {
   const { locale } = await params;
   const basePath = adminBasePath(locale);
-  const { years, enrollments, payments, balances, duplicateCount } =
+  const { years, enrollments, payments, balances, fees, duplicateCount } =
     await getData();
 
   return (
@@ -126,6 +140,12 @@ export default async function BetalingPage({
       ) : null}
 
       <div className="flex flex-wrap justify-end gap-3">
+        <Link
+          href={`${basePath}/betaling/logg?status=venter`}
+          className="text-sm font-medium underline underline-offset-2"
+        >
+          Sendte lenker som kan avbrytes
+        </Link>
         <Link
           href={`${basePath}/betaling/logg`}
           className="text-sm font-medium underline underline-offset-2"
@@ -161,6 +181,13 @@ export default async function BetalingPage({
             }
           }
 
+          const yearFees = new Map<string, FeeRow>();
+          for (const f of fees) {
+            if (f.school_year_id === year.id) {
+              yearFees.set(f.student_id, f);
+            }
+          }
+
           const hasPending = new Set(
             yearPayments
               .filter(
@@ -186,13 +213,23 @@ export default async function BetalingPage({
             }
           }
 
+          const exemptIds = studentIds.filter((id) => {
+            const fee = yearFees.get(id);
+            return (
+              fee != null &&
+              (fee.discount ?? 0) > 0 &&
+              (fee.amount ?? 0) - (fee.discount ?? 0) <= 0
+            );
+          });
+
           const paidCount = studentIds.filter(
             (id) => stateByStudent.get(id) === "betalt",
           ).length;
           const partialCount = studentIds.filter(
             (id) => stateByStudent.get(id) === "delvis",
           ).length;
-          const missingCount = studentIds.length - paidCount;
+          const missingCount =
+            studentIds.length - paidCount - exemptIds.length;
 
           const enrolledBalances = studentIds.map((id) => yearBalances.get(id));
           const billed = enrolledBalances.reduce(
@@ -230,7 +267,11 @@ export default async function BetalingPage({
                   </span>
                 </summary>
                 <div className="grid gap-4 border-t p-4">
-                  <div className="flex justify-end">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <ReallocateYearButton
+                      schoolYearId={year.id}
+                      yearLabel={year.label}
+                    />
                     <BatchSendButton
                       schoolYearId={year.id}
                       yearLabel={year.label}
@@ -243,6 +284,12 @@ export default async function BetalingPage({
                     <Stat label="Mangler" value={String(missingCount)} />
                     <Stat label="Innbetalt" value={formatNok(collected)} />
                     <Stat label="Gjenstår" value={formatNok(outstanding)} />
+                    {exemptIds.length > 0 ? (
+                      <Stat
+                        label="Fritatt"
+                        value={String(exemptIds.length)}
+                      />
+                    ) : null}
                   </div>
 
                   {rows.length === 0 ? (
@@ -287,7 +334,17 @@ export default async function BetalingPage({
                               </span>
                             </TableCell>
                             <TableCell>
-                              {state === "betalt" ? (
+                              {exemptIds.includes(e.student_id) ? (
+                                <Badge
+                                  variant="secondary"
+                                  title={
+                                    yearFees.get(e.student_id)?.note ??
+                                    "Skal ikke betale"
+                                  }
+                                >
+                                  Fritatt
+                                </Badge>
+                              ) : state === "betalt" ? (
                                 <Badge>Betalt</Badge>
                               ) : state === "delvis" ? (
                                 <Badge variant="secondary">

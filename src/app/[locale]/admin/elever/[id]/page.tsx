@@ -11,6 +11,7 @@ import {
 import {
   PaymentManager,
   type PaymentRow,
+  type YearFee,
 } from "@/components/admin/payment-manager";
 import { deleteStudent } from "@/app/[locale]/admin/students-actions";
 import { studentDisplayName } from "@/lib/student-name";
@@ -57,6 +58,7 @@ export default async function ElevDetailPage({
     { data: enrollmentData },
     { data: allocationData },
     { data: balanceData },
+    { data: feeData },
   ] = await Promise.all([
     supabase
       .from("students")
@@ -87,6 +89,10 @@ export default async function ElevDetailPage({
     supabase
       .from("student_balances")
       .select("school_year_id, owed, paid, remaining, state")
+      .eq("student_id", id),
+    supabase
+      .from("student_fees")
+      .select("school_year_id, amount, discount, note")
       .eq("student_id", id),
   ]);
 
@@ -154,6 +160,22 @@ export default async function ElevDetailPage({
     };
   }
 
+  const feesByYear: Record<string, YearFee> = {};
+  for (const row of (feeData as
+    | {
+        school_year_id: string;
+        amount: number | null;
+        discount: number | null;
+        note: string | null;
+      }[]
+    | null) ?? []) {
+    feesByYear[row.school_year_id] = {
+      amount: row.amount ?? 0,
+      discount: row.discount ?? 0,
+      note: row.note,
+    };
+  }
+
   const fallbackAmount =
     activeEnrollment?.classes?.price ?? activeYear?.fee ?? null;
   const defaultAmount = fallbackAmount;
@@ -176,7 +198,7 @@ export default async function ElevDetailPage({
   const { data: paymentData } = await supabase
     .from("payments")
     .select(
-      "id, amount, currency, description, status, method, paid_at, redirect_url, created_at, reference, voided_at, void_reason, payer_name, payer_phone, payer_email, vipps_state, vipps_payment_method, psp_reference, last_synced_at, captured_at, student_id, school_year_id, school_years(label), payment_allocations(student_id)",
+      "id, amount, currency, description, status, method, paid_at, due_date, redirect_url, created_at, reference, voided_at, void_reason, payer_name, payer_phone, payer_email, vipps_state, vipps_payment_method, psp_reference, last_synced_at, captured_at, student_id, school_year_id, school_years(label), payment_allocations(student_id)",
     )
     .or(paymentFilter)
     .order("created_at", { ascending: false });
@@ -202,6 +224,7 @@ export default async function ElevDetailPage({
       status: p.status,
       method: p.method,
       paid_at: p.paid_at,
+      due_date: p.due_date,
       redirect_url: p.redirect_url,
       created_at: p.created_at,
       reference: p.reference,
@@ -235,16 +258,13 @@ export default async function ElevDetailPage({
         title={studentDisplayName(student) || "Elev"}
         description="Rediger elev, plassering og betaling."
         action={
-          <DeleteButton id={student.id} label="elev" action={deleteStudent} />
+          <DeleteButton
+            id={student.id}
+            label="elev"
+            action={deleteStudent}
+            redirectTo={listHref}
+          />
         }
-      />
-
-      <EnrollmentManager
-        studentId={student.id}
-        classes={classes}
-        schoolYears={schoolYears}
-        enrollments={enrollments}
-        defaultSchoolYearId={defaultSchoolYearId}
       />
 
       <PaymentManager
@@ -254,7 +274,16 @@ export default async function ElevDetailPage({
         defaultSchoolYearId={defaultSchoolYearId}
         defaultAmount={defaultAmount}
         balancesByYear={balancesByYear}
+        feesByYear={feesByYear}
         payments={payments}
+      />
+
+      <EnrollmentManager
+        studentId={student.id}
+        classes={classes}
+        schoolYears={schoolYears}
+        enrollments={enrollments}
+        defaultSchoolYearId={defaultSchoolYearId}
       />
 
       <StudentForm student={student} listHref={listHref} />

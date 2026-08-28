@@ -39,6 +39,7 @@ function formatDate(value: string | null) {
 }
 
 const methodLabels: Record<string, string> = {
+  vipps: "Vipps",
   kontant: "Kontant",
   bank: "Bankoverføring",
   annet: "Annet",

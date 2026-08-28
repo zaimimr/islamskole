@@ -661,7 +661,7 @@ export async function createStudentEnrollment(
 
   const reference = `isk-${randomUUID()}`;
   const amount = year.fee * 100 * childPayloads.length;
-  const description = `Innmelding ${year.label} (${childPayloads.length} barn)`;
+  const description = `Innmelding ${year.label} - ${childNames.join(", ")}`;
 
   const { data: paymentRow, error: paymentError } = await admin
     .from("payments")

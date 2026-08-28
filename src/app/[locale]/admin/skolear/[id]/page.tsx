@@ -168,7 +168,12 @@ export default async function SkolearDetailPage({
               isActiveYear={Boolean(year.is_active)}
               activeYearLabel={activeYearLabel}
             />
-            <DeleteButton id={year.id} label="skoleår" action={deleteSchoolYear} />
+            <DeleteButton
+              id={year.id}
+              label="skoleår"
+              action={deleteSchoolYear}
+              redirectTo={listHref}
+            />
           </div>
         }
       />

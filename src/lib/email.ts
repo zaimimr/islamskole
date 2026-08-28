@@ -15,6 +15,7 @@ const STRINGS = {
       schoolYear: "Skoleår",
       amount: "Beløp",
       amountPaid: "Beløp betalt",
+      dueDate: "Betalingsfrist",
     },
     paymentLink: {
       subject: (child: string) => `Betaling for ${child}`,
@@ -54,6 +55,7 @@ const STRINGS = {
       schoolYear: "School year",
       amount: "Amount",
       amountPaid: "Amount paid",
+      dueDate: "Payment deadline",
     },
     paymentLink: {
       subject: (child: string) => `Payment for ${child}`,
@@ -196,6 +198,17 @@ function formatNok(amountOre: number) {
   return `${(amountOre / 100).toLocaleString("nb-NO")} kr`;
 }
 
+function formatDueDate(value: string | null | undefined, lang: EmailLang) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString(lang === "en" ? "en-GB" : "nb-NO", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 export async function sendPaymentLinkEmail(opts: {
   to: string | string[];
   guardianName: string;
@@ -203,6 +216,7 @@ export async function sendPaymentLinkEmail(opts: {
   amount: number;
   schoolYear: string | null;
   className: string | null;
+  dueDate?: string | null;
   url: string;
   lang?: EmailLang;
 }): Promise<boolean> {
@@ -221,6 +235,7 @@ export async function sendPaymentLinkEmail(opts: {
       [t.rows.class, opts.className],
       [t.rows.schoolYear, opts.schoolYear],
       [t.rows.amount, formatNok(opts.amount)],
+      [t.rows.dueDate, formatDueDate(opts.dueDate, lang)],
     ],
   });
 }

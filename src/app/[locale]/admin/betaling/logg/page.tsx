@@ -8,6 +8,7 @@ import {
   type AllocationStudent,
 } from "@/components/admin/allocate-payment-dialog";
 import { RefundPaymentDialog } from "@/components/admin/refund-payment-dialog";
+import { PaymentLinkActions } from "@/components/admin/payment-link-actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -45,6 +46,7 @@ type PaymentRow = {
   method: string;
   description: string | null;
   paid_at: string | null;
+  due_date: string | null;
   created_at: string;
   payer_name: string | null;
   payer_phone: string | null;
@@ -93,16 +95,28 @@ function formatDateTime(value: string | null) {
   });
 }
 
-async function getData(query: string) {
+const statusFilters: Record<string, string[]> = {
+  venter: ["opprettet", "autorisert"],
+  betalt: ["fanget"],
+  avbrutt: ["avbrutt", "feilet"],
+  refundert: ["refundert"],
+};
+
+async function getData(query: string, status: string) {
   const supabase = await createClient();
 
   let paymentQuery = supabase
     .from("payments")
     .select(
-      "id, reference, amount, status, method, description, paid_at, created_at, payer_name, payer_phone, payer_email, vipps_payment_method, voided_at, last_synced_at, school_years(label)",
+      "id, reference, amount, status, method, description, paid_at, due_date, created_at, payer_name, payer_phone, payer_email, vipps_payment_method, voided_at, last_synced_at, school_years(label)",
     )
     .order("created_at", { ascending: false })
     .limit(PAGE_SIZE);
+
+  const statuses = statusFilters[status];
+  if (statuses) {
+    paymentQuery = paymentQuery.in("status", statuses);
+  }
 
   const term = query.replace(/[%,()]/g, " ").trim();
   if (term) {
@@ -175,10 +189,11 @@ export default async function PaymentLogPage({
   const { locale } = await params;
   const sp = await searchParams;
   const query = typeof sp.q === "string" ? sp.q : "";
+  const status = typeof sp.status === "string" ? sp.status : "";
   const basePath = adminBasePath(locale);
 
   const { payments, allocations, events, applications, students } =
-    await getData(query);
+    await getData(query, status);
 
   const allocationsByPayment = new Map<string, AllocationRow[]>();
   for (const allocation of allocations) {
@@ -217,6 +232,18 @@ export default async function PaymentLogPage({
           placeholder="Søk på navn, telefon eller referanse"
           className="h-9 min-w-64 flex-1 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
         />
+        <select
+          name="status"
+          aria-label="Status"
+          defaultValue={status}
+          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs"
+        >
+          <option value="">Alle statuser</option>
+          <option value="venter">Sendt, venter på betaling</option>
+          <option value="betalt">Betalt</option>
+          <option value="avbrutt">Avbrutt eller feilet</option>
+          <option value="refundert">Refundert</option>
+        </select>
         <button
           type="submit"
           className="h-9 rounded-md border px-4 text-sm font-medium"
@@ -229,7 +256,7 @@ export default async function PaymentLogPage({
         <CardContent className="p-0">
           {payments.length === 0 ? (
             <p className="p-6 text-sm text-muted-foreground">
-              {query
+              {query || status
                 ? "Ingen betalinger samsvarer med søket."
                 : "Ingen betalinger ennå."}
             </p>
@@ -255,6 +282,9 @@ export default async function PaymentLogPage({
                     const apps = applicationsByPayment.get(payment.id) ?? [];
                     const log = eventsByReference.get(payment.reference) ?? [];
                     const voided = Boolean(payment.voided_at);
+                    const vippsLink =
+                      payment.method === "vipps" &&
+                      !payment.reference.startsWith("manual-");
                     return (
                       <TableRow
                         key={payment.id}
@@ -262,6 +292,15 @@ export default async function PaymentLogPage({
                       >
                         <TableCell className="whitespace-nowrap">
                           {formatDateTime(payment.paid_at ?? payment.created_at)}
+                          {payment.due_date && payment.status !== "fanget" ? (
+                            <span className="block text-xs text-muted-foreground">
+                              Frist{" "}
+                              {new Date(payment.due_date).toLocaleDateString(
+                                "nb-NO",
+                                { day: "numeric", month: "short" },
+                              )}
+                            </span>
+                          ) : null}
                         </TableCell>
                         <TableCell className="whitespace-nowrap font-medium">
                           <span className={voided ? "line-through" : undefined}>
@@ -388,7 +427,13 @@ export default async function PaymentLogPage({
                                 amount: allocation.amount,
                               }))}
                             />
-                            {payment.method === "vipps" &&
+                            {vippsLink &&
+                            (payment.status === "opprettet" ||
+                              payment.status === "autorisert") &&
+                            !voided ? (
+                              <PaymentLinkActions paymentId={payment.id} />
+                            ) : null}
+                            {vippsLink &&
                             payment.status === "fanget" &&
                             !voided ? (
                               <RefundPaymentDialog
