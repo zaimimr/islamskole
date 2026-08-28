@@ -216,6 +216,177 @@ export type Database = {
         }
         Relationships: []
       }
+      families: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          origin: string
+          postal_code: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          origin?: string
+          postal_code?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          origin?: string
+          postal_code?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      family_data_reviews: {
+        Row: {
+          category: string
+          created_at: string
+          details: Json
+          family_id: string
+          id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          source_entity: string | null
+          source_entity_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          details?: Json
+          family_id: string
+          id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source_entity?: string | null
+          source_entity_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          details?: Json
+          family_id?: string
+          id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source_entity?: string | null
+          source_entity_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_data_reviews_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "family_data_reviews_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_guardians: {
+        Row: {
+          created_at: string
+          family_id: string
+          guardian_id: string
+          is_billing_contact: boolean
+          is_primary_contact: boolean
+          receives_communication: boolean
+          relationship_label: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          family_id: string
+          guardian_id: string
+          is_billing_contact?: boolean
+          is_primary_contact?: boolean
+          receives_communication?: boolean
+          relationship_label?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          family_id?: string
+          guardian_id?: string
+          is_billing_contact?: boolean
+          is_primary_contact?: boolean
+          receives_communication?: boolean
+          relationship_label?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_guardians_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "family_guardians_guardian_id_fkey"
+            columns: ["guardian_id"]
+            isOneToOne: false
+            referencedRelation: "guardians"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guardians: {
+        Row: {
+          created_at: string
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       info_blocks: {
         Row: {
           body_en: string | null
@@ -619,6 +790,7 @@ export type Database = {
           father_first_name: string | null
           father_last_name: string | null
           father_phone: string | null
+          family_id: string | null
           id: string
           message: string | null
           mother_email: string | null
@@ -648,6 +820,7 @@ export type Database = {
           father_first_name?: string | null
           father_last_name?: string | null
           father_phone?: string | null
+          family_id?: string | null
           id?: string
           message?: string | null
           mother_email?: string | null
@@ -677,6 +850,7 @@ export type Database = {
           father_first_name?: string | null
           father_last_name?: string | null
           father_phone?: string | null
+          family_id?: string | null
           id?: string
           message?: string | null
           mother_email?: string | null
@@ -688,6 +862,13 @@ export type Database = {
           terms_accepted?: boolean
         }
         Relationships: [
+          {
+            foreignKeyName: "student_applications_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "student_applications_payment_id_fkey"
             columns: ["payment_id"]
@@ -759,6 +940,63 @@ export type Database = {
           },
         ]
       }
+      student_guardians: {
+        Row: {
+          can_pick_up: boolean
+          created_at: string
+          family_id: string
+          guardian_id: string
+          has_legal_guardianship: boolean
+          is_primary: boolean
+          receives_communication: boolean
+          relationship_label: string
+          sort_order: number
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          can_pick_up?: boolean
+          created_at?: string
+          family_id: string
+          guardian_id: string
+          has_legal_guardianship?: boolean
+          is_primary?: boolean
+          receives_communication?: boolean
+          relationship_label?: string
+          sort_order?: number
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          can_pick_up?: boolean
+          created_at?: string
+          family_id?: string
+          guardian_id?: string
+          has_legal_guardianship?: boolean
+          is_primary?: boolean
+          receives_communication?: boolean
+          relationship_label?: string
+          sort_order?: number
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_guardians_family_guardian_fkey"
+            columns: ["family_id", "guardian_id"]
+            isOneToOne: false
+            referencedRelation: "family_guardians"
+            referencedColumns: ["family_id", "guardian_id"]
+          },
+          {
+            foreignKeyName: "student_guardians_student_family_fkey"
+            columns: ["student_id", "family_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id", "family_id"]
+          },
+        ]
+      }
       students: {
         Row: {
           application_id: string | null
@@ -779,6 +1017,7 @@ export type Database = {
           father_first_name: string | null
           father_last_name: string | null
           father_phone: string | null
+          family_id: string | null
           id: string
           mother_email: string | null
           mother_first_name: string | null
@@ -806,6 +1045,7 @@ export type Database = {
           father_first_name?: string | null
           father_last_name?: string | null
           father_phone?: string | null
+          family_id?: string | null
           id?: string
           mother_email?: string | null
           mother_first_name?: string | null
@@ -833,6 +1073,7 @@ export type Database = {
           father_first_name?: string | null
           father_last_name?: string | null
           father_phone?: string | null
+          family_id?: string | null
           id?: string
           mother_email?: string | null
           mother_first_name?: string | null
@@ -847,6 +1088,13 @@ export type Database = {
             columns: ["application_id"]
             isOneToOne: false
             referencedRelation: "student_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "students_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
             referencedColumns: ["id"]
           },
         ]
