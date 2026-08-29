@@ -2,7 +2,7 @@
 
 import { useRef, useTransition } from "react";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { changeOwnPassword } from "@/app/[locale]/admin/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,9 +25,21 @@ export function ChangePasswordForm() {
   }
 
   return (
-    <form ref={formRef} action={handleSubmit} className="grid max-w-sm gap-4">
+    <form ref={formRef} action={handleSubmit} className="grid max-w-md gap-5">
+      <div className="rounded-xl bg-[#F7F6F1] p-4">
+        <p className="font-bold">Krav til nytt passord</p>
+        <p className="mt-1 flex gap-2 text-sm text-admin-muted">
+          <CheckCircle2
+            aria-hidden="true"
+            className="mt-0.5 size-4 shrink-0 text-[#3C8F44]"
+          />
+          Minst 8 tegn. Bruk gjerne flere ord eller en lang passfrase.
+        </p>
+      </div>
       <div className="grid gap-2">
-        <Label htmlFor="password" required>Nytt passord</Label>
+        <Label htmlFor="password" required>
+          Nytt passord
+        </Label>
         <Input
           id="password"
           name="password"
@@ -38,7 +50,9 @@ export function ChangePasswordForm() {
         />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="confirm" required>Gjenta nytt passord</Label>
+        <Label htmlFor="confirm" required>
+          Gjenta nytt passord
+        </Label>
         <Input
           id="confirm"
           name="confirm"
@@ -48,7 +62,11 @@ export function ChangePasswordForm() {
           autoComplete="new-password"
         />
       </div>
-      <Button type="submit" disabled={pending} className="w-fit">
+      <Button
+        type="submit"
+        disabled={pending}
+        className="min-h-11 w-full sm:w-fit"
+      >
         {pending ? <Loader2 className="size-4 animate-spin" /> : null}
         Lagre nytt passord
       </Button>
