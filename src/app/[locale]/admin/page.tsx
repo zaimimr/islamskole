@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  CalendarClock,
   CalendarRange,
   CheckCircle2,
   CircleAlert,
@@ -35,6 +36,9 @@ type DashboardData = {
   enrolledStudents: number;
   outstandingStudents: number;
   outstandingAmount: number;
+  overdueInstallments: number;
+  overdueInstallmentAmount: number;
+  sadaqaUsedThisYear: number;
   recentApplications: SignupRow[];
 };
 
@@ -54,6 +58,8 @@ async function getDashboard(): Promise<DashboardResult> {
       students,
       enrollments,
       recentApplications,
+      overdueInstallments,
+      sadaqaPayments,
     ] = await Promise.all([
       supabase
         .from("school_years")
@@ -85,6 +91,18 @@ async function getDashboard(): Promise<DashboardResult> {
         )
         .order("created_at", { ascending: false })
         .limit(6),
+      supabase
+        .from("installments")
+        .select("id, amount, payment_plans!inner(status, paused_at)")
+        .in("status", ["planlagt", "sendt"])
+        .eq("payment_plans.status", "aktiv")
+        .lt("due_date", new Date().toISOString().slice(0, 10)),
+      supabase
+        .from("payments")
+        .select("id, school_year_id, net_paid_amount")
+        .eq("method", "sadaqa")
+        .eq("status", "fanget")
+        .is("voided_at", null),
     ]);
 
     const results = [
@@ -169,6 +187,28 @@ async function getDashboard(): Promise<DashboardResult> {
           (sum, row) => sum + (row.remaining ?? 0),
           0,
         ),
+        overdueInstallments:
+          (overdueInstallments.data as { id: string; amount: number }[] | null)
+            ?.length ?? 0,
+        overdueInstallmentAmount: (
+          (overdueInstallments.data as
+            | { id: string; amount: number }[]
+            | null) ?? []
+        ).reduce((sum, row) => sum + (row.amount ?? 0), 0),
+        sadaqaUsedThisYear: (
+          (sadaqaPayments.data as
+            | {
+                id: string;
+                school_year_id: string | null;
+                net_paid_amount: number;
+              }[]
+            | null) ?? []
+        )
+          .filter(
+            (row) =>
+              !activeYearRow || row.school_year_id === activeYearRow.id,
+          )
+          .reduce((sum, row) => sum + (row.net_paid_amount ?? 0), 0),
         recentApplications: (
           (recentApplications.data as
             | {
@@ -398,6 +438,17 @@ export default async function AdminDashboardPage({
       tone: "blue",
     });
   }
+  if (data.overdueInstallments > 0) {
+    attentionItems.push({
+      title: "Forfalte avdrag",
+      description: `${formatNok(data.overdueInstallmentAmount)} er over frist uten registrert betaling.`,
+      count: data.overdueInstallments,
+      href: `${basePath}/betaling/avdrag`,
+      action: "Følg opp",
+      icon: CalendarClock,
+      tone: "red",
+    });
+  }
   if (data.duplicatePayments > 0) {
     attentionItems.push({
       title: "Betalinger til kontroll",
@@ -483,6 +534,19 @@ export default async function AdminDashboardPage({
                 <dt className="text-admin-muted">Elever med plass</dt>
                 <dd className="font-bold tabular-nums">
                   {data.enrolledStudents}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <dt className="text-admin-muted">
+                  <Link
+                    href={`${basePath}/betaling/sadaqa`}
+                    className="rounded outline-none underline-offset-2 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
+                    Sadaqa brukt i år
+                  </Link>
+                </dt>
+                <dd className="font-bold tabular-nums">
+                  {formatNok(data.sadaqaUsedThisYear)}
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-4">

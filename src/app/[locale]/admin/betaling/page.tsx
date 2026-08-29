@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Clock3,
   History,
+  Percent,
   ReceiptText,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -59,6 +60,13 @@ type BalanceRow = {
   state: string | null;
 };
 type LedgerState = "betalt" | "delvis" | "venter" | "ubetalt" | "fritatt";
+type AdjustmentRow = {
+  student_id: string;
+  school_year_id: string;
+  type: string;
+  amount: number;
+};
+
 type PaymentData = {
   years: YearRow[];
   enrollments: EnrollmentRow[];
@@ -66,6 +74,10 @@ type PaymentData = {
   balances: BalanceRow[];
   fees: FeeRow[];
   duplicateCount: number;
+  adjustments: AdjustmentRow[];
+  studentFamilies: { id: string; family_id: string | null }[];
+  siblingDiscounts: { student_id: string; school_year_id: string }[];
+  dismissals: { family_id: string; school_year_id: string }[];
 };
 type YearStudent = EnrollmentRow & {
   state: LedgerState;
@@ -86,6 +98,7 @@ type YearView = {
   billed: number;
   collected: number;
   outstanding: number;
+  discounted: number;
   progress: number;
 };
 
@@ -141,7 +154,15 @@ async function getData(): Promise<
         .from("payments")
         .select("student_id, school_year_id, status, amount"),
     ]);
-    const [balancesResult, feesResult, duplicateResult] = await Promise.all([
+    const [
+      balancesResult,
+      feesResult,
+      duplicateResult,
+      adjustmentsResult,
+      studentsResult,
+      siblingDiscountsResult,
+      dismissalsResult,
+    ] = await Promise.all([
       supabase
         .from("student_balances")
         .select("student_id, school_year_id, owed, paid, remaining, state"),
@@ -151,6 +172,19 @@ async function getData(): Promise<
       supabase
         .from("duplicate_payment_candidates")
         .select("payment_id", { count: "exact", head: true }),
+      supabase
+        .from("student_fee_adjustments")
+        .select("student_id, school_year_id, type, amount")
+        .is("revoked_at", null),
+      supabase.from("students").select("id, family_id"),
+      supabase
+        .from("student_fee_adjustments")
+        .select("student_id, school_year_id")
+        .eq("type", "soskenrabatt")
+        .is("revoked_at", null),
+      supabase
+        .from("sibling_discount_dismissals")
+        .select("family_id, school_year_id"),
     ]);
 
     if (
@@ -159,7 +193,9 @@ async function getData(): Promise<
       paymentsResult.error ||
       balancesResult.error ||
       feesResult.error ||
-      duplicateResult.error
+      duplicateResult.error ||
+      adjustmentsResult.error ||
+      studentsResult.error
     ) {
       return { ok: false };
     }
@@ -173,6 +209,20 @@ async function getData(): Promise<
         balances: (balancesResult.data as BalanceRow[] | null) ?? [],
         fees: (feesResult.data as FeeRow[] | null) ?? [],
         duplicateCount: duplicateResult.count ?? 0,
+        adjustments:
+          (adjustmentsResult.data as AdjustmentRow[] | null) ?? [],
+        studentFamilies:
+          (studentsResult.data as
+            | { id: string; family_id: string | null }[]
+            | null) ?? [],
+        siblingDiscounts:
+          (siblingDiscountsResult.data as
+            | { student_id: string; school_year_id: string }[]
+            | null) ?? [],
+        dismissals:
+          (dismissalsResult.data as
+            | { family_id: string; school_year_id: string }[]
+            | null) ?? [],
       },
     };
   } catch {
@@ -195,6 +245,7 @@ function buildYearView(year: YearRow, data: PaymentData): YearView {
   );
   const balances = new Map<string, BalanceRow>();
   const fees = new Map<string, FeeRow>();
+  const adjustmentTotals = new Map<string, number>();
 
   for (const balance of data.balances) {
     if (balance.school_year_id === year.id && balance.student_id) {
@@ -204,6 +255,14 @@ function buildYearView(year: YearRow, data: PaymentData): YearView {
   for (const fee of data.fees) {
     if (fee.school_year_id === year.id) {
       fees.set(fee.student_id, fee);
+    }
+  }
+  for (const adjustment of data.adjustments) {
+    if (adjustment.school_year_id === year.id) {
+      adjustmentTotals.set(
+        adjustment.student_id,
+        (adjustmentTotals.get(adjustment.student_id) ?? 0) + adjustment.amount,
+      );
     }
   }
 
@@ -220,10 +279,11 @@ function buildYearView(year: YearRow, data: PaymentData): YearView {
       const owed = balance?.owed ?? 0;
       const paid = balance?.paid ?? 0;
       const remaining = balance?.remaining ?? 0;
+      const reductions =
+        (fee?.discount ?? 0) +
+        (adjustmentTotals.get(enrollment.student_id) ?? 0);
       const exempt =
-        fee != null &&
-        (fee.discount ?? 0) > 0 &&
-        (fee.amount ?? 0) - (fee.discount ?? 0) <= 0;
+        fee != null && reductions > 0 && (fee.amount ?? 0) - reductions <= 0;
       const state: LedgerState = exempt
         ? "fritatt"
         : owed > 0 && remaining <= 0
@@ -267,6 +327,13 @@ function buildYearView(year: YearRow, data: PaymentData): YearView {
     (student) => student.state === "fritatt",
   ).length;
   const billed = students.reduce((sum, student) => sum + student.owed, 0);
+  const discounted = students.reduce(
+    (sum, student) =>
+      sum +
+      (adjustmentTotals.get(student.student_id) ?? 0) +
+      (fees.get(student.student_id)?.discount ?? 0),
+    0,
+  );
   const collected = students.reduce((sum, student) => sum + student.paid, 0);
   const outstanding = students.reduce(
     (sum, student) => sum + student.remaining,
@@ -285,6 +352,7 @@ function buildYearView(year: YearRow, data: PaymentData): YearView {
     billed,
     collected,
     outstanding,
+    discounted,
     progress:
       billed > 0 ? Math.min(100, Math.round((collected / billed) * 100)) : 0,
   };
@@ -334,6 +402,44 @@ export default async function BetalingPage({
   );
   const hasActiveYear = orderedYears.some((year) => year.is_active);
 
+  const activeYearRow = orderedYears.find((year) => year.is_active) ?? null;
+  let siblingEligibleCount = 0;
+  if (activeYearRow) {
+    const familyByStudent = new Map(
+      data.studentFamilies.map((student) => [student.id, student.family_id]),
+    );
+    const enrolledByFamily = new Map<string, number>();
+    const seenStudents = new Set<string>();
+    for (const enrollment of data.enrollments) {
+      if (enrollment.school_year_id !== activeYearRow.id) continue;
+      if (seenStudents.has(enrollment.student_id)) continue;
+      seenStudents.add(enrollment.student_id);
+      const familyId = familyByStudent.get(enrollment.student_id);
+      if (!familyId) continue;
+      enrolledByFamily.set(familyId, (enrolledByFamily.get(familyId) ?? 0) + 1);
+    }
+    const familiesWithDiscount = new Set(
+      data.siblingDiscounts
+        .filter((row) => row.school_year_id === activeYearRow.id)
+        .map((row) => familyByStudent.get(row.student_id))
+        .filter(Boolean),
+    );
+    const dismissedFamilies = new Set(
+      data.dismissals
+        .filter((row) => row.school_year_id === activeYearRow.id)
+        .map((row) => row.family_id),
+    );
+    for (const [familyId, count] of enrolledByFamily) {
+      if (
+        count >= 3 &&
+        !familiesWithDiscount.has(familyId) &&
+        !dismissedFamilies.has(familyId)
+      ) {
+        siblingEligibleCount += 1;
+      }
+    }
+  }
+
   return (
     <div className="grid gap-7 lg:gap-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -380,6 +486,39 @@ export default async function BetalingPage({
           </span>
           <span className="hidden items-center gap-1 text-sm font-bold text-[#277A31] sm:flex">
             Kontroller
+            <ArrowRight
+              aria-hidden="true"
+              className="size-4 transition-transform group-hover:translate-x-0.5"
+            />
+          </span>
+          <ChevronRight
+            aria-hidden="true"
+            className="size-5 text-admin-muted sm:hidden"
+          />
+        </Link>
+      ) : null}
+
+      {siblingEligibleCount > 0 ? (
+        <Link
+          href={`${basePath}/familier`}
+          className="group grid min-h-20 grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl bg-[#F2F7F2] px-4 py-4 outline-none ring-1 ring-[#C9DEC9] transition-colors hover:bg-[#E9F2E9] focus-visible:ring-3 focus-visible:ring-ring/50 sm:px-5"
+        >
+          <span className="flex size-10 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B]">
+            <Percent aria-hidden="true" className="size-5" />
+          </span>
+          <span>
+            <span className="block font-bold">
+              {siblingEligibleCount} familie
+              {siblingEligibleCount === 1 ? "" : "r"} kvalifiserer til
+              søskenrabatt
+            </span>
+            <span className="mt-0.5 block text-sm text-[#3E5B3E]">
+              Familier med 3 eller flere barn kan få 1 500 kr i rabatt. Godkjenn
+              fra familiesiden.
+            </span>
+          </span>
+          <span className="hidden items-center gap-1 text-sm font-bold text-[#277A31] sm:flex">
+            Gå gjennom
             <ArrowRight
               aria-hidden="true"
               className="size-4 transition-transform group-hover:translate-x-0.5"
@@ -521,7 +660,7 @@ function YearBody({
 }) {
   return (
     <div className="grid gap-6">
-      <dl className="grid overflow-hidden rounded-xl bg-[#FAF9F5] ring-1 ring-[#E8E3D9] sm:grid-cols-3">
+      <dl className="grid overflow-hidden rounded-xl bg-[#FAF9F5] ring-1 ring-[#E8E3D9] sm:grid-cols-2 lg:grid-cols-4">
         <FinanceFact label="Krav totalt" value={formatNok(view.billed)} />
         <FinanceFact
           label="Innbetalt"
@@ -533,6 +672,7 @@ function YearBody({
           value={formatNok(view.outstanding)}
           tone={view.outstanding > 0 ? "yellow" : "green"}
         />
+        <FinanceFact label="Rabattert" value={formatNok(view.discounted)} />
       </dl>
 
       <div className="grid gap-3">
