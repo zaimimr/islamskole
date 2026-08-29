@@ -24,16 +24,22 @@ import {
 import {
   createVippsPayment,
   updateStudentFee,
+  grantFeeAdjustment,
+  revokeFeeAdjustment,
+  recordSadaqaCoverage,
   voidPayment,
   restorePayment,
   registerManualPayment,
   syncPaymentStatus,
   captureVippsPayment,
-  refundVippsPayment,
   cancelVippsPayment,
   sendPaymentLink,
   deletePayment,
 } from "@/app/[locale]/admin/students-actions";
+import {
+  RefundPaymentDialog,
+  type RefundAllocation,
+} from "@/components/admin/refund-payment-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -84,10 +90,30 @@ export type PaymentRow = {
   captured_at: string | null;
   allocatedAmount: number | null;
   sharedWith: number | null;
+  capturedAmount: number;
+  refundedAmount: number;
+  refundAllocations: RefundAllocation[];
 };
 
 export type YearBalance = { owed: number; paid: number; remaining: number };
 export type YearFee = { amount: number; discount: number; note: string | null };
+export type AdjustmentRow = {
+  id: string;
+  schoolYearId: string;
+  type: string;
+  amount: number;
+  note: string;
+  teacherName: string | null;
+  createdAt: string | null;
+};
+export type TeacherOption = { id: string; name: string };
+
+const adjustmentTypeLabels: Record<string, string> = {
+  soskenrabatt: "Søskenrabatt",
+  laererbarn: "Lærerbarn",
+  frivillig: "Frivillig",
+  annet: "Annet fritak",
+};
 type Confirmation = {
   title: string;
   description: string;
@@ -180,6 +206,8 @@ export function PaymentManager({
   balancesByYear,
   feesByYear,
   payments,
+  adjustments = [],
+  teachers = [],
 }: {
   studentId: string;
   classByYear: Record<string, string>;
@@ -189,6 +217,8 @@ export function PaymentManager({
   balancesByYear: Record<string, YearBalance>;
   feesByYear: Record<string, YearFee>;
   payments: PaymentRow[];
+  adjustments?: AdjustmentRow[];
+  teachers?: TeacherOption[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -201,6 +231,7 @@ export function PaymentManager({
   const [mode, setMode] = useState<"vipps" | "manual">("vipps");
   const [manualMethod, setManualMethod] = useState("kontant");
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [refundFor, setRefundFor] = useState<PaymentRow | null>(null);
 
   const currentClass = classByYear[year] ?? null;
   const balance = balancesByYear[year] ?? null;
@@ -219,6 +250,14 @@ export function PaymentManager({
 
   const yearPayments = payments.filter(
     (payment) => payment.schoolYearId === year || payment.schoolYearId === null,
+  );
+
+  const yearAdjustments = adjustments.filter(
+    (adjustment) => adjustment.schoolYearId === year,
+  );
+  const adjustmentTotal = yearAdjustments.reduce(
+    (sum, adjustment) => sum + adjustment.amount,
+    0,
   );
 
   const progress =
@@ -287,12 +326,56 @@ export function PaymentManager({
   }
 
   function exemptStudent() {
-    const owedNok = feeBaseNok;
+    const owedNok = balance ? Math.round(balance.owed / 100) : feeBaseNok;
+    if (owedNok <= 0) {
+      toast.error("Eleven har ingenting utestående å frita");
+      return;
+    }
     const formData = new FormData();
+    formData.set("student_id", studentId);
+    formData.set("school_year_id", year);
+    formData.set("type", "annet");
     formData.set("amount_nok", String(owedNok));
-    formData.set("discount_nok", String(owedNok));
-    formData.set("note", fee?.note ?? "Skal ikke betale");
-    handleFee(formData);
+    formData.set("note", "Skal ikke betale");
+    startTransition(async () => {
+      const result = await grantFeeAdjustment(formData);
+      if (result.ok) {
+        toast.success("Eleven er fritatt");
+        setFeeOpen(false);
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
+
+  function handleAdjustment(formData: FormData) {
+    formData.set("student_id", studentId);
+    formData.set("school_year_id", year);
+    const type = String(formData.get("type") ?? "");
+    startTransition(async () => {
+      const result =
+        type === "sadaqa"
+          ? await recordSadaqaCoverage(
+              (() => {
+                const sadaqa = new FormData();
+                sadaqa.set("student_id", studentId);
+                sadaqa.set("school_year_id", year);
+                sadaqa.set("amount_nok", String(formData.get("amount_nok") ?? ""));
+                sadaqa.set("reason", String(formData.get("note") ?? ""));
+                return sadaqa;
+              })(),
+            )
+          : await grantFeeAdjustment(formData);
+      if (result.ok) {
+        toast.success(
+          type === "sadaqa" ? "Sadaqa-dekning registrert" : "Fradrag lagt til",
+        );
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    });
   }
 
   function run(
@@ -369,7 +452,8 @@ export function PaymentManager({
                 av {formatNok(balance?.owed ?? 0)}
               </span>
             </p>
-            {(fee?.discount ?? 0) > 0 && (balance?.owed ?? 0) === 0 ? (
+            {((fee?.discount ?? 0) > 0 || adjustmentTotal > 0) &&
+            (balance?.owed ?? 0) === 0 ? (
               <Badge className="bg-[#F0F0ED] text-[#4E5550]">
                 Skal ikke betale
               </Badge>
@@ -403,8 +487,8 @@ export function PaymentManager({
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-admin-muted">
             <span>
               Krav {formatNok(fee?.amount ?? balance?.owed ?? 0)}
-              {(fee?.discount ?? 0) > 0
-                ? ` · moderasjon ${formatNok(fee?.discount ?? 0)}`
+              {(fee?.discount ?? 0) + adjustmentTotal > 0
+                ? ` · fradrag ${formatNok((fee?.discount ?? 0) + adjustmentTotal)}`
                 : ""}
             </span>
             {fee?.note ? <span>· {fee.note}</span> : null}
@@ -421,73 +505,199 @@ export function PaymentManager({
         </section>
 
         {feeOpen ? (
-          <form
-            key={`fee-${year}`}
-            action={handleFee}
-            className="grid gap-3 rounded-xl bg-[#FFF8E9] p-4 ring-1 ring-[#E8D6AA] sm:grid-cols-3 sm:items-end [&_[data-slot=input]]:min-h-11"
-          >
-            <div className="grid gap-2">
-              <Label htmlFor="fee_amount" required>
-                Skal betale (kr)
-              </Label>
-              <Input
-                id="fee_amount"
-                name="amount_nok"
-                type="number"
-                min="0"
-                step="1"
-                required
-                defaultValue={feeBaseNok}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="fee_discount">Moderasjon (kr)</Label>
-              <Input
-                id="fee_discount"
-                name="discount_nok"
-                type="number"
-                min="0"
-                step="1"
-                defaultValue={Math.round((fee?.discount ?? 0) / 100)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="fee_note">Notat</Label>
-              <Input
-                id="fee_note"
-                name="note"
-                type="text"
-                placeholder="Hvorfor mindre eller fritatt?"
-                defaultValue={fee?.note ?? ""}
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-2 sm:col-span-3 [&_[data-slot=button]]:rounded-xl [&_[data-slot=button]]:px-4">
-              <Button type="submit" disabled={pending}>
-                {pending ? <Loader2 className="size-4 animate-spin" /> : null}
-                Lagre
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={pending}
-                onClick={exemptStudent}
+          <div className="grid gap-4 rounded-xl bg-[#FFF8E9] p-4 ring-1 ring-[#E8D6AA]">
+            <form
+              key={`fee-${year}`}
+              action={handleFee}
+              className="grid gap-3 sm:grid-cols-2 sm:items-end [&_[data-slot=input]]:min-h-11"
+            >
+              <div className="grid gap-2">
+                <Label htmlFor="fee_amount" required>
+                  Skal betale (kr)
+                </Label>
+                <Input
+                  id="fee_amount"
+                  name="amount_nok"
+                  type="number"
+                  min="0"
+                  step="1"
+                  required
+                  defaultValue={feeBaseNok}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="fee_note">Notat</Label>
+                <Input
+                  id="fee_note"
+                  name="note"
+                  type="text"
+                  placeholder="Hvorfor endres kravet?"
+                  defaultValue={fee?.note ?? ""}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2 sm:col-span-2 [&_[data-slot=button]]:rounded-xl [&_[data-slot=button]]:px-4">
+                <Button type="submit" disabled={pending}>
+                  {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+                  Lagre krav
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={exemptStudent}
+                >
+                  Skal ikke betale
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={pending}
+                  onClick={() => setFeeOpen(false)}
+                >
+                  Avbryt
+                </Button>
+              </div>
+            </form>
+
+            <div className="grid gap-2 border-t border-[#E8D6AA] pt-3">
+              <p className="text-xs font-bold tracking-[0.04em] uppercase text-[#6B5524]">
+                Rabatter og fritak
+              </p>
+              {yearAdjustments.length > 0 ? (
+                <ul className="grid gap-1.5">
+                  {yearAdjustments.map((adjustment) => (
+                    <li
+                      key={adjustment.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/70 px-3 py-2 text-sm ring-1 ring-[#E8D6AA]"
+                    >
+                      <span>
+                        <span className="font-bold">
+                          {adjustmentTypeLabels[adjustment.type] ??
+                            adjustment.type}
+                          {adjustment.teacherName
+                            ? ` (${adjustment.teacherName})`
+                            : ""}
+                        </span>{" "}
+                        <span className="text-admin-muted">
+                          − {formatNok(adjustment.amount)} · {adjustment.note}
+                        </span>
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        disabled={pending}
+                        className="h-8 rounded-lg px-2 text-xs font-bold text-[#8B2F2B]"
+                        onClick={() =>
+                          setConfirmation({
+                            title: "Opphev fradraget?",
+                            description: `${adjustmentTypeLabels[adjustment.type] ?? adjustment.type} på ${formatNok(adjustment.amount)} fjernes, og beløpet legges tilbake på kravet. Historikken beholdes.`,
+                            confirmLabel: "Opphev fradrag",
+                            success: "Fradraget er opphevet",
+                            action: () =>
+                              revokeFeeAdjustment(
+                                adjustment.id,
+                                "Opphevet fra elevsiden",
+                              ),
+                          })
+                        }
+                      >
+                        Opphev
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-[#6B5524]">
+                  Ingen rabatter eller fritak i år.
+                </p>
+              )}
+
+              <form
+                key={`adjustment-${year}`}
+                action={handleAdjustment}
+                className="grid gap-3 sm:grid-cols-4 sm:items-end [&_[data-slot=input]]:min-h-11"
               >
-                Skal ikke betale
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={pending}
-                onClick={() => setFeeOpen(false)}
-              >
-                Avbryt
-              </Button>
+                <div className="grid gap-2">
+                  <Label htmlFor="adjustment_type">Type</Label>
+                  <select
+                    id="adjustment_type"
+                    name="type"
+                    className="h-11 rounded-md border border-input bg-white px-3 text-sm shadow-xs"
+                    defaultValue="annet"
+                  >
+                    <option value="soskenrabatt">Søskenrabatt</option>
+                    <option value="laererbarn">Lærerbarn</option>
+                    <option value="frivillig">Frivillig</option>
+                    <option value="sadaqa">Sadaqa-dekning</option>
+                    <option value="annet">Annet fritak</option>
+                  </select>
+                </div>
+                {teachers.length > 0 ? (
+                  <div className="grid gap-2">
+                    <Label htmlFor="adjustment_teacher">Lærer</Label>
+                    <select
+                      id="adjustment_teacher"
+                      name="teacher_guardian_id"
+                      className="h-11 rounded-md border border-input bg-white px-3 text-sm shadow-xs"
+                      defaultValue=""
+                    >
+                      <option value="">Velg lærer (for lærerbarn)</option>
+                      {teachers.map((teacher) => (
+                        <option key={teacher.id} value={teacher.id}>
+                          {teacher.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+                <div className="grid gap-2">
+                  <Label htmlFor="adjustment_amount" required>
+                    Beløp (kr)
+                  </Label>
+                  <Input
+                    id="adjustment_amount"
+                    name="amount_nok"
+                    type="number"
+                    min="1"
+                    step="1"
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="adjustment_note" required>
+                    Begrunnelse
+                  </Label>
+                  <Input
+                    id="adjustment_note"
+                    name="note"
+                    type="text"
+                    required
+                    placeholder="Hvorfor gis fradraget?"
+                  />
+                </div>
+                <div className="sm:col-span-4">
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    disabled={pending}
+                    className="rounded-xl px-4"
+                  >
+                    {pending ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Plus className="size-4" />
+                    )}
+                    Legg til fradrag
+                  </Button>
+                </div>
+              </form>
+              <p className="text-xs text-[#6B5524]">
+                Rabatter og fritak logges med begrunnelse og kan oppheves.
+                Sadaqa-dekning føres som en innbetaling fra sadaqa-kontoen, ikke
+                som rabatt.
+              </p>
             </div>
-            <p className="text-xs text-[#6B5524] sm:col-span-3">
-              Moderasjon trekkes fra kravet. Full moderasjon betyr at eleven
-              ikke skal betale, og beløpet forsvinner fra totalt utestående.
-            </p>
-          </form>
+          </div>
         ) : null}
 
         {formOpen ? (
@@ -819,18 +1029,11 @@ export function PaymentManager({
                                   Avbryt betaling
                                 </DropdownMenuItem>
                               ) : null}
-                              {payment.status === "fanget" ? (
+                              {payment.capturedAmount > 0 &&
+                              payment.refundedAmount <
+                                payment.capturedAmount ? (
                                 <DropdownMenuItem
-                                  onClick={() =>
-                                    setConfirmation({
-                                      title: "Refunder betalingen?",
-                                      description: `${formatNok(payment.amount)} betales tilbake via Vipps. Betalingen dekker ikke lenger elevens krav etter refusjonen.`,
-                                      confirmLabel: `Refunder ${formatNok(payment.amount)}`,
-                                      success: "Betaling refundert",
-                                      action: () =>
-                                        refundVippsPayment(payment.id),
-                                    })
-                                  }
+                                  onClick={() => setRefundFor(payment)}
                                 >
                                   <Undo2 className="size-4" />
                                   Refunder til foresatt
@@ -1006,6 +1209,25 @@ export function PaymentManager({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {refundFor ? (
+        <RefundPaymentDialog
+          paymentId={refundFor.id}
+          capturedAmount={refundFor.capturedAmount}
+          refundedAmount={refundFor.refundedAmount}
+          payerName={refundFor.payer_name}
+          vippsRefundAvailable={
+            refundFor.method === "vipps" &&
+            !(refundFor.reference ?? "").startsWith("manual-")
+          }
+          allocations={refundFor.refundAllocations}
+          open
+          onOpenChange={(next) => {
+            if (!next) setRefundFor(null);
+          }}
+          hideTrigger
+        />
+      ) : null}
     </Card>
   );
 }

@@ -66,6 +66,8 @@ export default async function ElevDetailPage({
     { data: allocationData },
     { data: balanceData },
     { data: feeData },
+    { data: adjustmentData },
+    { data: teacherData },
   ] = await Promise.all([
     supabase
       .from("students")
@@ -101,6 +103,19 @@ export default async function ElevDetailPage({
       .from("student_fees")
       .select("school_year_id, amount, discount, note")
       .eq("student_id", id),
+    supabase
+      .from("student_fee_adjustments")
+      .select(
+        "id, school_year_id, type, amount, note, created_at, guardians(first_name, last_name)",
+      )
+      .eq("student_id", id)
+      .is("revoked_at", null)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("guardians")
+      .select("id, first_name, last_name")
+      .eq("is_teacher", true)
+      .order("first_name", { ascending: true }),
   ]);
 
   const student = studentData as StudentData | null;
@@ -183,6 +198,43 @@ export default async function ElevDetailPage({
     };
   }
 
+  const adjustments = (
+    (adjustmentData as
+      | {
+          id: string;
+          school_year_id: string;
+          type: string;
+          amount: number;
+          note: string;
+          created_at: string | null;
+          guardians: { first_name: string | null; last_name: string | null } | null;
+        }[]
+      | null) ?? []
+  ).map((adjustment) => ({
+    id: adjustment.id,
+    schoolYearId: adjustment.school_year_id,
+    type: adjustment.type,
+    amount: adjustment.amount,
+    note: adjustment.note,
+    teacherName: adjustment.guardians
+      ? [adjustment.guardians.first_name, adjustment.guardians.last_name]
+          .filter(Boolean)
+          .join(" ") || null
+      : null,
+    createdAt: adjustment.created_at,
+  }));
+
+  const teachers = (
+    (teacherData as
+      | { id: string; first_name: string | null; last_name: string | null }[]
+      | null) ?? []
+  ).map((teacher) => ({
+    id: teacher.id,
+    name:
+      [teacher.first_name, teacher.last_name].filter(Boolean).join(" ") ||
+      "(uten navn)",
+  }));
+
   const fallbackAmount =
     activeEnrollment?.classes?.price ?? activeYear?.fee ?? null;
   const defaultAmount = fallbackAmount;
@@ -202,10 +254,22 @@ export default async function ElevDetailPage({
     ? `id.in.(${paymentIds.join(",")}),student_id.eq.${id}`
     : `student_id.eq.${id}`;
 
+  const { data: refundData } = paymentIds.length
+    ? await supabase
+        .from("refunds")
+        .select("payment_id, student_id, amount")
+        .in("payment_id", paymentIds)
+    : { data: [] };
+  const refundRows = (refundData ?? []) as {
+    payment_id: string;
+    student_id: string | null;
+    amount: number;
+  }[];
+
   const { data: paymentData } = await supabase
     .from("payments")
     .select(
-      "id, amount, currency, description, status, method, paid_at, due_date, redirect_url, created_at, reference, voided_at, void_reason, payer_name, payer_phone, payer_email, vipps_state, vipps_payment_method, psp_reference, last_synced_at, captured_at, student_id, school_year_id, school_years(label), payment_allocations(student_id)",
+      "id, amount, currency, description, status, method, paid_at, due_date, redirect_url, created_at, reference, voided_at, void_reason, payer_name, payer_phone, payer_email, vipps_state, vipps_payment_method, psp_reference, last_synced_at, captured_at, captured_amount, refunded_amount, student_id, school_year_id, school_years(label), payment_allocations(student_id, amount, students(child_first_name, child_last_name))",
     )
     .or(paymentFilter)
     .order("created_at", { ascending: false });
@@ -218,7 +282,18 @@ export default async function ElevDetailPage({
         > & {
           school_year_id: string | null;
           school_years: { label: string } | null;
-          payment_allocations: { student_id: string }[] | null;
+          captured_amount: number;
+          refunded_amount: number;
+          payment_allocations:
+            | {
+                student_id: string;
+                amount: number;
+                students: {
+                  child_first_name: string | null;
+                  child_last_name: string | null;
+                } | null;
+              }[]
+            | null;
         })[]
       | null) ?? []
   ).map((p) => {
@@ -249,6 +324,22 @@ export default async function ElevDetailPage({
       schoolYearId: p.school_year_id,
       allocatedAmount: allocationByPayment.get(p.id) ?? null,
       sharedWith: covers > 1 ? covers : null,
+      capturedAmount: p.captured_amount ?? 0,
+      refundedAmount: p.refunded_amount ?? 0,
+      refundAllocations: (p.payment_allocations ?? []).map((allocation) => ({
+        studentId: allocation.student_id,
+        name: allocation.students
+          ? studentDisplayName(allocation.students) || "Ukjent barn"
+          : "Ukjent barn",
+        amount: allocation.amount,
+        refunded: (refundRows ?? [])
+          .filter(
+            (refund) =>
+              refund.payment_id === p.id &&
+              refund.student_id === allocation.student_id,
+          )
+          .reduce((sum, refund) => sum + refund.amount, 0),
+      })),
     };
   });
 
@@ -350,6 +441,8 @@ export default async function ElevDetailPage({
         balancesByYear={balancesByYear}
         feesByYear={feesByYear}
         payments={payments}
+        adjustments={adjustments}
+        teachers={teachers}
       />
 
       <EnrollmentManager

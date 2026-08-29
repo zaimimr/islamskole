@@ -77,6 +77,45 @@ async function recordEvents(
   }
 }
 
+async function reconcileRefunds(
+  admin: ReturnType<typeof createAdminClient>,
+  paymentId: string,
+  reference: string,
+  vippsRefundedAmount: number,
+): Promise<void> {
+  try {
+    const { data } = await admin
+      .from("refunds")
+      .select("amount")
+      .eq("payment_id", paymentId);
+    const localTotal = (data ?? []).reduce(
+      (sum, row) => sum + (row.amount ?? 0),
+      0,
+    );
+    const missing = vippsRefundedAmount - localTotal;
+    if (missing <= 0) return;
+
+    const { data: allocations } = await admin
+      .from("payment_allocations")
+      .select("student_id, school_year_id")
+      .eq("payment_id", paymentId);
+    const single = (allocations ?? []).length === 1 ? allocations![0] : null;
+
+    await admin.from("refunds").insert({
+      payment_id: paymentId,
+      student_id: single?.student_id ?? null,
+      school_year_id: single?.school_year_id ?? null,
+      amount: missing,
+      method: "vipps",
+      reason: "Synkronisert fra Vipps",
+      refunded_by: "vipps-sync",
+      idempotency_key: `sync-${reference}-${vippsRefundedAmount}`,
+    });
+  } catch (error) {
+    console.error("Refund reconciliation failed", { reference, error });
+  }
+}
+
 export async function syncPaymentByReference(
   reference: string,
 ): Promise<string | null> {
@@ -122,7 +161,6 @@ export async function syncPaymentByReference(
     vipps_state: result.state,
     authorized_amount: result.authorizedAmount,
     captured_amount: capturedAmount,
-    refunded_amount: result.refundedAmount,
     last_synced_at: now,
   };
   if (result.payerName) update.payer_name = result.payerName;
@@ -148,6 +186,10 @@ export async function syncPaymentByReference(
   if (updateError) throw new Error(updateError.message);
 
   await recordEvents(admin, reference, payment?.id ?? null);
+
+  if (payment?.id && result.refundedAmount > 0) {
+    await reconcileRefunds(admin, payment.id, reference, result.refundedAmount);
+  }
 
   const justCaptured = status === "fanget" && previousStatus !== "fanget";
 

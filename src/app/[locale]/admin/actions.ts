@@ -709,13 +709,14 @@ export async function createStudentEnrollment(
 
   const { data: yearRow } = await admin
     .from("school_years")
-    .select("id, label, fee")
+    .select("id, label, fee, enrollment_fee")
     .eq("is_active", true)
     .maybeSingle();
   const year = yearRow as unknown as {
     id: string;
     label: string;
     fee: number | null;
+    enrollment_fee: number | null;
   } | null;
   if (!year?.fee) {
     return {
@@ -725,7 +726,8 @@ export async function createStudentEnrollment(
   }
 
   const reference = `isk-${randomUUID()}`;
-  const amount = year.fee * 100 * childPayloads.length;
+  const depositNok = Math.min(year.enrollment_fee ?? year.fee, year.fee);
+  const amount = depositNok * 100 * childPayloads.length;
   const description = `Innmelding ${year.label} - ${childPayloads.length} barn`;
 
   const { data: enrollment, error: enrollmentError } = await admin.rpc(

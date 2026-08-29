@@ -23,6 +23,7 @@ import {
   setStudentFee,
 } from "@/lib/payment-ledger";
 import { buildReference, describeForStudent } from "@/lib/payment-descriptor";
+import { rebuildPendingInstallmentsForStudent } from "@/lib/payment-plans";
 import { sendPaymentLinkEmail } from "@/lib/email";
 import {
   guardianEmails,
@@ -784,11 +785,36 @@ export async function batchSendPaymentLinks(
     .eq("school_year_id", schoolYearId);
   const payments = (pays as unknown as BatchPayment[] | null) ?? [];
 
+  const { data: planFamilies } = await supabase
+    .from("payment_plans")
+    .select("family_id")
+    .eq("school_year_id", schoolYearId)
+    .eq("status", "aktiv");
+  const planFamilyIds = (planFamilies ?? []).map((row) => row.family_id);
+  const planStudentIds = new Set<string>();
+  if (planFamilyIds.length > 0) {
+    const { data: planStudents } = await supabase
+      .from("students")
+      .select("id")
+      .in("family_id", planFamilyIds);
+    for (const row of planStudents ?? []) planStudentIds.add(row.id);
+  }
+
+  const { data: installmentLinks } = await supabase
+    .from("installments")
+    .select("payment_id")
+    .eq("school_year_id", schoolYearId)
+    .not("payment_id", "is", null);
+  const installmentPaymentIds = new Set(
+    (installmentLinks ?? []).map((row) => row.payment_id as string),
+  );
+
   const balances = await fetchBalances(supabase, schoolYearId);
   const pendingByStudent = new Map<string, BatchPayment>();
   for (const p of payments) {
     if (
       (p.status === "opprettet" || p.status === "autorisert") &&
+      !installmentPaymentIds.has(p.id) &&
       !pendingByStudent.has(p.student_id)
     ) {
       pendingByStudent.set(p.student_id, p);
@@ -801,11 +827,17 @@ export async function batchSendPaymentLinks(
   let noEmail = 0;
   let noPrice = 0;
   let failed = 0;
+  let onPlan = 0;
   const seen = new Set<string>();
 
   for (const e of enrollments) {
     if (seen.has(e.student_id)) continue;
     seen.add(e.student_id);
+
+    if (planStudentIds.has(e.student_id)) {
+      onPlan++;
+      continue;
+    }
 
     const st = e.students;
     const balance = balances.get(balanceKey(e.student_id, schoolYearId));
@@ -893,10 +925,11 @@ export async function batchSendPaymentLinks(
   revalidate();
   const parts: string[] = [];
   if (alreadyPaid) parts.push(`${alreadyPaid} allerede betalt`);
+  if (onPlan) parts.push(`${onPlan} på betalingsplan`);
   if (noEmail) parts.push(`${noEmail} mangler e-post`);
   if (noPrice) parts.push(`${noPrice} klasse uten pris`);
   if (failed) parts.push(`${failed} feilet`);
-  const skipped = alreadyPaid + noEmail + noPrice + failed;
+  const skipped = alreadyPaid + onPlan + noEmail + noPrice + failed;
   const note = parts.length ? parts.join(", ") : undefined;
   return { ok: true, sent, skipped, note };
 }
@@ -1126,32 +1159,199 @@ export async function captureVippsPayment(
   return { ok: true, id: paymentId };
 }
 
-export async function refundVippsPayment(
-  paymentId: string,
-): Promise<ActionResult> {
+export type RefundLine = { studentId: string | null; amount: number };
+
+export async function refundPaymentAction(input: {
+  paymentId: string;
+  lines: RefundLine[];
+  method: "vipps" | "kontant" | "bank" | "annet";
+  reason: string;
+  refundedOn?: string | null;
+}): Promise<ActionResult> {
   await requireAdmin();
+
+  const { paymentId, method } = input;
+  const reason = input.reason.trim();
+  if (!paymentId) return { ok: false, error: "Mangler betaling" };
+  if (!reason) return { ok: false, error: "Begrunnelse er påkrevd" };
+  if (!["vipps", "kontant", "bank", "annet"].includes(method)) {
+    return { ok: false, error: "Ugyldig refusjonsmåte" };
+  }
+
+  const lines = input.lines.filter((line) => line.amount > 0);
+  if (lines.length === 0) {
+    return { ok: false, error: "Velg minst ett beløp å refundere" };
+  }
+  if (lines.some((line) => !Number.isInteger(line.amount))) {
+    return { ok: false, error: "Ugyldig beløp" };
+  }
+
+  const supabase = await createClient();
   const row = await getPaymentReference(paymentId);
   if (!row) return { ok: false, error: "Fant ikke betalingen" };
 
-  const refundableAmount = row.capturedAmount - row.refundedAmount;
-  if (refundableAmount <= 0) {
-    return { ok: false, error: "Betalingen har ikke noe refunderbart beløp" };
+  if (row.status !== "fanget" && row.status !== "refundert") {
+    return { ok: false, error: "Bare betalte beløp kan refunderes" };
   }
 
-  try {
-    await refundPayment(row.reference, refundableAmount);
-    await writeAudit({
-      action: "payment.refund_requested",
-      entityType: "payment",
-      entityId: paymentId,
-      metadata: { amount: refundableAmount },
-    });
-    await syncPaymentByReference(row.reference);
-  } catch (error) {
+  const totalAmount = lines.reduce((sum, line) => sum + line.amount, 0);
+  const refundable = row.capturedAmount - row.refundedAmount;
+  if (totalAmount > refundable) {
     return {
       ok: false,
-      error: error instanceof Error ? error.message : "Ukjent Vipps-feil",
+      error: `Beløpet overstiger det som kan refunderes (${(refundable / 100).toLocaleString("nb-NO")} kr)`,
     };
+  }
+
+  if (method === "vipps") {
+    if (row.method !== "vipps" || row.reference.startsWith("manual-")) {
+      return {
+        ok: false,
+        error:
+          "Denne betalingen gikk ikke gjennom Vipps. Registrer en manuell refusjon i stedet.",
+      };
+    }
+  }
+
+  const { data: allocations } = await supabase
+    .from("payment_allocations")
+    .select("student_id, school_year_id, amount")
+    .eq("payment_id", paymentId);
+  const allocationByStudent = new Map(
+    (allocations ?? []).map((allocation) => [
+      allocation.student_id,
+      allocation,
+    ]),
+  );
+
+  const { data: priorRefunds } = await supabase
+    .from("refunds")
+    .select("student_id, amount")
+    .eq("payment_id", paymentId);
+  const refundedByStudent = new Map<string, number>();
+  for (const refund of priorRefunds ?? []) {
+    if (!refund.student_id) continue;
+    refundedByStudent.set(
+      refund.student_id,
+      (refundedByStudent.get(refund.student_id) ?? 0) + refund.amount,
+    );
+  }
+
+  const hasAllocations = (allocations ?? []).length > 0;
+  for (const line of lines) {
+    if (!line.studentId) {
+      if (hasAllocations && (allocations ?? []).length > 1) {
+        return {
+          ok: false,
+          error: "Velg hvilket barn refusjonen gjelder",
+        };
+      }
+      continue;
+    }
+    const allocation = allocationByStudent.get(line.studentId);
+    if (!allocation) {
+      return { ok: false, error: "Barnet er ikke knyttet til betalingen" };
+    }
+    const alreadyRefunded = refundedByStudent.get(line.studentId) ?? 0;
+    if (line.amount > allocation.amount - alreadyRefunded) {
+      return {
+        ok: false,
+        error:
+          "Beløpet overstiger barnets andel av betalingen. Fordel refusjonen på flere barn.",
+      };
+    }
+  }
+
+  const user = await getUser();
+  const refundGroupId = randomUUID();
+
+  if (method === "vipps") {
+    try {
+      await refundPayment(row.reference, totalAmount);
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "Ukjent Vipps-feil",
+      };
+    }
+  }
+
+  const { error: insertError } = await supabase.from("refunds").insert(
+    lines.map((line) => {
+      const allocation = line.studentId
+        ? allocationByStudent.get(line.studentId)
+        : null;
+      return {
+        payment_id: paymentId,
+        student_id: line.studentId,
+        school_year_id: allocation?.school_year_id ?? null,
+        amount: line.amount,
+        method,
+        reason,
+        refunded_by: user?.email ?? "admin",
+        refund_group_id: refundGroupId,
+        refunded_on: input.refundedOn ?? undefined,
+      };
+    }),
+  );
+  if (insertError) {
+    return {
+      ok: false,
+      error:
+        method === "vipps"
+          ? `Vipps-refusjonen er sendt, men loggføringen feilet: ${insertError.message}. Synkroniser betalingen.`
+          : insertError.message,
+    };
+  }
+
+  await writeAudit({
+    action: "payment.refund_requested",
+    entityType: "payment",
+    entityId: paymentId,
+    metadata: {
+      amount: totalAmount,
+      method,
+      reason,
+      lines: lines.map((line) => ({
+        studentId: line.studentId,
+        amount: line.amount,
+      })),
+    },
+  });
+
+  if (row.refundedAmount + totalAmount >= row.capturedAmount) {
+    await supabase
+      .from("payments")
+      .update({ status: "refundert" })
+      .eq("id", paymentId)
+      .eq("status", "fanget");
+  }
+
+  if (method === "vipps") {
+    try {
+      await syncPaymentByReference(row.reference);
+    } catch (error) {
+      console.error("Refund sync failed", { paymentId, error });
+    }
+  }
+
+  for (const line of lines) {
+    if (!line.studentId) continue;
+    const allocation = allocationByStudent.get(line.studentId);
+    if (allocation?.school_year_id) {
+      try {
+        await rebuildPendingInstallmentsForStudent(
+          supabase,
+          line.studentId,
+          allocation.school_year_id,
+        );
+      } catch (error) {
+        console.error("Installment rebuild after refund failed", {
+          paymentId,
+          error,
+        });
+      }
+    }
   }
 
   revalidate();
@@ -1276,7 +1476,6 @@ export async function updateStudentFee(
   const studentId = readString(formData, "student_id");
   const schoolYearId = readString(formData, "school_year_id");
   const amountNok = readNumber(formData, "amount_nok");
-  const discountNok = readNumber(formData, "discount_nok") ?? 0;
   const note = readOptionalString(formData, "note");
 
   if (!studentId || !schoolYearId) {
@@ -1285,29 +1484,194 @@ export async function updateStudentFee(
   if (amountNok == null || amountNok < 0) {
     return { ok: false, error: "Ugyldig beløp" };
   }
-  if (discountNok < 0) {
-    return { ok: false, error: "Ugyldig moderasjon" };
-  }
-  if (discountNok > amountNok) {
-    return { ok: false, error: "Moderasjon kan ikke være større enn beløpet" };
-  }
 
   const supabase = await createClient();
   await setStudentFee(supabase, studentId, schoolYearId, {
     amount: Math.round(amountNok * 100),
-    discount: Math.round(discountNok * 100),
     note,
   });
+  await rebuildPendingInstallmentsForStudent(supabase, studentId, schoolYearId);
 
   await writeAudit({
     action: "student_fee.update",
     entityType: "student_fee",
     entityId: studentId,
-    metadata: { schoolYearId, amountNok, discountNok },
+    metadata: { schoolYearId, amountNok },
   });
 
   revalidate();
   return { ok: true, id: studentId };
+}
+
+const adjustmentTypes = [
+  "soskenrabatt",
+  "laererbarn",
+  "frivillig",
+  "annet",
+] as const;
+
+export async function grantFeeAdjustment(
+  formData: FormData,
+): Promise<ActionResult> {
+  await requireAdmin();
+
+  const studentId = readString(formData, "student_id");
+  const schoolYearId = readString(formData, "school_year_id");
+  const type = readString(formData, "type");
+  const amountNok = readNumber(formData, "amount_nok");
+  const note = readString(formData, "note");
+  const teacherGuardianId = readOptionalString(formData, "teacher_guardian_id");
+
+  if (!studentId || !schoolYearId) {
+    return { ok: false, error: "Mangler elev eller skoleår" };
+  }
+  if (!adjustmentTypes.includes(type as (typeof adjustmentTypes)[number])) {
+    return { ok: false, error: "Ugyldig rabattype" };
+  }
+  if (amountNok == null || amountNok <= 0) {
+    return { ok: false, error: "Beløpet må være større enn null" };
+  }
+  if (!note) {
+    return { ok: false, error: "Begrunnelse er påkrevd" };
+  }
+  if (type === "laererbarn" && !teacherGuardianId) {
+    return { ok: false, error: "Velg hvilken lærer rabatten gjelder" };
+  }
+
+  const user = await getUser();
+  const supabase = await createClient();
+  await ensureStudentFee(supabase, studentId, schoolYearId);
+
+  const { error } = await supabase.from("student_fee_adjustments").insert({
+    student_id: studentId,
+    school_year_id: schoolYearId,
+    type,
+    amount: Math.round(amountNok * 100),
+    note,
+    granted_by: user?.email ?? "admin",
+    teacher_guardian_id: type === "laererbarn" ? teacherGuardianId : null,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  await rebuildPendingInstallmentsForStudent(supabase, studentId, schoolYearId);
+
+  await writeAudit({
+    action: "student_fee.adjustment_granted",
+    entityType: "student_fee",
+    entityId: studentId,
+    metadata: { schoolYearId, type, amountNok, note },
+  });
+
+  revalidate();
+  return { ok: true, id: studentId };
+}
+
+export async function revokeFeeAdjustment(
+  adjustmentId: string,
+  reason: string,
+): Promise<ActionResult> {
+  await requireAdmin();
+  if (!adjustmentId) return { ok: false, error: "Mangler justering" };
+  const trimmedReason = reason.trim();
+  if (!trimmedReason) return { ok: false, error: "Begrunnelse er påkrevd" };
+
+  const user = await getUser();
+  const supabase = await createClient();
+
+  const { data: adjustment, error: fetchError } = await supabase
+    .from("student_fee_adjustments")
+    .select("id, student_id, school_year_id, revoked_at")
+    .eq("id", adjustmentId)
+    .maybeSingle();
+  if (fetchError) return { ok: false, error: fetchError.message };
+  if (!adjustment) return { ok: false, error: "Fant ikke justeringen" };
+  if (adjustment.revoked_at) {
+    return { ok: false, error: "Justeringen er allerede opphevet" };
+  }
+
+  const { error } = await supabase
+    .from("student_fee_adjustments")
+    .update({
+      revoked_at: new Date().toISOString(),
+      revoked_by: user?.email ?? "admin",
+      revoke_reason: trimmedReason,
+    })
+    .eq("id", adjustmentId);
+  if (error) return { ok: false, error: error.message };
+
+  await rebuildPendingInstallmentsForStudent(
+    supabase,
+    adjustment.student_id,
+    adjustment.school_year_id,
+  );
+
+  await writeAudit({
+    action: "student_fee.adjustment_revoked",
+    entityType: "student_fee",
+    entityId: adjustment.student_id,
+    metadata: { adjustmentId, reason: trimmedReason },
+  });
+
+  revalidate();
+  return { ok: true, id: adjustment.student_id };
+}
+
+export async function recordSadaqaCoverage(
+  formData: FormData,
+): Promise<ActionResult> {
+  await requireAdmin();
+
+  const studentId = readString(formData, "student_id");
+  const schoolYearId = readString(formData, "school_year_id");
+  const amountNok = readNumber(formData, "amount_nok");
+  const reason = readString(formData, "reason");
+
+  if (!studentId || !schoolYearId) {
+    return { ok: false, error: "Mangler elev eller skoleår" };
+  }
+  if (amountNok == null || amountNok <= 0) {
+    return { ok: false, error: "Beløpet må være større enn null" };
+  }
+  if (!reason) {
+    return { ok: false, error: "Begrunnelse er påkrevd" };
+  }
+
+  const supabase = await createClient();
+  await ensureStudentFee(supabase, studentId, schoolYearId);
+
+  const amount = Math.round(amountNok * 100);
+  const now = new Date().toISOString();
+  const { data: payment, error } = await supabase
+    .from("payments")
+    .insert({
+      student_id: studentId,
+      school_year_id: schoolYearId,
+      reference: `sadaqa-${randomUUID()}`,
+      amount,
+      status: "fanget",
+      method: "sadaqa",
+      description: `Sadaqa - ${reason}`,
+      authorized_amount: amount,
+      captured_amount: amount,
+      paid_at: now,
+      captured_at: now,
+    })
+    .select("id")
+    .single();
+  if (error) return { ok: false, error: error.message };
+
+  await allocatePayment(supabase, payment.id);
+  await rebuildPendingInstallmentsForStudent(supabase, studentId, schoolYearId);
+
+  await writeAudit({
+    action: "payment.sadaqa_recorded",
+    entityType: "payment",
+    entityId: payment.id,
+    metadata: { studentId, schoolYearId, amountNok, reason },
+  });
+
+  revalidate();
+  return { ok: true, id: payment.id };
 }
 
 export async function voidPayment(

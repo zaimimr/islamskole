@@ -46,6 +46,7 @@ const methodLabels: Record<string, string> = {
   kontant: "Kontant",
   bank: "Bankoverføring",
   annet: "Annet",
+  sadaqa: "Sadaqa",
 };
 
 type PaymentRow = {
@@ -54,6 +55,8 @@ type PaymentRow = {
   amount: number;
   status: string;
   method: string;
+  captured_amount: number;
+  refunded_amount: number;
   description: string | null;
   paid_at: string | null;
   due_date: string | null;
@@ -91,12 +94,23 @@ type EventRow = {
   success: boolean | null;
 };
 
+type RefundRow = {
+  payment_id: string;
+  student_id: string | null;
+  amount: number;
+  method: string;
+  reason: string;
+  refunded_on: string;
+  refunded_by: string;
+};
+
 type PaymentLogData = {
   payments: PaymentRow[];
   allocations: AllocationRow[];
   events: EventRow[];
   applications: ApplicationRow[];
   students: AllocationStudent[];
+  refunds: RefundRow[];
   total: number;
 };
 
@@ -163,7 +177,7 @@ async function getData(
     let paymentQuery = supabase
       .from("payments")
       .select(
-        "id, reference, amount, status, method, description, paid_at, due_date, created_at, payer_name, payer_phone, payer_email, vipps_payment_method, voided_at, last_synced_at, school_years(label)",
+        "id, reference, amount, status, method, description, paid_at, due_date, created_at, captured_amount, refunded_amount, payer_name, payer_phone, payer_email, vipps_payment_method, voided_at, last_synced_at, school_years(label)",
         { count: "exact" },
       )
       .order("created_at", { ascending: false })
@@ -185,8 +199,13 @@ async function getData(
     const payments = (paymentResult.data as PaymentRow[] | null) ?? [];
     const ids = payments.map((payment) => payment.id);
     const references = payments.map((payment) => payment.reference);
-    const [allocationResult, eventResult, applicationResult, studentResult] =
-      await Promise.all([
+    const [
+      allocationResult,
+      eventResult,
+      applicationResult,
+      studentResult,
+      refundResult,
+    ] = await Promise.all([
         ids.length > 0
           ? supabase
               .from("payment_allocations")
@@ -212,13 +231,23 @@ async function getData(
           .from("students")
           .select("id, child_first_name, child_last_name")
           .order("child_first_name", { ascending: true }),
+        ids.length > 0
+          ? supabase
+              .from("refunds")
+              .select(
+                "payment_id, student_id, amount, method, reason, refunded_on, refunded_by",
+              )
+              .in("payment_id", ids)
+              .order("created_at", { ascending: true })
+          : Promise.resolve({ data: [], error: null }),
       ]);
 
     if (
       allocationResult.error ||
       eventResult.error ||
       applicationResult.error ||
-      studentResult.error
+      studentResult.error ||
+      refundResult.error
     ) {
       return { ok: false };
     }
@@ -230,6 +259,7 @@ async function getData(
         allocations: (allocationResult.data as AllocationRow[] | null) ?? [],
         events: (eventResult.data as EventRow[] | null) ?? [],
         applications: (applicationResult.data as ApplicationRow[] | null) ?? [],
+        refunds: (refundResult.data as RefundRow[] | null) ?? [],
         students: (
           (studentResult.data as
             | {
@@ -315,6 +345,12 @@ export default async function PaymentLogPage({
     const list = eventsByReference.get(event.reference) ?? [];
     list.push(event);
     eventsByReference.set(event.reference, list);
+  }
+  const refundsByPayment = new Map<string, RefundRow[]>();
+  for (const refund of data.refunds) {
+    const list = refundsByPayment.get(refund.payment_id) ?? [];
+    list.push(refund);
+    refundsByPayment.set(refund.payment_id, list);
   }
 
   const fromRecord = data.total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
@@ -458,6 +494,16 @@ export default async function PaymentLogPage({
             {data.payments.map((payment) => {
               const allocations = allocationsByPayment.get(payment.id) ?? [];
               const applications = applicationsByPayment.get(payment.id) ?? [];
+              const refunds = refundsByPayment.get(payment.id) ?? [];
+              const refundedByStudent = new Map<string, number>();
+              for (const refund of refunds) {
+                if (!refund.student_id) continue;
+                refundedByStudent.set(
+                  refund.student_id,
+                  (refundedByStudent.get(refund.student_id) ?? 0) +
+                    refund.amount,
+                );
+              }
               const events = eventsByReference.get(payment.reference) ?? [];
               const latestEvent = events[0] ?? null;
               const voided = Boolean(payment.voided_at);
@@ -465,13 +511,6 @@ export default async function PaymentLogPage({
                 payment.method === "vipps" &&
                 !payment.reference.startsWith("manual-");
               const dueDate = formatDueDate(payment.due_date);
-              const childNames = allocations
-                .map((allocation) =>
-                  allocation.students
-                    ? studentDisplayName(allocation.students)
-                    : "",
-                )
-                .filter(Boolean);
 
               return (
                 <li
@@ -499,6 +538,8 @@ export default async function PaymentLogPage({
                       <PaymentStatus
                         status={payment.status}
                         voided={voided}
+                        capturedAmount={payment.captured_amount}
+                        refundedAmount={payment.refunded_amount}
                         className="xl:hidden"
                       />
                     </div>
@@ -592,7 +633,12 @@ export default async function PaymentLogPage({
                     </div>
 
                     <div className="hidden xl:block">
-                      <PaymentStatus status={payment.status} voided={voided} />
+                      <PaymentStatus
+                        status={payment.status}
+                        voided={voided}
+                        capturedAmount={payment.captured_amount}
+                        refundedAmount={payment.refunded_amount}
+                      />
                       {latestEvent?.success === false ? (
                         <p className="mt-2 flex items-center gap-1 text-xs font-semibold text-[#8B2F2B]">
                           <AlertTriangle
@@ -628,14 +674,26 @@ export default async function PaymentLogPage({
                       !voided ? (
                         <PaymentLinkActions paymentId={payment.id} />
                       ) : null}
-                      {vippsPayment &&
-                      payment.status === "fanget" &&
-                      !voided ? (
+                      {!voided &&
+                      payment.captured_amount > 0 &&
+                      payment.refunded_amount < payment.captured_amount ? (
                         <RefundPaymentDialog
                           paymentId={payment.id}
-                          amount={payment.amount}
+                          capturedAmount={payment.captured_amount}
+                          refundedAmount={payment.refunded_amount}
                           payerName={payment.payer_name}
-                          childNames={childNames}
+                          vippsRefundAvailable={vippsPayment}
+                          allocations={allocations.map((allocation) => ({
+                            studentId: allocation.student_id,
+                            name: allocation.students
+                              ? studentDisplayName(allocation.students) ||
+                                "Ukjent barn"
+                              : "Ukjent barn",
+                            amount: allocation.amount,
+                            refunded:
+                              refundedByStudent.get(allocation.student_id) ??
+                              0,
+                          }))}
                         />
                       ) : null}
                     </div>
@@ -684,6 +742,26 @@ export default async function PaymentLogPage({
                         <LogDetail
                           label="Antall Vipps-hendelser"
                           value={String(events.length)}
+                        />
+                      ) : null}
+                      {refunds.length > 0 ? (
+                        <LogDetail
+                          label="Refusjoner"
+                          value={refunds
+                            .map((refund) => {
+                              const child = refund.student_id
+                                ? allocations.find(
+                                    (allocation) =>
+                                      allocation.student_id ===
+                                      refund.student_id,
+                                  )
+                                : null;
+                              const childName = child?.students
+                                ? studentDisplayName(child.students)
+                                : null;
+                              return `${formatNok(refund.amount)} (${methodLabels[refund.method] ?? refund.method}${childName ? `, ${childName}` : ""}, ${formatDueDate(refund.refunded_on) ?? refund.refunded_on}) - ${refund.reason}`;
+                            })
+                            .join("\n")}
                         />
                       ) : null}
                     </dl>
@@ -742,27 +820,42 @@ export default async function PaymentLogPage({
 function PaymentStatus({
   status,
   voided,
+  capturedAmount = 0,
+  refundedAmount = 0,
   className,
 }: {
   status: string;
   voided: boolean;
+  capturedAmount?: number;
+  refundedAmount?: number;
   className?: string;
 }) {
+  const partiallyRefunded =
+    !voided &&
+    status === "fanget" &&
+    refundedAmount > 0 &&
+    refundedAmount < capturedAmount;
   const label = voided ? "Annullert" : (statusLabels[status] ?? status);
   const tone = voided
     ? "bg-[#F9DEDB] text-[#8B2F2B]"
     : (statusClasses[status] ?? "bg-[#F0F0ED] text-[#4E5550]");
 
   return (
-    <span
-      className={cn(
-        "inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap",
-        tone,
-        className,
-      )}
-    >
-      <span className="size-1.5 rounded-full bg-current" />
-      {label}
+    <span className={cn("inline-flex flex-col items-start gap-1", className)}>
+      <span
+        className={cn(
+          "inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap",
+          tone,
+        )}
+      >
+        <span className="size-1.5 rounded-full bg-current" />
+        {label}
+      </span>
+      {partiallyRefunded ? (
+        <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#FEEDCA] px-2.5 py-1 text-xs font-bold whitespace-nowrap text-[#775108]">
+          Delvis refundert · {formatNok(refundedAmount)}
+        </span>
+      ) : null}
     </span>
   );
 }

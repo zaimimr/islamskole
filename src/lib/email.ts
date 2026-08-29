@@ -25,6 +25,15 @@ const STRINGS = {
         `Hei, her er betalingslenken for ${child}. Trykk på knappen for å betale med Vipps.`,
       cta: "Betal med Vipps",
     },
+    installment: {
+      subject: (dueDate: string) => `Betalingsfrist ${dueDate} - skoleavgift`,
+      badge: "Avdrag",
+      title: "Avdrag på skoleavgiften",
+      intro: (children: string) =>
+        `Hei, her er betalingslenken for neste avdrag på skoleavgiften for ${children}. Trykk på knappen for å betale med Vipps.`,
+      cta: "Betal med Vipps",
+      totalLabel: "Totalt å betale",
+    },
     receipt: {
       subject: (child: string) => `Kvittering - betaling for ${child}`,
       badge: "Kvittering",
@@ -64,6 +73,15 @@ const STRINGS = {
       intro: (child: string) =>
         `Hi, here is the payment link for ${child}. Tap the button to pay with Vipps.`,
       cta: "Pay with Vipps",
+    },
+    installment: {
+      subject: (dueDate: string) => `Payment due ${dueDate} - school fee`,
+      badge: "Installment",
+      title: "School fee installment",
+      intro: (children: string) =>
+        `Hi, here is the payment link for the next school fee installment for ${children}. Tap the button to pay with Vipps.`,
+      cta: "Pay with Vipps",
+      totalLabel: "Total to pay",
     },
     receipt: {
       subject: (child: string) => `Receipt - payment for ${child}`,
@@ -237,6 +255,38 @@ export async function sendPaymentLinkEmail(opts: {
       [t.rows.schoolYear, opts.schoolYear],
       [t.rows.amount, formatNok(opts.amount)],
       [t.rows.dueDate, formatDueDate(opts.dueDate, lang)],
+    ],
+  });
+}
+
+export async function sendInstallmentEmail(opts: {
+  to: string | string[];
+  children: { name: string; amount: number }[];
+  totalAmount: number;
+  schoolYear: string | null;
+  dueDate: string;
+  url: string;
+  lang?: EmailLang;
+}): Promise<boolean> {
+  const lang = opts.lang ?? "no";
+  const t = strings(lang);
+  const dueLabel = formatDueDate(opts.dueDate, lang) ?? opts.dueDate;
+  const childNames = opts.children.map((child) => child.name).join(", ");
+  return await send({
+    lang,
+    to: opts.to,
+    subject: t.installment.subject(dueLabel),
+    badge: t.installment.badge,
+    title: t.installment.title,
+    intro: t.installment.intro(childNames),
+    cta: { label: t.installment.cta, url: opts.url },
+    rows: [
+      ...opts.children.map(
+        (child): Row => [child.name, formatNok(child.amount)],
+      ),
+      [t.installment.totalLabel, formatNok(opts.totalAmount)],
+      [t.rows.schoolYear, opts.schoolYear],
+      [t.rows.dueDate, dueLabel],
     ],
   });
 }
