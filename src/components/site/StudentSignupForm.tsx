@@ -27,12 +27,14 @@ const inputClassName = "h-12";
 const selectClassName =
   "h-12 w-full rounded-xl border border-input bg-card px-3 py-1 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const DRAFT_KEY = "islamskole-enrollment-draft-v1";
+const DRAFT_KEY = "islamskole-enrollment-draft-v2";
 
 type EnrollmentDraft = {
   values: Record<string, string>;
   children: number[];
   guardians: number[];
+  motherAbsent?: boolean;
+  fatherAbsent?: boolean;
   activeChild: number;
   step: number;
 };
@@ -80,8 +82,10 @@ export function StudentSignupForm({
   const [children, setChildren] = useState<number[]>([0]);
   const [activeChild, setActiveChild] = useState(0);
   const [nextChildId, setNextChildId] = useState(1);
-  const [guardians, setGuardians] = useState<number[]>([0]);
-  const [nextGuardianId, setNextGuardianId] = useState(1);
+  const [guardians, setGuardians] = useState<number[]>([]);
+  const [nextGuardianId, setNextGuardianId] = useState(2);
+  const [motherAbsent, setMotherAbsent] = useState(false);
+  const [fatherAbsent, setFatherAbsent] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string>();
   const [review, setReview] = useState<ReviewSummary>();
@@ -95,6 +99,11 @@ export function StudentSignupForm({
   const steps = [t("stepChildren"), t("stepGuardians"), t("stepReview")];
   const childField = (id: number, name: string) => `child_${id}_${name}`;
   const guardianField = (id: number, name: string) => `guardian_${id}_${name}`;
+  const submittedGuardians = [
+    ...(motherAbsent ? [] : [0]),
+    ...(fatherAbsent ? [] : [1]),
+    ...guardians,
+  ];
   const busy = pending || redirecting;
   const total = deposit * children.length;
   const restPerChild = Math.max(fee - deposit, 0);
@@ -116,13 +125,15 @@ export function StudentSignupForm({
       values,
       children,
       guardians,
+      motherAbsent,
+      fatherAbsent,
       activeChild,
       step: Math.min(step, 1),
     };
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     } catch {}
-  }, [activeChild, children, guardians, step]);
+  }, [activeChild, children, fatherAbsent, guardians, motherAbsent, step]);
 
   useEffect(() => {
     const restore = window.setTimeout(() => {
@@ -137,21 +148,23 @@ export function StudentSignupForm({
           ? draft.children.filter(Number.isInteger).slice(0, 10)
           : [];
         const storedGuardians = Array.isArray(draft.guardians)
-          ? draft.guardians.filter(Number.isInteger).slice(0, 6)
+          ? draft.guardians
+              .filter(Number.isInteger)
+              .filter((id) => id >= 2)
+              .slice(0, 4)
           : [];
         const restoredChildren = storedChildren.length ? storedChildren : [0];
-        const restoredGuardians = storedGuardians.length
-          ? storedGuardians
-          : [0];
         setChildren(restoredChildren);
-        setGuardians(restoredGuardians);
+        setGuardians(storedGuardians);
+        setMotherAbsent(draft.motherAbsent === true);
+        setFatherAbsent(draft.fatherAbsent === true);
         setActiveChild(
           restoredChildren.includes(draft.activeChild ?? -1)
             ? (draft.activeChild ?? restoredChildren[0])
             : restoredChildren[0],
         );
         setNextChildId(Math.max(...restoredChildren) + 1);
-        setNextGuardianId(Math.max(...restoredGuardians) + 1);
+        setNextGuardianId(Math.max(1, ...storedGuardians) + 1);
         setStep(Math.min(Math.max(draft.step ?? 0, 0), 1));
         setDraftValues(draft.values ?? {});
       } catch {
@@ -286,14 +299,15 @@ export function StudentSignupForm({
 
   function validateGuardians(formData: FormData) {
     const errors: Record<string, string> = {};
-    for (const id of guardians) {
-      for (const name of [
-        "first_name",
-        "last_name",
-        "email",
-        "phone",
-        "role",
-      ]) {
+    if (motherAbsent && fatherAbsent) {
+      errors.guardian_parents = t("errorBothParentsAbsent");
+    }
+    for (const id of submittedGuardians) {
+      const names =
+        id <= 1
+          ? ["first_name", "last_name", "email", "phone"]
+          : ["first_name", "last_name", "email", "phone", "role"];
+      for (const name of names) {
         const field = guardianField(id, name);
         const value = read(formData, field);
         if (!value) errors[field] = t("errorRequired");
@@ -350,7 +364,7 @@ export function StudentSignupForm({
           .filter(Boolean)
           .join(" "),
       ),
-      guardians: guardians.map((id) => ({
+      guardians: submittedGuardians.map((id) => ({
         name: [
           read(formData, guardianField(id, "first_name")),
           read(formData, guardianField(id, "last_name")),
@@ -626,6 +640,142 @@ export function StudentSignupForm({
     );
   }
 
+  function renderParent(id: 0 | 1) {
+    const field = (name: string) => guardianField(id, name);
+    const role = id === 0 ? "mor" : "far";
+    const absent = id === 0 ? motherAbsent : fatherAbsent;
+    const setAbsent = id === 0 ? setMotherAbsent : setFatherAbsent;
+    const isPrimary = submittedGuardians[0] === id;
+
+    return (
+      <fieldset
+        key={id}
+        className="grid gap-5 rounded-2xl bg-muted/25 p-5 sm:p-6"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <legend className="font-heading text-lg font-bold">
+            {t(`guardianRoles.${role}`)}
+          </legend>
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={absent}
+              onChange={(event) => {
+                setAbsent(event.target.checked);
+                clearFieldError("guardian_parents");
+                for (const name of ["first_name", "last_name", "email", "phone"]) {
+                  clearFieldError(field(name));
+                }
+              }}
+              className="size-5 rounded border-input accent-brand-green-dark"
+            />
+            {id === 0 ? t("motherAbsent") : t("fatherAbsent")}
+          </label>
+        </div>
+        <input type="hidden" name={field("role")} value={role} />
+        <div hidden={absent} className="grid gap-5">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor={field("first_name")} required>
+                {t("fieldFirstName")}
+              </Label>
+              <Input
+                id={field("first_name")}
+                name={field("first_name")}
+                className={inputClassName}
+                autoComplete="off"
+                placeholder={t("placeholderFirstName")}
+                aria-invalid={invalid(field("first_name"))}
+                aria-describedby={describedBy(field("first_name"))}
+                onInput={() => clearFieldError(field("first_name"))}
+              />
+              <FieldError
+                id={`${field("first_name")}-error`}
+                message={fieldErrors[field("first_name")]}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor={field("last_name")} required>
+                {t("fieldLastName")}
+              </Label>
+              <Input
+                id={field("last_name")}
+                name={field("last_name")}
+                className={inputClassName}
+                autoComplete="off"
+                placeholder={t("placeholderLastName")}
+                aria-invalid={invalid(field("last_name"))}
+                aria-describedby={describedBy(field("last_name"))}
+                onInput={() => clearFieldError(field("last_name"))}
+              />
+              <FieldError
+                id={`${field("last_name")}-error`}
+                message={fieldErrors[field("last_name")]}
+              />
+            </div>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor={field("email")} required>
+                {t("fieldParentEmail")}
+              </Label>
+              <Input
+                id={field("email")}
+                name={field("email")}
+                type="email"
+                inputMode="email"
+                spellCheck={false}
+                className={inputClassName}
+                autoComplete="off"
+                placeholder={t("placeholderParentEmail")}
+                aria-invalid={invalid(field("email"))}
+                aria-describedby={describedBy(field("email"))}
+                onInput={() => clearFieldError(field("email"))}
+              />
+              <FieldError
+                id={`${field("email")}-error`}
+                message={fieldErrors[field("email")]}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor={field("phone")} required>
+                {t("fieldParentPhone")}
+              </Label>
+              <Input
+                id={field("phone")}
+                name={field("phone")}
+                type="tel"
+                inputMode="tel"
+                className={inputClassName}
+                autoComplete="off"
+                placeholder={t("placeholderParentPhone")}
+                aria-invalid={invalid(field("phone"))}
+                aria-describedby={describedBy(field("phone"))}
+                onInput={() => clearFieldError(field("phone"))}
+              />
+              <FieldError
+                id={`${field("phone")}-error`}
+                message={fieldErrors[field("phone")]}
+              />
+            </div>
+          </div>
+          {isPrimary ? (
+            <div className="flex items-start gap-3 rounded-xl bg-primary/8 px-4 py-3 text-sm text-foreground">
+              <ShieldCheck
+                className="mt-0.5 size-5 shrink-0 text-brand-green-dark"
+                aria-hidden="true"
+              />
+              <p>{t("primaryGuardianHint")}</p>
+            </div>
+          ) : null}
+        </div>
+        {absent ? (
+          <p className="text-sm text-muted-foreground">{t("parentAbsentHint")}</p>
+        ) : null}
+      </fieldset>
+    );
+  }
+
   function renderGuardian(id: number, index: number) {
     const field = (name: string) => guardianField(id, name);
     return (
@@ -635,21 +785,17 @@ export function StudentSignupForm({
       >
         <div className="flex items-center justify-between gap-3">
           <legend className="font-heading text-lg font-bold">
-            {index === 0
-              ? t("primaryGuardian")
-              : t("guardianLabel", { n: index + 1 })}
+            {t("guardianLabel", { n: index + 1 })}
           </legend>
-          {id !== 0 ? (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => removeGuardian(id)}
-              className="min-h-11 text-destructive hover:text-destructive"
-            >
-              <Trash2 className="size-4" aria-hidden="true" />
-              {t("removeGuardian")}
-            </Button>
-          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => removeGuardian(id)}
+            className="min-h-11 text-destructive hover:text-destructive"
+          >
+            <Trash2 className="size-4" aria-hidden="true" />
+            {t("removeGuardian")}
+          </Button>
         </div>
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="grid gap-2">
@@ -660,7 +806,7 @@ export function StudentSignupForm({
               id={field("first_name")}
               name={field("first_name")}
               className={inputClassName}
-              autoComplete={id === 0 ? "given-name" : "off"}
+              autoComplete="off"
               placeholder={t("placeholderFirstName")}
               aria-invalid={invalid(field("first_name"))}
               aria-describedby={describedBy(field("first_name"))}
@@ -679,7 +825,7 @@ export function StudentSignupForm({
               id={field("last_name")}
               name={field("last_name")}
               className={inputClassName}
-              autoComplete={id === 0 ? "family-name" : "off"}
+              autoComplete="off"
               placeholder={t("placeholderLastName")}
               aria-invalid={invalid(field("last_name"))}
               aria-describedby={describedBy(field("last_name"))}
@@ -703,7 +849,7 @@ export function StudentSignupForm({
               inputMode="email"
               spellCheck={false}
               className={inputClassName}
-              autoComplete={id === 0 ? "email" : "off"}
+              autoComplete="off"
               placeholder={t("placeholderParentEmail")}
               aria-invalid={invalid(field("email"))}
               aria-describedby={describedBy(field("email"))}
@@ -724,7 +870,7 @@ export function StudentSignupForm({
               type="tel"
               inputMode="tel"
               className={inputClassName}
-              autoComplete={id === 0 ? "tel" : "off"}
+              autoComplete="off"
               placeholder={t("placeholderParentPhone")}
               aria-invalid={invalid(field("phone"))}
               aria-describedby={describedBy(field("phone"))}
@@ -743,43 +889,26 @@ export function StudentSignupForm({
           <select
             id={field("role")}
             name={field("role")}
-            defaultValue={id === 0 ? "foresatt" : ""}
+            defaultValue=""
             className={selectClassName}
             aria-invalid={invalid(field("role"))}
             aria-describedby={describedBy(field("role"))}
             onChange={() => clearFieldError(field("role"))}
           >
             <option value="">{t("guardianRolePlaceholder")}</option>
-            {(
-              [
-                "foresatt",
-                "mor",
-                "far",
-                "steforelder",
-                "verge",
-                "annet",
-              ] as const
-            ).map((value) => (
-              <option key={value} value={value}>
-                {t(`guardianRoles.${value}`)}
-              </option>
-            ))}
+            {(["foresatt", "steforelder", "verge", "annet"] as const).map(
+              (value) => (
+                <option key={value} value={value}>
+                  {t(`guardianRoles.${value}`)}
+                </option>
+              ),
+            )}
           </select>
           <FieldError
             id={`${field("role")}-error`}
             message={fieldErrors[field("role")]}
           />
         </div>
-        {id === 0 ? (
-          <div className="flex items-start gap-3 rounded-xl bg-primary/8 px-4 py-3 text-sm text-foreground">
-            <ShieldCheck
-              className="mt-0.5 size-5 shrink-0 text-brand-green-dark"
-              aria-hidden="true"
-            />
-            <p>{t("primaryGuardianHint")}</p>
-            <input type="hidden" name={field("is_primary")} value="true" />
-          </div>
-        ) : null}
       </fieldset>
     );
   }
@@ -800,7 +929,7 @@ export function StudentSignupForm({
       <input
         type="hidden"
         name="guardian_indices"
-        value={guardians.join(",")}
+        value={submittedGuardians.join(",")}
       />
       <nav aria-label={t("progressLabel")}>
         <ol className="grid grid-cols-3 gap-2">
@@ -1002,6 +1131,12 @@ export function StudentSignupForm({
           </div>
         </fieldset>
         <div className="grid gap-5">
+          {renderParent(0)}
+          {renderParent(1)}
+          <FieldError
+            id="guardian_parents-error"
+            message={fieldErrors.guardian_parents}
+          />
           {guardians.map((id, index) => renderGuardian(id, index))}
         </div>
         <Button
