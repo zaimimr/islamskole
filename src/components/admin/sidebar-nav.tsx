@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  CalendarClock,
   CalendarDays,
   CalendarRange,
   CircleUserRound,
@@ -10,7 +11,9 @@ import {
   ClipboardCheck,
   ContactRound,
   GraduationCap,
+  HandHeart,
   LayoutDashboard,
+  Percent,
   ReceiptText,
   ScrollText,
   Settings,
@@ -69,6 +72,21 @@ function buildNavigation(basePath: string) {
           href: `${basePath}/betaling/logg`,
           label: "Betalingslogg",
           icon: ReceiptText,
+        },
+        {
+          href: `${basePath}/betaling/avdrag`,
+          label: "Avdrag",
+          icon: CalendarClock,
+        },
+        {
+          href: `${basePath}/betaling/rabatter`,
+          label: "Rabatter",
+          icon: Percent,
+        },
+        {
+          href: `${basePath}/betaling/sadaqa`,
+          label: "Sadaqa",
+          icon: HandHeart,
         },
         {
           href: `${basePath}/betaling/dobbeltforinger`,
