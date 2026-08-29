@@ -12,10 +12,18 @@ async function getActiveFee() {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("school_years")
-    .select("fee")
+    .select("fee, enrollment_fee")
     .eq("is_active", true)
     .maybeSingle();
-  return (data as unknown as { fee: number | null } | null)?.fee ?? null;
+  const row = data as unknown as {
+    fee: number | null;
+    enrollment_fee: number | null;
+  } | null;
+  if (!row?.fee) return null;
+  return {
+    fee: row.fee,
+    deposit: Math.min(row.enrollment_fee ?? row.fee, row.fee),
+  };
 }
 
 export async function generateMetadata({
@@ -40,7 +48,7 @@ export default async function PameldingPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("enrollForm");
-  const fee = await getActiveFee();
+  const pricing = await getActiveFee();
 
   return (
     <>
@@ -78,8 +86,12 @@ export default async function PameldingPage({
             <p className="mt-2 mb-7 text-base text-muted-foreground">
               {t("formSubtitle")}
             </p>
-            {fee ? (
-              <StudentSignupForm fee={fee} locale={locale} />
+            {pricing ? (
+              <StudentSignupForm
+                fee={pricing.fee}
+                deposit={pricing.deposit}
+                locale={locale}
+              />
             ) : (
               <div className="rounded-2xl bg-amber-50 p-5 ring-1 ring-amber-200">
                 <h3 className="font-heading text-lg font-bold">

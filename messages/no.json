@@ -172,7 +172,7 @@
     "fieldParentPhone": "Mobil (kontakt)",
     "fieldParentEmail": "E-post (kontakt)",
     "parentsHint": "Legg til de foresatte som skal være knyttet til familien.",
-    "feeNote": "Skoleavgift {fee} kr per barn per skoleår. Betales med Vipps ved innmelding.",
+    "feeNote": "Skoleavgiften er {fee} kr per barn per skoleår. Du betaler {deposit} kr per barn nå med Vipps.",
     "termsLead": "Jeg bekrefter å ha lest reglementet og godtar",
     "termsLink": "salgsbetingelsene",
     "termsTail": ", og vil respektere innbetalingsplan og skoletider.",
@@ -253,7 +253,8 @@
     "back": "Tilbake",
     "next": "Neste",
     "paymentImmediateTitle": "Betalingen trekkes med en gang",
-    "paymentImmediateBody": "Når du godkjenner i Vipps, trekkes hele beløpet umiddelbart. Skolen behandler innmeldingen og klasseplasseringen separat."
+    "paymentImmediateBody": "Når du godkjenner i Vipps, trekkes hele beløpet umiddelbart. Skolen behandler innmeldingen og klasseplasseringen separat.",
+    "planNote": "Resten ({rest} kr per barn) betales innen 15. august og 15. desember, eller månedlig etter avtale. Vi sender betalingslenke på e-post."
   },
   "about": {
     "title": "Om oss",
@@ -366,14 +367,14 @@
       {
         "heading": "Priser",
         "body": [
-          "Skoleavgiften er 5 000 NOK per skoleår og betales ved påmelding.",
+          "Skoleavgiften er 5 000 NOK per barn per skoleår. 2 000 NOK betales ved påmelding, og resten betales innen 15. august og 15. desember, eller månedlig etter avtale med skolen.",
           "Alle priser er i norske kroner (NOK) og inkluderer alle avgifter. Eventuelle tilleggskostnader opplyses før du fullfører påmeldingen."
         ]
       },
       {
         "heading": "Betaling",
         "body": [
-          "Betaling skjer med Vipps ved påmelding. Beløpet belastes umiddelbart når du godkjenner betalingen i Vipps.",
+          "Betaling skjer med Vipps ved påmelding. Beløpet som vises belastes umiddelbart når du godkjenner betalingen i Vipps. Senere avdrag betales med tilsendt betalingslenke.",
           "Betalingen bekrefter at innmeldingen er mottatt. Klasseplassering behandles separat og avhenger av kapasitet. Du mottar en bekreftelse på e-post."
         ]
       },

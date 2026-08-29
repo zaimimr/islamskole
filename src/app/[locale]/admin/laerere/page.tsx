@@ -14,6 +14,9 @@ import { deleteTeacherApplication } from "@/app/[locale]/admin/actions";
 import { adminBasePath } from "@/components/admin/paths";
 import { DeleteButton } from "@/components/admin/delete-button";
 import { TeacherStatusSelect } from "@/components/admin/teacher-status-select";
+import { TeacherRegisterDialog } from "@/components/admin/teacher-register-dialog";
+import { TeacherRemoveButton } from "@/components/admin/teacher-remove-button";
+import { formatNok } from "@/lib/money";
 import { Pagination } from "@/components/admin/pagination";
 import { ExportButton } from "@/components/admin/export-button";
 import {
@@ -112,6 +115,75 @@ function formatDate(value: string | null) {
   });
 }
 
+type TeacherRow = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  teacher_note: string | null;
+};
+
+async function getRegisteredTeachers(): Promise<{
+  teachers: TeacherRow[];
+  familyByGuardian: Map<string, string>;
+  giftTotals: Map<string, { amount: number; students: number }>;
+}> {
+  try {
+    const supabase = await createClient();
+    const [teacherResult, linkResult, giftResult] = await Promise.all([
+      supabase
+        .from("guardians")
+        .select("id, first_name, last_name, email, phone, teacher_note")
+        .eq("is_teacher", true)
+        .order("first_name", { ascending: true }),
+      supabase.from("family_guardians").select("guardian_id, family_id"),
+      supabase
+        .from("teacher_gift_report")
+        .select("teacher_guardian_id, student_count, total_amount"),
+    ]);
+
+    const familyByGuardian = new Map<string, string>();
+    for (const row of (linkResult.data as
+      | { guardian_id: string; family_id: string }[]
+      | null) ?? []) {
+      if (!familyByGuardian.has(row.guardian_id)) {
+        familyByGuardian.set(row.guardian_id, row.family_id);
+      }
+    }
+
+    const giftTotals = new Map<string, { amount: number; students: number }>();
+    for (const row of (giftResult.data as
+      | {
+          teacher_guardian_id: string | null;
+          student_count: number | null;
+          total_amount: number | null;
+        }[]
+      | null) ?? []) {
+      if (!row.teacher_guardian_id) continue;
+      const entry = giftTotals.get(row.teacher_guardian_id) ?? {
+        amount: 0,
+        students: 0,
+      };
+      entry.amount += row.total_amount ?? 0;
+      entry.students += row.student_count ?? 0;
+      giftTotals.set(row.teacher_guardian_id, entry);
+    }
+
+    return {
+      teachers: (teacherResult.data as TeacherRow[] | null) ?? [],
+      familyByGuardian,
+      giftTotals,
+    };
+  } catch {
+    return {
+      teachers: [],
+      familyByGuardian: new Map(),
+      giftTotals: new Map(),
+    };
+  }
+}
+
 export default async function LaererePage({
   params,
   searchParams,
@@ -125,9 +197,10 @@ export default async function LaererePage({
   const page = Math.max(1, Number(sp.page) || 1);
   const q = typeof sp.q === "string" ? sp.q : "";
   const status = typeof sp.status === "string" ? sp.status : "";
-  const [{ rows: applications, total }, counts] = await Promise.all([
+  const [{ rows: applications, total }, counts, registry] = await Promise.all([
     getApplications(page, q, status),
     getApplicationCounts(),
+    getRegisteredTeachers(),
   ]);
   const pageIds = applications.map((a) => a.id);
   const filtered = Boolean(q || status);
@@ -137,14 +210,93 @@ export default async function LaererePage({
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-balance font-heading text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
-            Lærersøknader
+            Lærere
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-admin-muted sm:text-base">
-            Følg opp kandidater som vil bidra som lærer eller frivillig.
+            Registrerte lærere med kobling til familie, og søknader fra
+            kandidater som vil bidra.
           </p>
         </div>
-        <ExportButton entity="teachers" />
+        <div className="flex items-center gap-2">
+          <TeacherRegisterDialog />
+          <ExportButton entity="teachers" />
+        </div>
       </header>
+
+      <section
+        aria-labelledby="teacher-registry"
+        className="rounded-2xl bg-white p-5 ring-1 ring-[#E3DED3]"
+      >
+        <h2 id="teacher-registry" className="font-heading text-xl font-bold">
+          Registrerte lærere ({registry.teachers.length})
+        </h2>
+        <div className="mt-3">
+          {registry.teachers.length > 0 ? (
+            <ul className="grid gap-1.5">
+              {registry.teachers.map((teacher) => {
+                const name =
+                  [teacher.first_name, teacher.last_name]
+                    .filter(Boolean)
+                    .join(" ") || "(uten navn)";
+                const familyId = registry.familyByGuardian.get(teacher.id);
+                const gift = registry.giftTotals.get(teacher.id);
+                return (
+                  <li
+                    key={teacher.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#FAF9F5] px-3 py-2 text-sm ring-1 ring-[#E8E3D9]"
+                  >
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <span className="font-bold">{name}</span>
+                      {teacher.email ? (
+                        <span className="text-admin-muted">
+                          {teacher.email}
+                        </span>
+                      ) : null}
+                      {teacher.teacher_note ? (
+                        <span className="text-admin-muted">
+                          · {teacher.teacher_note}
+                        </span>
+                      ) : null}
+                      {familyId ? (
+                        <Link
+                          href={`${basePath}/familier/${familyId}`}
+                          className="rounded-full bg-[#DCEDDD] px-2 py-0.5 text-xs font-bold text-[#216A2B] outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+                        >
+                          Har barn på skolen
+                        </Link>
+                      ) : (
+                        <span className="rounded-full bg-[#F0F0ED] px-2 py-0.5 text-xs font-bold text-[#4E5550]">
+                          Ikke koblet til familie
+                        </span>
+                      )}
+                    </span>
+                    <span className="flex items-center gap-3">
+                      {gift ? (
+                        <span className="text-admin-muted">
+                          Fritatt{" "}
+                          <span className="font-bold text-foreground tabular-nums">
+                            {formatNok(gift.amount)}
+                          </span>{" "}
+                          ({gift.students} barn)
+                        </span>
+                      ) : null}
+                      <TeacherRemoveButton
+                        guardianId={teacher.id}
+                        name={name}
+                      />
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="text-sm text-admin-muted">
+              Ingen lærere er registrert ennå. Legg til en lærer manuelt eller
+              registrer fra en søknad under.
+            </p>
+          )}
+        </div>
+      </section>
 
       <section
         aria-label="Status for lærersøknader"
@@ -357,7 +509,14 @@ export default async function LaererePage({
                         {formatDate(application.created_at)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end">
+                        <div className="flex items-center justify-end gap-1">
+                          <TeacherRegisterDialog
+                            compact
+                            sourceApplicationId={application.id}
+                            defaultName={application.full_name}
+                            defaultEmail={application.email}
+                            defaultPhone={application.phone}
+                          />
                           <DeleteButton
                             id={application.id}
                             label="søknad"

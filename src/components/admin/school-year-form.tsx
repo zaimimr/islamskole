@@ -19,6 +19,9 @@ export type SchoolYearRecord = {
   starts_on: string | null;
   ends_on: string | null;
   fee: number | null;
+  enrollment_fee: number | null;
+  sem1_due_on: string | null;
+  sem2_due_on: string | null;
   is_active: boolean | null;
 };
 
@@ -127,6 +130,44 @@ export function SchoolYearForm({
                 />
                 <p className="mt-2 text-sm text-admin-muted">
                   En klasse med egen pris overstyrer denne standardavgiften.
+                </p>
+                <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="enrollment_fee">Ved påmelding (kr)</Label>
+                    <Input
+                      id="enrollment_fee"
+                      name="enrollment_fee"
+                      type="number"
+                      min="0"
+                      inputMode="numeric"
+                      defaultValue={schoolYear?.enrollment_fee ?? 2000}
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="sem1_due_on">Frist høst</Label>
+                    <Input
+                      id="sem1_due_on"
+                      name="sem1_due_on"
+                      type="date"
+                      defaultValue={schoolYear?.sem1_due_on ?? ""}
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="sem2_due_on">Frist vinter</Label>
+                    <Input
+                      id="sem2_due_on"
+                      name="sem2_due_on"
+                      type="date"
+                      defaultValue={schoolYear?.sem2_due_on ?? ""}
+                      className="bg-white"
+                    />
+                  </div>
+                </div>
+                <p className="mt-2 text-sm text-admin-muted">
+                  Beløpet ved påmelding betales i det offentlige skjemaet.
+                  Fristene brukes av semesterplanen for avdrag.
                 </p>
               </div>
             </div>

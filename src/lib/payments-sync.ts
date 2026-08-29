@@ -233,6 +233,7 @@ export async function syncPaymentByReference(
           amount,
           schoolYear,
           className: null,
+          enrollmentDeposit: true,
         });
       }
 

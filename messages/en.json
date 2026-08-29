@@ -172,7 +172,7 @@
     "fieldParentPhone": "Mobile (contact)",
     "fieldParentEmail": "Email (contact)",
     "parentsHint": "Add the guardians who should be connected to the family.",
-    "feeNote": "Tuition {fee} kr per child per school year. Paid with Vipps at enrollment.",
+    "feeNote": "The school fee is {fee} kr per child per school year. You pay {deposit} kr per child now with Vipps.",
     "termsLead": "I confirm I have read the rules and accept the",
     "termsLink": "terms of sale",
     "termsTail": ", and will respect the payment plan and school hours.",
@@ -253,7 +253,8 @@
     "back": "Back",
     "next": "Next",
     "paymentImmediateTitle": "Payment is captured immediately",
-    "paymentImmediateBody": "When you approve in Vipps, the full amount is charged immediately. The school processes enrollment and class placement separately."
+    "paymentImmediateBody": "When you approve in Vipps, the full amount is charged immediately. The school processes enrollment and class placement separately.",
+    "planNote": "The remainder ({rest} kr per child) is due by 15 August and 15 December, or monthly by agreement. We send payment links by email."
   },
   "about": {
     "title": "About us",
@@ -366,14 +367,14 @@
       {
         "heading": "Prices",
         "body": [
-          "The school fee is NOK 5,000 per school year and is paid on enrollment.",
+          "The school fee is NOK 5,000 per child per school year. NOK 2,000 is paid on enrollment, and the remainder is due by 15 August and 15 December, or monthly by agreement with the school.",
           "All prices are in Norwegian kroner (NOK) and include all charges. Any additional costs are stated before you complete your enrollment."
         ]
       },
       {
         "heading": "Payment",
         "body": [
-          "Payment is made with Vipps on enrollment. The amount is charged immediately when you approve the payment in Vipps.",
+          "Payment is made with Vipps on enrollment. The amount shown is charged immediately when you approve the payment in Vipps. Later installments are paid via payment links sent to you.",
           "Payment confirms that the enrollment was received. Class placement is handled separately and depends on capacity. You receive a confirmation by email."
         ]
       },

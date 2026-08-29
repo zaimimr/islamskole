@@ -94,7 +94,7 @@ export default async function SkolearDetailPage({
   ] = await Promise.all([
     supabase
       .from("school_years")
-      .select("id, label, starts_on, ends_on, is_active, fee")
+      .select("id, label, starts_on, ends_on, is_active, fee, enrollment_fee, sem1_due_on, sem2_due_on")
       .eq("id", id)
       .maybeSingle(),
     supabase

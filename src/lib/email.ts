@@ -40,6 +40,8 @@ const STRINGS = {
       title: "Betaling mottatt",
       intro: (child: string) =>
         `Hei, vi har mottatt betalingen for ${child}. Takk!`,
+      enrollmentNote:
+        "Dette er første del av skoleavgiften. Resten betales innen 15. august og 15. desember, eller månedlig etter avtale. Dere får betalingslenke på e-post.",
     },
     studentConfirmation: {
       subject: "Vi har mottatt påmeldingen",
@@ -89,6 +91,8 @@ const STRINGS = {
       title: "Payment received",
       intro: (child: string) =>
         `Hi, we have received the payment for ${child}. Thank you!`,
+      enrollmentNote:
+        "This is the first part of the school fee. The remainder is due by 15 August and 15 December, or monthly by agreement. Payment links are sent by email.",
     },
     studentConfirmation: {
       subject: "We have received your registration",
@@ -298,6 +302,7 @@ export async function sendPaymentReceiptEmail(opts: {
   amount: number;
   schoolYear: string | null;
   className: string | null;
+  enrollmentDeposit?: boolean;
   lang?: EmailLang;
 }) {
   const lang = opts.lang ?? "no";
@@ -308,7 +313,9 @@ export async function sendPaymentReceiptEmail(opts: {
     subject: t.receipt.subject(opts.childName),
     badge: t.receipt.badge,
     title: t.receipt.title,
-    intro: t.receipt.intro(opts.childName),
+    intro: opts.enrollmentDeposit
+      ? `${t.receipt.intro(opts.childName)} ${t.receipt.enrollmentNote}`
+      : t.receipt.intro(opts.childName),
     rows: [
       [t.rows.student, opts.childName],
       [t.rows.class, opts.className],

@@ -66,9 +66,11 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 
 export function StudentSignupForm({
   fee,
+  deposit,
   locale,
 }: {
   fee: number;
+  deposit: number;
   locale: string;
 }) {
   const t = useTranslations("enrollForm");
@@ -94,7 +96,8 @@ export function StudentSignupForm({
   const childField = (id: number, name: string) => `child_${id}_${name}`;
   const guardianField = (id: number, name: string) => `guardian_${id}_${name}`;
   const busy = pending || redirecting;
-  const total = fee * children.length;
+  const total = deposit * children.length;
+  const restPerChild = Math.max(fee - deposit, 0);
 
   const persistDraft = useCallback(() => {
     const form = formRef.current;
@@ -1096,8 +1099,13 @@ export function StudentSignupForm({
           <div className="flex items-center justify-between gap-5 border-t border-foreground/10 pt-4">
             <div>
               <p className="text-sm text-muted-foreground">
-                {t("feeNote", { fee: formatNok(fee) })}
+                {t("feeNote", { fee: formatNok(fee), deposit: formatNok(deposit) })}
               </p>
+              {restPerChild > 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {t("planNote", { rest: formatNok(restPerChild) })}
+                </p>
+              ) : null}
               <p className="text-sm font-semibold">{t("totalLabel")}</p>
             </div>
             <p className="font-heading text-3xl font-bold tabular-nums text-brand-green-dark">
