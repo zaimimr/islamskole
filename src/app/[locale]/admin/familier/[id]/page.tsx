@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminFamilyById } from "@/lib/families/service";
 import { adminBasePath } from "@/components/admin/paths";
+import { FamilyEconomy } from "@/components/admin/family-economy";
 import {
   FamilyWorkbench,
   type FamilyActivity,
@@ -148,6 +149,10 @@ export default async function FamilyPage({
     balanceResult,
     feeResult,
     paymentResult,
+    planResult,
+    adjustmentResult,
+    teacherResult,
+    dismissalResult,
   ] = await Promise.all([
     supabase
       .from("school_years")
@@ -174,6 +179,28 @@ export default async function FamilyPage({
       .select("id, status, amount, net_paid_amount, created_at")
       .in("id", queryPaymentIds)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("payment_plans")
+      .select("id, school_year_id, plan_type, monthly_amount, paused_at")
+      .eq("family_id", id)
+      .eq("status", "aktiv"),
+    supabase
+      .from("student_fee_adjustments")
+      .select(
+        "id, student_id, school_year_id, type, amount, note, guardians(first_name, last_name)",
+      )
+      .in("student_id", queryStudentIds)
+      .is("revoked_at", null)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("guardians")
+      .select("id, first_name, last_name")
+      .eq("is_teacher", true)
+      .order("first_name", { ascending: true }),
+    supabase
+      .from("sibling_discount_dismissals")
+      .select("school_year_id")
+      .eq("family_id", id),
   ]);
 
   const activeYear = yearResult.data as {
@@ -186,6 +213,45 @@ export default async function FamilyPage({
   const fees = (feeResult.data as FeeRow[] | null) ?? [];
   const payments = (paymentResult.data as PaymentRow[] | null) ?? [];
   const paymentById = new Map(payments.map((payment) => [payment.id, payment]));
+
+  const activePlans =
+    (planResult.data as
+      | {
+          id: string;
+          school_year_id: string;
+          plan_type: "full" | "semester" | "maanedlig";
+          monthly_amount: number | null;
+          paused_at: string | null;
+        }[]
+      | null) ?? [];
+  const adjustmentRows =
+    (adjustmentResult.data as
+      | {
+          id: string;
+          student_id: string;
+          school_year_id: string;
+          type: string;
+          amount: number;
+          note: string;
+          guardians: {
+            first_name: string | null;
+            last_name: string | null;
+          } | null;
+        }[]
+      | null) ?? [];
+  const teacherOptions = (
+    (teacherResult.data as
+      | { id: string; first_name: string | null; last_name: string | null }[]
+      | null) ?? []
+  ).map((teacher) => ({
+    id: teacher.id,
+    name: fullName(teacher.first_name, teacher.last_name),
+  }));
+  const dismissedYearIds = new Set(
+    (
+      (dismissalResult.data as { school_year_id: string }[] | null) ?? []
+    ).map((row) => row.school_year_id),
+  );
   const applicationById = new Map(
     family.applications.map((application) => [application.id, application]),
   );
@@ -369,6 +435,55 @@ export default async function FamilyPage({
       childName: child.name,
       amountOre: child.feeAmountOre,
     }));
+  const activePlan = activeYear
+    ? (activePlans.find((plan) => plan.school_year_id === activeYear.id) ??
+      null)
+    : null;
+
+  const studentNameById = new Map(
+    family.students.map((student) => [
+      student.id,
+      fullName(student.firstName, student.lastName),
+    ]),
+  );
+
+  const installmentRows = activePlan
+    ? ((
+        await supabase
+          .from("installments")
+          .select("id, student_id, due_date, amount, status")
+          .eq("plan_id", activePlan.id)
+          .order("due_date", { ascending: true })
+      ).data ?? [])
+    : [];
+
+  const yearAdjustments = activeYear
+    ? adjustmentRows.filter(
+        (adjustment) => adjustment.school_year_id === activeYear.id,
+      )
+    : [];
+
+  const enrolledStudentIds = activeYear
+    ? new Set(
+        enrollments
+          .filter(
+            (enrollment) =>
+              enrollment.status === "aktiv" &&
+              enrollment.school_year_id === activeYear.id,
+          )
+          .map((enrollment) => enrollment.student_id),
+      )
+    : new Set<string>();
+
+  const siblingSuggestion = Boolean(
+    activeYear &&
+      enrolledStudentIds.size >= 3 &&
+      !yearAdjustments.some(
+        (adjustment) => adjustment.type === "soskenrabatt",
+      ) &&
+      !dismissedYearIds.has(activeYear.id),
+  );
+
   const tabs: FamilyWorkbenchTab[] = [
     {
       id: "overview",
@@ -378,7 +493,8 @@ export default async function FamilyPage({
   ];
 
   return (
-    <FamilyWorkbench
+    <div className="grid gap-5">
+      <FamilyWorkbench
       family={{
         id: family.id,
         name: family.displayName,
@@ -412,6 +528,59 @@ export default async function FamilyPage({
       nextAction={nextAction}
       recentActivity={recentActivity}
       historyHref={`${familyHref}#activity-${family.id}`}
-    />
+      />
+      {activeYear ? (
+        <FamilyEconomy
+          familyId={family.id}
+          familyName={family.displayName}
+          schoolYearId={activeYear.id}
+          schoolYearLabel={activeYear.label}
+          plan={
+            activePlan
+              ? {
+                  id: activePlan.id,
+                  planType: activePlan.plan_type,
+                  monthlyAmount: activePlan.monthly_amount,
+                  pausedAt: activePlan.paused_at,
+                }
+              : null
+          }
+          installments={(installmentRows as {
+            id: string;
+            student_id: string;
+            due_date: string;
+            amount: number;
+            status: string;
+          }[]).map((installment) => ({
+            id: installment.id,
+            studentName:
+              studentNameById.get(installment.student_id) ?? "Ukjent barn",
+            dueDate: installment.due_date,
+            amount: installment.amount,
+            status: installment.status,
+          }))}
+          childrenOptions={family.students.map((student) => ({
+            id: student.id,
+            name: fullName(student.firstName, student.lastName),
+          }))}
+          siblingSuggestion={siblingSuggestion}
+          adjustments={yearAdjustments.map((adjustment) => ({
+            id: adjustment.id,
+            studentName:
+              studentNameById.get(adjustment.student_id) ?? "Ukjent barn",
+            type: adjustment.type,
+            amount: adjustment.amount,
+            note: adjustment.note,
+            teacherName: adjustment.guardians
+              ? fullName(
+                  adjustment.guardians.first_name,
+                  adjustment.guardians.last_name,
+                )
+              : null,
+          }))}
+          teachers={teacherOptions}
+        />
+      ) : null}
+    </div>
   );
 }
