@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Undo2 } from "lucide-react";
+import { AlertTriangle, Loader2, Undo2 } from "lucide-react";
 import { refundVippsPayment } from "@/app/[locale]/admin/students-actions";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,17 +54,22 @@ export function RefundPaymentDialog({
         render={
           <Button
             variant="outline"
-            size="sm"
             title="Refunder hele betalingen til foresatt"
+            className="min-h-11 rounded-xl px-3 font-bold"
           >
             <Undo2 className="size-4" />
             Refunder
           </Button>
         }
       />
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Refunder betaling</DialogTitle>
+          <span className="mb-2 flex size-11 items-center justify-center rounded-full bg-[#F9DEDB] text-[#8B2F2B]">
+            <Undo2 aria-hidden="true" className="size-5" />
+          </span>
+          <DialogTitle className="font-heading text-2xl">
+            Refunder betaling
+          </DialogTitle>
           <DialogDescription>
             Dette betaler {formatNok(amount)} tilbake
             {payerName ? ` til ${payerName}` : " til foresatt"} via Vipps.
@@ -72,28 +77,38 @@ export function RefundPaymentDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-3 py-2 text-sm">
-          <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">Beløp</p>
-            <p className="text-xl font-bold">{formatNok(amount)}</p>
+        <div className="grid gap-4 py-2 text-sm">
+          <div className="rounded-xl bg-[#FFF8E9] px-4 py-4 text-[#6B5524] ring-1 ring-[#E8D6AA]">
+            <p className="text-xs font-bold tracking-[0.04em] uppercase">
+              Beløp som betales tilbake
+            </p>
+            <p className="mt-1 font-heading text-2xl font-bold tabular-nums">
+              {formatNok(amount)}
+            </p>
           </div>
 
           {childNames.length > 0 ? (
-            <p className="text-muted-foreground">
-              Betalingen dekker {childNames.join(", ")}. Etter refusjonen
-              teller den ikke lenger som betalt, og{" "}
-              {childNames.length === 1 ? "barnet" : "barna"} vil stå med
-              utestående beløp igjen.
-            </p>
+            <div className="flex gap-3 rounded-xl bg-[#F9DEDB] p-4 text-[#6F2926] ring-1 ring-[#E8B9B5]">
+              <AlertTriangle
+                aria-hidden="true"
+                className="mt-0.5 size-5 shrink-0"
+              />
+              <p>
+                Betalingen dekker {childNames.join(", ")}. Etter refusjonen
+                teller den ikke lenger som betalt, og{" "}
+                {childNames.length === 1 ? "barnet" : "barna"} vil stå med
+                utestående beløp igjen.
+              </p>
+            </div>
           ) : null}
 
-          <p className="text-muted-foreground">
-            Hele beløpet refunderes. Trenger du å betale tilbake bare deler av
-            en betaling, si fra - det krever en egen delrefusjon.
+          <p className="text-admin-muted">
+            Denne handlingen refunderer hele det tilgjengelige beløpet. Den kan
+            ikke angres i systemet.
           </p>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="[&_[data-slot=button]]:min-h-11 [&_[data-slot=button]]:rounded-xl [&_[data-slot=button]]:px-4">
           <Button
             type="button"
             variant="ghost"
