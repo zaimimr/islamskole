@@ -18,6 +18,12 @@ const statusOptions = [
   { value: "arkivert", label: "Arkivert" },
 ];
 
+const statusClassName: Record<string, string> = {
+  ny: "border-[#E7CA91] bg-[#FFF8E9] text-[#775108]",
+  kontaktet: "border-[#BBD8EA] bg-[#EFF8FD] text-[#245D7C]",
+  arkivert: "border-[#D8D3C8] bg-[#F2F1EB] text-[#5C5B55]",
+};
+
 export function TeacherStatusSelect({
   id,
   status,
@@ -43,7 +49,11 @@ export function TeacherStatusSelect({
 
   return (
     <Select value={status} onValueChange={handleChange} disabled={pending}>
-      <SelectTrigger size="sm" className="w-32">
+      <SelectTrigger
+        size="sm"
+        className={`min-h-10 w-36 rounded-xl font-bold shadow-none ${statusClassName[status] ?? statusClassName.arkivert}`}
+        aria-label="Søknadsstatus"
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
