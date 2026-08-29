@@ -2,7 +2,7 @@
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
-import { SearchIcon } from "lucide-react";
+import { CalendarDays, CreditCard, SearchIcon, UsersRound } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -32,7 +32,7 @@ export function EleverFilters({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [, startTransition] = useTransition();
+  const [pending, startTransition] = useTransition();
 
   function setParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -60,33 +60,42 @@ export function EleverFilters({
     paymentStatuses.find((s) => s.value === v)?.label ?? "All betaling";
 
   return (
-    <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+    <div
+      className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:items-end"
+      aria-busy={pending}
+    >
       <div className="grid gap-1.5">
         <Label htmlFor="elever-sok">Søk</Label>
         <div className="relative">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#2F7938]" />
           <Input
             id="elever-sok"
             defaultValue={searchParams.get("q") ?? ""}
             placeholder="Navn, foresatt eller e-post"
-            className="pl-9"
+            className="min-h-11 rounded-xl border-[#CFC9BD] bg-white pl-10 shadow-none focus-visible:border-[#2F7938] focus-visible:ring-[#2F7938]/20"
             onChange={(e) => setParam("q", e.target.value)}
           />
         </div>
       </div>
 
       <div className="grid gap-1.5">
-        <Label>Skoleår</Label>
+        <Label htmlFor="elever-school-year">Skoleår</Label>
         <Select
           value={searchParams.get("year") ?? "alle"}
           onValueChange={(value) => setParam("year", value ?? "alle")}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger
+            id="elever-school-year"
+            className="min-h-11 w-full rounded-xl border-[#CFC9BD] bg-white shadow-none"
+          >
+            <CalendarDays className="size-4 text-[#2F7938]" />
             <SelectValue>{(v: string) => yearLabel(v)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="alle">Alle skoleår</SelectItem>
-            <SelectItem value="needs_rollover">Mangler i aktivt skoleår</SelectItem>
+            <SelectItem value="needs_rollover">
+              Mangler i aktivt skoleår
+            </SelectItem>
             {schoolYears.map((y) => (
               <SelectItem key={y.id} value={y.id}>
                 {y.label}
@@ -97,12 +106,16 @@ export function EleverFilters({
       </div>
 
       <div className="grid gap-1.5">
-        <Label>Klasse</Label>
+        <Label htmlFor="elever-class">Klasse</Label>
         <Select
           value={searchParams.get("class") ?? "alle"}
           onValueChange={(value) => setParam("class", value ?? "alle")}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger
+            id="elever-class"
+            className="min-h-11 w-full rounded-xl border-[#CFC9BD] bg-white shadow-none"
+          >
+            <UsersRound className="size-4 text-[#2F7938]" />
             <SelectValue>{(v: string) => classLabel(v)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -117,12 +130,16 @@ export function EleverFilters({
       </div>
 
       <div className="grid gap-1.5">
-        <Label>Betaling</Label>
+        <Label htmlFor="elever-payment">Betaling</Label>
         <Select
           value={searchParams.get("pay") ?? "alle"}
           onValueChange={(value) => setParam("pay", value ?? "alle")}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger
+            id="elever-payment"
+            className="min-h-11 w-full rounded-xl border-[#CFC9BD] bg-white shadow-none"
+          >
+            <CreditCard className="size-4 text-[#2F7938]" />
             <SelectValue>{(v: string) => payLabel(v)}</SelectValue>
           </SelectTrigger>
           <SelectContent>

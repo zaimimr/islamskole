@@ -6,6 +6,7 @@ import {
   capturePayment,
   type VippsPaymentState,
 } from "@/lib/vipps";
+import { mapVippsPaymentState } from "@/lib/payment-integrity";
 import {
   sendPaymentReceiptEmail,
   sendStudentApplicationEmail,
@@ -24,18 +25,7 @@ export function mapVippsState(
   capturedAmount: number,
   refundedAmount: number,
 ): string {
-  if (refundedAmount > 0) return "refundert";
-  if (capturedAmount > 0) return "fanget";
-  switch (state) {
-    case "AUTHORIZED":
-      return "autorisert";
-    case "ABORTED":
-    case "EXPIRED":
-    case "TERMINATED":
-      return "avbrutt";
-    default:
-      return "opprettet";
-  }
+  return mapVippsPaymentState(state, capturedAmount, refundedAmount);
 }
 
 type NamedPersonRow = {
@@ -87,6 +77,45 @@ async function recordEvents(
   }
 }
 
+async function reconcileRefunds(
+  admin: ReturnType<typeof createAdminClient>,
+  paymentId: string,
+  reference: string,
+  vippsRefundedAmount: number,
+): Promise<void> {
+  try {
+    const { data } = await admin
+      .from("refunds")
+      .select("amount")
+      .eq("payment_id", paymentId);
+    const localTotal = (data ?? []).reduce(
+      (sum, row) => sum + (row.amount ?? 0),
+      0,
+    );
+    const missing = vippsRefundedAmount - localTotal;
+    if (missing <= 0) return;
+
+    const { data: allocations } = await admin
+      .from("payment_allocations")
+      .select("student_id, school_year_id")
+      .eq("payment_id", paymentId);
+    const single = (allocations ?? []).length === 1 ? allocations![0] : null;
+
+    await admin.from("refunds").insert({
+      payment_id: paymentId,
+      student_id: single?.student_id ?? null,
+      school_year_id: single?.school_year_id ?? null,
+      amount: missing,
+      method: "vipps",
+      reason: "Synkronisert fra Vipps",
+      refunded_by: "vipps-sync",
+      idempotency_key: `sync-${reference}-${vippsRefundedAmount}`,
+    });
+  } catch (error) {
+    console.error("Refund reconciliation failed", { reference, error });
+  }
+}
+
 export async function syncPaymentByReference(
   reference: string,
 ): Promise<string | null> {
@@ -130,6 +159,8 @@ export async function syncPaymentByReference(
   const update: Record<string, unknown> = {
     status,
     vipps_state: result.state,
+    authorized_amount: result.authorizedAmount,
+    captured_amount: capturedAmount,
     last_synced_at: now,
   };
   if (result.payerName) update.payer_name = result.payerName;
@@ -139,21 +170,30 @@ export async function syncPaymentByReference(
     update.vipps_payment_method = result.paymentMethodType;
   }
   if (result.pspReference) update.psp_reference = result.pspReference;
-  if (status === "fanget") {
+  if (
+    capturedAmount > 0 &&
+    previousStatus !== "fanget" &&
+    previousStatus !== "refundert"
+  ) {
     update.captured_at = now;
     update.paid_at = now;
   }
 
-  await admin
+  const { error: updateError } = await admin
     .from("payments")
     .update(update as never)
     .eq("reference", reference);
+  if (updateError) throw new Error(updateError.message);
 
   await recordEvents(admin, reference, payment?.id ?? null);
 
+  if (payment?.id && result.refundedAmount > 0) {
+    await reconcileRefunds(admin, payment.id, reference, result.refundedAmount);
+  }
+
   const justCaptured = status === "fanget" && previousStatus !== "fanget";
 
-  if (status === "fanget" && payment?.id) {
+  if (payment?.id) {
     try {
       await allocatePayment(admin, payment.id);
     } catch (error) {
@@ -163,7 +203,7 @@ export async function syncPaymentByReference(
 
   if (justCaptured && (await emailNotifications())) {
     const schoolYear = payment?.school_years?.label ?? null;
-    const amount = payment?.amount ?? 0;
+    const amount = capturedAmount || payment?.amount || 0;
 
     if (payment?.students) {
       const recipients = guardianEmails(payment.students);
@@ -193,6 +233,7 @@ export async function syncPaymentByReference(
           amount,
           schoolYear,
           className: null,
+          enrollmentDeposit: true,
         });
       }
 

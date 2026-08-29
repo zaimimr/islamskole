@@ -50,7 +50,7 @@ export function BatchSendButton({
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger
         render={
-          <Button variant="outline">
+          <Button variant="outline" className="min-h-11 bg-white px-3">
             <Send className="size-4" />
             Send betalingslenke til ubetalte
           </Button>
@@ -58,15 +58,21 @@ export function BatchSendButton({
       />
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Send betalingslenke for {yearLabel}?</AlertDialogTitle>
+          <AlertDialogTitle>
+            Send betalingslenke for {yearLabel}?
+          </AlertDialogTitle>
           <AlertDialogDescription>
             Sender betalingslenke på e-post til foresatte for alle aktive elever
             dette skoleåret som ikke har betalt. Allerede betalte hoppes over.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Avbryt</AlertDialogCancel>
-          <AlertDialogAction onClick={handleConfirm} disabled={pending}>
+          <AlertDialogCancel className="min-h-11">Avbryt</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleConfirm}
+            disabled={pending}
+            className="min-h-11"
+          >
             {pending ? <Loader2 className="size-4 animate-spin" /> : null}
             Send
           </AlertDialogAction>

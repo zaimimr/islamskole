@@ -3,7 +3,15 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import {
+  BookOpen,
+  Loader2,
+  MapPin,
+  Save,
+  StickyNote,
+  UserRound,
+  UsersRound,
+} from "lucide-react";
 import {
   createStudent,
   updateStudent,
@@ -12,7 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export type StudentRecord = {
   id: string;
@@ -40,7 +47,7 @@ export type StudentRecord = {
 };
 
 const selectClassName =
-  "h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs";
+  "min-h-11 w-full rounded-xl border border-[#CFC9BD] bg-white px-3 text-sm shadow-none outline-none focus-visible:border-[#2F7938] focus-visible:ring-3 focus-visible:ring-[#2F7938]/20";
 
 const levelOptions = [
   { value: "", label: "Ikke satt" },
@@ -54,6 +61,15 @@ const genderOptions = [
   { value: "", label: "Ikke satt" },
   { value: "gutt", label: "Gutt" },
   { value: "jente", label: "Jente" },
+];
+
+const guardianRoleOptions = [
+  { value: "foresatt", label: "Foresatt" },
+  { value: "mor", label: "Mor" },
+  { value: "far", label: "Far" },
+  { value: "steforelder", label: "Steforelder" },
+  { value: "verge", label: "Verge" },
+  { value: "annet", label: "Annen relasjon" },
 ];
 
 function LevelSelect({
@@ -84,6 +100,28 @@ function LevelSelect({
   );
 }
 
+function FormSectionHeading({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B]">
+        {icon}
+      </span>
+      <div>
+        <h2 className="font-heading text-xl font-bold">{title}</h2>
+        <p className="mt-0.5 text-sm text-admin-muted">{description}</p>
+      </div>
+    </div>
+  );
+}
+
 export function StudentForm({
   student,
   listHref,
@@ -110,12 +148,18 @@ export function StudentForm({
   }
 
   return (
-    <form action={handleSubmit} className="grid gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Elev</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4">
+    <form
+      action={handleSubmit}
+      className="grid gap-5 [&_input]:min-h-11 [&_input]:rounded-xl [&_input]:border-[#CFC9BD] [&_input]:shadow-none [&_textarea]:rounded-xl [&_textarea]:border-[#CFC9BD] [&_textarea]:shadow-none"
+      aria-busy={pending}
+    >
+      <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
+        <FormSectionHeading
+          icon={<UserRound aria-hidden="true" className="size-4" />}
+          title="Grunnopplysninger"
+          description="Barnets identitet og kontaktinformasjon."
+        />
+        <div className="grid gap-4 p-4 sm:p-5">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="child_first_name" required>
@@ -168,11 +212,15 @@ export function StudentForm({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="address">Adresse</Label>
-            <Input
-              id="address"
-              name="address"
-              defaultValue={student?.child_address ?? ""}
-            />
+            <div className="relative">
+              <MapPin className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#2F7938]" />
+              <Input
+                id="address"
+                name="address"
+                className="pl-10"
+                defaultValue={student?.child_address ?? ""}
+              />
+            </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
@@ -212,14 +260,31 @@ export function StudentForm({
               />
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Mor</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4">
+      <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
+        <FormSectionHeading
+          icon={<UsersRound aria-hidden="true" className="size-4" />}
+          title="Primær foresatt"
+          description="Minst én foresatt må registreres for barnet."
+        />
+        <div className="grid gap-4 p-4 sm:p-5">
+          <div className="grid gap-2">
+            <Label htmlFor="mother_relationship">Relasjon</Label>
+            <select
+              id="mother_relationship"
+              name="mother_relationship"
+              defaultValue="foresatt"
+              className={selectClassName}
+            >
+              {guardianRoleOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="mother_first_name">Fornavn</Label>
@@ -258,14 +323,31 @@ export function StudentForm({
               />
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Far</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4">
+      <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
+        <FormSectionHeading
+          icon={<UsersRound aria-hidden="true" className="size-4" />}
+          title="Ekstra foresatt"
+          description="Valgfri kontakt som også kan knyttes til familien."
+        />
+        <div className="grid gap-4 p-4 sm:p-5">
+          <div className="grid gap-2">
+            <Label htmlFor="father_relationship">Relasjon</Label>
+            <select
+              id="father_relationship"
+              name="father_relationship"
+              defaultValue="foresatt"
+              className={selectClassName}
+            >
+              {guardianRoleOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="father_first_name">Fornavn</Label>
@@ -304,18 +386,20 @@ export function StudentForm({
               />
             </div>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Betalingslenken sendes til e-posten til begge foresatte. Når én har
-            betalt, ser den andre kvitteringssiden.
+          <p className="rounded-xl bg-[#EFF8FD] p-3 text-sm text-[#245D7C]">
+            Betalingslenken kan sendes til begge foresatte. Når én har betalt,
+            ser den andre kvitteringssiden.
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Nivå og notater</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4">
+      <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
+        <FormSectionHeading
+          icon={<BookOpen aria-hidden="true" className="size-4" />}
+          title="Nivå og notater"
+          description="Opplysninger som hjelper skolen med oppstart og plassering."
+        />
+        <div className="grid gap-4 p-4 sm:p-5">
           <div className="grid gap-4 sm:grid-cols-3">
             <LevelSelect
               name="level_quran"
@@ -334,7 +418,13 @@ export function StudentForm({
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="notes">Notater</Label>
+            <Label htmlFor="notes" className="inline-flex items-center gap-2">
+              <StickyNote
+                aria-hidden="true"
+                className="size-4 text-[#2F7938]"
+              />
+              Notater
+            </Label>
             <Textarea
               id="notes"
               name="notes"
@@ -342,20 +432,26 @@ export function StudentForm({
               defaultValue={student?.notes ?? ""}
             />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <div className="flex gap-3">
-        <Button type="submit" disabled={pending}>
-          {pending ? <Loader2 className="size-4 animate-spin" /> : null}
-          Lagre
-        </Button>
+      <div className="sticky bottom-4 z-10 flex flex-col-reverse gap-2 rounded-2xl bg-white p-3 ring-1 ring-[#D8D3C8] sm:flex-row sm:justify-end">
         <Button
           type="button"
           variant="outline"
           onClick={() => router.push(listHref)}
+          className="min-h-11 rounded-xl px-5 font-bold"
         >
           Avbryt
+        </Button>
+        <Button
+          type="submit"
+          disabled={pending}
+          className="min-h-11 rounded-xl px-5 font-bold"
+        >
+          {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+          {!pending ? <Save aria-hidden="true" className="size-4" /> : null}
+          {student ? "Lagre endringer" : "Registrer elev"}
         </Button>
       </div>
     </form>

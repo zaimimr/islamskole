@@ -70,6 +70,9 @@ export async function createSchoolYear(
     starts_on: readOptionalString(formData, "starts_on"),
     ends_on: readOptionalString(formData, "ends_on"),
     fee: readNumber(formData, "fee"),
+    enrollment_fee: readNumber(formData, "enrollment_fee") ?? 2000,
+    sem1_due_on: readOptionalString(formData, "sem1_due_on"),
+    sem2_due_on: readOptionalString(formData, "sem2_due_on"),
     is_active: isActive,
   };
 
@@ -117,6 +120,9 @@ export async function updateSchoolYear(
     starts_on: readOptionalString(formData, "starts_on"),
     ends_on: readOptionalString(formData, "ends_on"),
     fee: readNumber(formData, "fee"),
+    enrollment_fee: readNumber(formData, "enrollment_fee") ?? 2000,
+    sem1_due_on: readOptionalString(formData, "sem1_due_on"),
+    sem2_due_on: readOptionalString(formData, "sem2_due_on"),
     is_active: isActive,
   };
 

@@ -152,95 +152,50 @@ export async function setStudentFee(
     .eq("school_year_id", schoolYearId);
 }
 
-async function resolvePaymentTargets(
+type AllocationRpcResult = {
+  data: number | null;
+  error: { message: string } | null;
+};
+
+type AllocationInput = {
+  studentId: string;
+  amount: number;
+};
+
+async function callAllocationRpc(
   client: Client,
   paymentId: string,
-  directStudentId: string | null,
-): Promise<string[]> {
-  if (directStudentId) return [directStudentId];
+  allocations: AllocationInput[] | null,
+): Promise<number> {
+  const rpc = client.rpc as unknown as (
+    name: string,
+    args: Record<string, unknown>,
+  ) => Promise<AllocationRpcResult>;
+  const { data, error } = await rpc("replace_payment_allocations", {
+    p_payment_id: paymentId,
+    p_allocations: allocations?.map((row) => ({
+      student_id: row.studentId,
+      amount: row.amount,
+    })) ?? null,
+  });
 
-  const { data: applications } = await client
-    .from("student_applications")
-    .select("id")
-    .eq("payment_id", paymentId);
-
-  const applicationIds = (applications ?? []).map((row) => row.id);
-  if (applicationIds.length === 0) return [];
-
-  const { data: students } = await client
-    .from("students")
-    .select("id")
-    .in("application_id", applicationIds);
-
-  return (students ?? []).map((row) => row.id).sort();
-}
-
-export function splitAmount(
-  amount: number,
-  remainingByTarget: number[],
-): number[] {
-  const shares = remainingByTarget.map(() => 0);
-  let left = amount;
-
-  for (let index = 0; index < remainingByTarget.length && left > 0; index++) {
-    const take = Math.min(Math.max(remainingByTarget[index], 0), left);
-    shares[index] = take;
-    left -= take;
-  }
-
-  if (left > 0 && shares.length > 0) shares[0] += left;
-
-  return shares;
+  if (error) throw new Error(error.message);
+  return data ?? 0;
 }
 
 export async function allocatePayment(
   client: Client,
   paymentId: string,
 ): Promise<number> {
-  const { data: payment } = await client
-    .from("payments")
-    .select("id, amount, student_id, school_year_id, status")
-    .eq("id", paymentId)
-    .maybeSingle();
+  return callAllocationRpc(client, paymentId, null);
+}
 
-  if (!payment?.school_year_id || payment.amount <= 0) return 0;
-  if (payment.status !== "fanget") return 0;
-
-  const targets = await resolvePaymentTargets(
-    client,
-    paymentId,
-    payment.student_id,
-  );
-  if (targets.length === 0) return 0;
-
-  const schoolYearId = payment.school_year_id;
-  for (const studentId of targets) {
-    await ensureStudentFee(client, studentId, schoolYearId);
-  }
-
-  await client.from("payment_allocations").delete().eq("payment_id", paymentId);
-
-  const balances = await Promise.all(
-    targets.map((studentId) => fetchBalance(client, studentId, schoolYearId)),
-  );
-  const shares = splitAmount(
-    payment.amount,
-    balances.map((balance) => balance.remaining),
-  );
-
-  const rows = targets
-    .map((studentId, index) => ({
-      payment_id: paymentId,
-      student_id: studentId,
-      school_year_id: schoolYearId,
-      amount: shares[index],
-    }))
-    .filter((row) => row.amount > 0);
-
-  if (rows.length === 0) return 0;
-
-  await client.from("payment_allocations").insert(rows);
-  return rows.length;
+export async function replacePaymentAllocations(
+  client: Client,
+  paymentId: string,
+  allocations: AllocationInput[],
+): Promise<number> {
+  return callAllocationRpc(client, paymentId, allocations);
 }
 
 export async function allocatePaymentsForStudent(

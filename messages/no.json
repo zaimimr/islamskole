@@ -132,14 +132,16 @@
   "enrollForm": {
     "eyebrow": "Innmelding",
     "title": "Meld inn barnet ditt",
-    "subtitle": "Fyll ut skjemaet og betal skoleavgiften med Vipps for å sikre plassen.",
+    "subtitle": "Meld inn ett eller flere barn og betal skoleavgiften med Vipps. Skolen vurderer klasseplassering etterpå.",
     "facts": {
       "schedule": "Undervisning hver søndag kl. 10:00-14:00",
       "season": "35 søndager fra august til juni",
       "ages": "For barn fra 6 til 18 år"
     },
     "formTitle": "Innmeldingsskjema",
-    "formSubtitle": "Du betaler med Vipps når du sender inn. Plassen er sikret når betalingen er registrert.",
+    "formSubtitle": "Beløpet trekkes med en gang du godkjenner i Vipps. Betalingen bekrefter innmeldingen, ikke en bestemt klasseplass.",
+    "unavailableTitle": "Innmelding er ikke åpnet ennå",
+    "unavailableBody": "Skolen må åpne et aktivt skoleår og fastsette skoleavgiften før du kan melde på og betale. Ta kontakt med skolen hvis du trenger hjelp.",
     "fieldChildName": "Barnets navn",
     "placeholderChildName": "Fornavn og etternavn",
     "fieldChildAge": "Barnets alder",
@@ -169,8 +171,8 @@
     "placeholderCity": "F.eks. Vøyenenga",
     "fieldParentPhone": "Mobil (kontakt)",
     "fieldParentEmail": "E-post (kontakt)",
-    "parentsHint": "Fyll ut navn, e-post og telefon for begge foresatte. Huk av for eneforelder hvis barnet kun har én.",
-    "feeNote": "Skoleavgift {fee} kr per barn per skoleår. Betales med Vipps ved innmelding.",
+    "parentsHint": "Legg til de foresatte som skal være knyttet til familien.",
+    "feeNote": "Skoleavgiften er {fee} kr per barn per skoleår. Du betaler {deposit} kr per barn nå med Vipps.",
     "termsLead": "Jeg bekrefter å ha lest reglementet og godtar",
     "termsLink": "salgsbetingelsene",
     "termsTail": ", og vil respektere innbetalingsplan og skoletider.",
@@ -190,7 +192,7 @@
     },
     "fieldMessage": "Melding",
     "placeholderMessage": "Er det noe vi bør vite?",
-    "submit": "Betal og meld inn",
+    "submit": "Gå til Vipps",
     "toastSuccess": "Takk! Vi har mottatt påmeldingen din.",
     "thanksTitle": "Tusen takk!",
     "thanksBody": "Vi har mottatt påmeldingen din og tar kontakt så snart vi kan.",
@@ -215,7 +217,44 @@
     "redirecting": "Sender deg til Vipps ...",
     "singleParentLabel": "Barnet har kun én foresatt (eneforelder)",
     "sectionAddress": "Adresse",
-    "addressHint": "Adressen brukes for alle barna i denne innmeldingen."
+    "addressHint": "Adressen brukes for familien og alle barna i denne innmeldingen.",
+    "progressLabel": "Fremdrift for innmelding",
+    "stepChildren": "Barn",
+    "stepGuardians": "Foresatte og adresse",
+    "stepReview": "Kontroller og betal",
+    "stepSummary": "Fyll ut de markerte feltene før du går videre.",
+    "childrenStepTitle": "Hvem skal meldes inn?",
+    "childrenStepHint": "Legg til alle søsken som skal meldes inn samtidig.",
+    "childrenTabsLabel": "Barn i innmeldingen",
+    "removeCurrentChild": "Fjern dette barnet",
+    "optionalLearningDetails": "Nivå, klasseønske og melding (valgfritt)",
+    "guardiansStepTitle": "Familie og kontaktpersoner",
+    "guardiansStepHint": "Én foresatt er påkrevd. Du kan legge til flere uten å velge en bestemt familietype.",
+    "primaryGuardian": "Primær foresatt",
+    "guardianLabel": "Foresatt {n}",
+    "guardianRole": "Relasjon til barnet",
+    "guardianRolePlaceholder": "Velg relasjon",
+    "guardianRoles": {
+      "foresatt": "Foresatt",
+      "mor": "Mor",
+      "far": "Far",
+      "steforelder": "Steforelder",
+      "verge": "Verge",
+      "annet": "Annen omsorgsperson"
+    },
+    "primaryGuardianHint": "Denne personen blir familiens primære kontakt. Det kan endres av skolen senere.",
+    "addGuardian": "Legg til en foresatt",
+    "removeGuardian": "Fjern foresatt",
+    "reviewStepTitle": "Kontroller før betaling",
+    "reviewStepHint": "Se over familien og beløpet før du går videre til Vipps.",
+    "reviewChildren": "Barn",
+    "reviewGuardians": "Foresatte",
+    "edit": "Endre",
+    "back": "Tilbake",
+    "next": "Neste",
+    "paymentImmediateTitle": "Betalingen trekkes med en gang",
+    "paymentImmediateBody": "Når du godkjenner i Vipps, trekkes hele beløpet umiddelbart. Skolen behandler innmeldingen og klasseplasseringen separat.",
+    "planNote": "Resten ({rest} kr per barn) betales innen 15. august og 15. desember, eller månedlig etter avtale. Vi sender betalingslenke på e-post."
   },
   "about": {
     "title": "Om oss",
@@ -328,22 +367,22 @@
       {
         "heading": "Priser",
         "body": [
-          "Skoleavgiften er 5 000 NOK per skoleår og betales ved påmelding.",
+          "Skoleavgiften er 5 000 NOK per barn per skoleår. 2 000 NOK betales ved påmelding, og resten betales innen 15. august og 15. desember, eller månedlig etter avtale med skolen.",
           "Alle priser er i norske kroner (NOK) og inkluderer alle avgifter. Eventuelle tilleggskostnader opplyses før du fullfører påmeldingen."
         ]
       },
       {
         "heading": "Betaling",
         "body": [
-          "Betaling skjer med Vipps ved påmelding. Beløpet belastes når påmeldingen bekreftes.",
-          "Påmeldingen er bindende når betalingen er gjennomført. Du mottar en bekreftelse på e-post."
+          "Betaling skjer med Vipps ved påmelding. Beløpet som vises belastes umiddelbart når du godkjenner betalingen i Vipps. Senere avdrag betales med tilsendt betalingslenke.",
+          "Betalingen bekrefter at innmeldingen er mottatt. Klasseplassering behandles separat og avhenger av kapasitet. Du mottar en bekreftelse på e-post."
         ]
       },
       {
         "heading": "Levering",
         "body": [
           "Tjenesten leveres som undervisning på Skuiveien 40, 1339 Vøyenenga i det oppgitte skoleåret (august til juni).",
-          "Påmelding gir rett til deltakelse i det skoleåret det er betalt for."
+          "Når skolen har bekreftet plass, gjelder den betalte innmeldingen for det oppgitte skoleåret."
         ]
       },
       {

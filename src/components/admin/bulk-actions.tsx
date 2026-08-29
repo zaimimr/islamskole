@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useMemo,
   useState,
@@ -68,7 +69,7 @@ export function BulkActions({
   const statuses =
     entity === "teachers" ? teacherStatuses : applicationStatuses;
 
-  function toggle(id: string) {
+  const toggle = useCallback((id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -78,13 +79,13 @@ export function BulkActions({
       }
       return next;
     });
-  }
+  }, []);
 
-  function toggleAll() {
+  const toggleAll = useCallback(() => {
     setSelected((prev) =>
       prev.size === ids.length ? new Set() : new Set(ids),
     );
-  }
+  }, [ids]);
 
   function handleApply() {
     if (selected.size === 0) {
@@ -114,7 +115,7 @@ export function BulkActions({
 
   const value = useMemo<BulkContextValue>(
     () => ({ selected, allIds: ids, toggle, toggleAll }),
-    [selected, ids],
+    [selected, ids, toggle, toggleAll],
   );
 
   return (

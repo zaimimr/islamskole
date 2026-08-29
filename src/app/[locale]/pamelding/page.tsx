@@ -3,20 +3,27 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { CalendarClock, CalendarRange, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/site/PageHeader";
 import { Section } from "@/components/site/Section";
-import { Blob } from "@/components/site/decor";
 import { StudentSignupForm } from "@/components/site/StudentSignupForm";
 import { contentMetadata } from "@/lib/seo";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { Locale } from "@/i18n/routing";
 
 async function getActiveFee() {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data } = await supabase
     .from("school_years")
-    .select("fee")
+    .select("fee, enrollment_fee")
     .eq("is_active", true)
     .maybeSingle();
-  return (data as unknown as { fee: number | null } | null)?.fee ?? 5000;
+  const row = data as unknown as {
+    fee: number | null;
+    enrollment_fee: number | null;
+  } | null;
+  if (!row?.fee) return null;
+  return {
+    fee: row.fee,
+    deposit: Math.min(row.enrollment_fee ?? row.fee, row.fee),
+  };
 }
 
 export async function generateMetadata({
@@ -41,7 +48,7 @@ export default async function PameldingPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("enrollForm");
-  const fee = await getActiveFee();
+  const pricing = await getActiveFee();
 
   return (
     <>
@@ -49,21 +56,19 @@ export default async function PameldingPage({
         eyebrow={t("eyebrow")}
         title={t("title")}
         subtitle={t("subtitle")}
+        compact
       />
 
-      <Section className="bg-card">
-        <div className="grid gap-3 sm:grid-cols-3">
+      <Section className="bg-card py-10 sm:py-12">
+        <div className="grid overflow-hidden rounded-2xl border border-foreground/10 bg-border sm:grid-cols-3 sm:gap-px">
           {factKeys.map((key, index) => {
             const Icon = factIcons[index];
             return (
-              <div
-                key={key}
-                className="flex items-center gap-4 rounded-3xl bg-primary/6 p-6"
-              >
-                <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-brand-green-dark">
-                  <Icon className="size-6" aria-hidden="true" />
+              <div key={key} className="flex items-center gap-4 bg-card p-5">
+                <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-brand-green-dark">
+                  <Icon className="size-5" aria-hidden="true" />
                 </span>
-                <p className="text-base font-semibold text-foreground">
+                <p className="text-sm font-semibold text-foreground">
                   {t(`facts.${key}`)}
                 </p>
               </div>
@@ -72,15 +77,31 @@ export default async function PameldingPage({
         </div>
       </Section>
 
-      <Section>
-        <div className="relative mx-auto max-w-2xl">
-          <Blob className="-top-10 -right-10 -z-10 h-40 w-40 text-accent animate-float" />
-          <div className="rounded-[2.4rem] bg-card p-7 shadow-[0_30px_70px_-50px_rgba(20,60,30,0.5)] ring-1 ring-foreground/10 sm:p-10">
-            <h2 className="font-heading text-2xl font-bold">{t("formTitle")}</h2>
+      <Section className="py-12 sm:py-16">
+        <div className="mx-auto max-w-4xl">
+          <div className="rounded-3xl bg-card p-6 shadow-[0_24px_60px_-44px_rgba(20,60,30,0.5)] ring-1 ring-foreground/10 sm:p-10">
+            <h2 className="font-heading text-2xl font-bold">
+              {t("formTitle")}
+            </h2>
             <p className="mt-2 mb-7 text-base text-muted-foreground">
               {t("formSubtitle")}
             </p>
-            <StudentSignupForm fee={fee} />
+            {pricing ? (
+              <StudentSignupForm
+                fee={pricing.fee}
+                deposit={pricing.deposit}
+                locale={locale}
+              />
+            ) : (
+              <div className="rounded-2xl bg-amber-50 p-5 ring-1 ring-amber-200">
+                <h3 className="font-heading text-lg font-bold">
+                  {t("unavailableTitle")}
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {t("unavailableBody")}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </Section>

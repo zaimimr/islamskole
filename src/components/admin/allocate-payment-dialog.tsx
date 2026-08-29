@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Plus, Split, X } from "lucide-react";
+import { CheckCircle2, Loader2, Plus, Split, X } from "lucide-react";
 import { updatePaymentAllocations } from "@/app/[locale]/admin/students-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,7 +57,12 @@ export function AllocatePaymentDialog({
               Math.round(paymentAmount / Math.max(list.length, 1) / 100),
             ),
           }))
-        : [{ studentId: "", amountNok: String(Math.round(paymentAmount / 100)) }];
+        : [
+            {
+              studentId: "",
+              amountNok: String(Math.round(paymentAmount / 100)),
+            },
+          ];
 
   const [rows, setRows] = useState<Row[]>(initial);
 
@@ -133,7 +138,7 @@ export function AllocatePaymentDialog({
   }
 
   const selectClass =
-    "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs";
+    "min-h-11 w-full rounded-xl border border-[#DCD7CC] bg-white px-3 text-sm outline-none focus-visible:border-[#3C8F44] focus-visible:ring-3 focus-visible:ring-ring/30";
 
   return (
     <Dialog
@@ -145,13 +150,17 @@ export function AllocatePaymentDialog({
     >
       <DialogTrigger
         render={
-          <Button variant="outline" size="sm" title="Fordel betalingen på barn">
+          <Button
+            variant="outline"
+            title="Fordel betalingen på barn"
+            className="min-h-11 rounded-xl px-3 font-bold"
+          >
             <Split className="size-4" />
             Fordel
           </Button>
         }
       />
-      <DialogContent>
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Fordel betaling</DialogTitle>
           <DialogDescription>
@@ -164,7 +173,7 @@ export function AllocatePaymentDialog({
           {rows.map((row, index) => (
             <div
               key={index}
-              className="grid gap-2 sm:grid-cols-[1fr_7rem_auto] sm:items-end"
+              className="grid gap-3 rounded-xl bg-[#FAF9F5] p-3 ring-1 ring-[#E8E3D9] sm:grid-cols-[1fr_8rem_auto] sm:items-end"
             >
               <div className="grid gap-2">
                 <Label htmlFor={`alloc_student_${index}`}>Barn</Label>
@@ -197,6 +206,7 @@ export function AllocatePaymentDialog({
                 type="button"
                 variant="ghost"
                 size="icon"
+                className="size-11 rounded-xl"
                 aria-label="Fjern barn"
                 onClick={() => removeRow(index)}
               >
@@ -206,7 +216,12 @@ export function AllocatePaymentDialog({
           ))}
 
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={addRow}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={addRow}
+              className="min-h-11 rounded-xl px-3 font-bold"
+            >
               <Plus className="size-4" />
               Legg til barn
             </Button>
@@ -214,28 +229,49 @@ export function AllocatePaymentDialog({
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
                 onClick={splitEvenly}
+                className="min-h-11 rounded-xl px-3 font-bold"
               >
                 Del likt
               </Button>
             ) : null}
           </div>
 
-          <p
-            className={`text-sm ${
-              restOre < 0 ? "text-destructive" : "text-muted-foreground"
+          <div
+            aria-live="polite"
+            className={`flex gap-3 rounded-xl px-3 py-3 text-sm ring-1 ${
+              restOre < 0
+                ? "bg-[#F9DEDB] text-[#8B2F2B] ring-[#E8B9B5]"
+                : restOre === 0
+                  ? "bg-[#F2F8F2] text-[#216A2B] ring-[#C9E0CB]"
+                  : "bg-[#FFF8E9] text-[#6B5524] ring-[#E8D6AA]"
             }`}
           >
-            Fordelt {formatNok(allocatedOre)} av {formatNok(paymentAmount)}
-            {restOre > 0 ? ` · ${formatNok(restOre)} ufordelt` : ""}
-            {restOre < 0
-              ? ` · ${formatNok(Math.abs(restOre))} for mye fordelt`
-              : ""}
-          </p>
+            {restOre === 0 ? (
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+            ) : (
+              <Split className="mt-0.5 size-4 shrink-0" />
+            )}
+            <p>
+              <span className="block font-bold">
+                Fordelt {formatNok(allocatedOre)} av {formatNok(paymentAmount)}
+              </span>
+              {restOre > 0 ? (
+                <span className="mt-0.5 block">
+                  {formatNok(restOre)} blir stående ufordelt.
+                </span>
+              ) : null}
+              {restOre < 0 ? (
+                <span className="mt-0.5 block">
+                  Reduser fordelingen med {formatNok(Math.abs(restOre))} før du
+                  lagrer.
+                </span>
+              ) : null}
+            </p>
+          </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="[&_[data-slot=button]]:min-h-11 [&_[data-slot=button]]:rounded-xl [&_[data-slot=button]]:px-4">
           <Button
             type="button"
             variant="ghost"
@@ -244,7 +280,11 @@ export function AllocatePaymentDialog({
           >
             Avbryt
           </Button>
-          <Button type="button" onClick={save} disabled={pending || restOre < 0}>
+          <Button
+            type="button"
+            onClick={save}
+            disabled={pending || restOre < 0}
+          >
             {pending ? <Loader2 className="size-4 animate-spin" /> : null}
             Lagre fordeling
           </Button>

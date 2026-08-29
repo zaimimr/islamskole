@@ -51,7 +51,7 @@ export function YearActions({
       const result = await copyEnrollmentsToActiveYear(schoolYearId);
       if (result.ok) {
         toast.success(
-          `Flyttet ${result.moved} elever til ${activeYearLabel}${
+          `Kopierte ${result.moved} elever til ${activeYearLabel}${
             result.note ? ` · ${result.note}` : ""
           }`,
         );
@@ -70,6 +70,7 @@ export function YearActions({
         variant="outline"
         disabled={pending}
         onClick={syncAll}
+        className="min-h-11 bg-white px-3"
       >
         {pending ? (
           <Loader2 className="size-4 animate-spin" />
@@ -83,7 +84,11 @@ export function YearActions({
         <AlertDialog open={copyOpen} onOpenChange={setCopyOpen}>
           <AlertDialogTrigger
             render={
-              <Button type="button" variant="outline">
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 bg-white px-3"
+              >
                 <CopyPlus className="size-4" />
                 Kopier elever til {activeYearLabel}
               </Button>
@@ -101,8 +106,12 @@ export function YearActions({
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Avbryt</AlertDialogCancel>
-              <AlertDialogAction onClick={copyToActive} disabled={pending}>
+              <AlertDialogCancel className="min-h-11">Avbryt</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={copyToActive}
+                disabled={pending}
+                className="min-h-11"
+              >
                 {pending ? <Loader2 className="size-4 animate-spin" /> : null}
                 Kopier
               </AlertDialogAction>

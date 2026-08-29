@@ -32,6 +32,7 @@ export function Logo({
         height={64}
         priority={priority}
         className="h-11 w-auto sm:h-12"
+        style={{ width: "auto" }}
       />
     </Link>
   );

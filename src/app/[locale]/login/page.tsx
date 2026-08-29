@@ -51,9 +51,9 @@ export default function LoginPage({ params }: PageProps<"/[locale]/login">) {
           <Image
             src="/brand/logo.png"
             alt="Islamskole Bærum"
-            width={64}
+            width={180}
             height={64}
-            className="mb-2 rounded-md"
+            className="mb-2 h-auto w-36"
           />
           <CardTitle className="font-heading">Logg inn</CardTitle>
           <CardDescription>Adminpanel for Islamskole Bærum</CardDescription>

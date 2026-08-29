@@ -84,7 +84,12 @@ export async function GET(
   }
 
   const descriptor = await buildPaymentDescriptor(admin, id);
-  const reference = descriptor.reference;
+  const reference =
+    payment.vipps_state === null &&
+    payment.redirect_url === null &&
+    payment.reference
+      ? payment.reference
+      : descriptor.reference;
   const returnUrl = `${site}/api/vipps/return?reference=${reference}`;
   let redirectUrl: string;
   try {
@@ -113,7 +118,7 @@ export async function GET(
     }
   }
 
-  await admin
+  const { error: updateError } = await admin
     .from("payments")
     .update({
       reference,
@@ -123,6 +128,13 @@ export async function GET(
       description: descriptor.description || payment.description,
     } as never)
     .eq("id", id);
+  if (updateError) {
+    console.error("Vipps payment link persistence failed", {
+      paymentId: id,
+      error: updateError,
+    });
+    return done("ukjent");
+  }
 
   return NextResponse.redirect(redirectUrl);
 }

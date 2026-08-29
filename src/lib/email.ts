@@ -25,12 +25,23 @@ const STRINGS = {
         `Hei, her er betalingslenken for ${child}. Trykk på knappen for å betale med Vipps.`,
       cta: "Betal med Vipps",
     },
+    installment: {
+      subject: (dueDate: string) => `Betalingsfrist ${dueDate} - skoleavgift`,
+      badge: "Avdrag",
+      title: "Avdrag på skoleavgiften",
+      intro: (children: string) =>
+        `Hei, her er betalingslenken for neste avdrag på skoleavgiften for ${children}. Trykk på knappen for å betale med Vipps.`,
+      cta: "Betal med Vipps",
+      totalLabel: "Totalt å betale",
+    },
     receipt: {
       subject: (child: string) => `Kvittering - betaling for ${child}`,
       badge: "Kvittering",
       title: "Betaling mottatt",
       intro: (child: string) =>
         `Hei, vi har mottatt betalingen for ${child}. Takk!`,
+      enrollmentNote:
+        "Dette er første del av skoleavgiften. Resten betales innen 15. august og 15. desember, eller månedlig etter avtale. Dere får betalingslenke på e-post.",
     },
     studentConfirmation: {
       subject: "Vi har mottatt påmeldingen",
@@ -65,12 +76,23 @@ const STRINGS = {
         `Hi, here is the payment link for ${child}. Tap the button to pay with Vipps.`,
       cta: "Pay with Vipps",
     },
+    installment: {
+      subject: (dueDate: string) => `Payment due ${dueDate} - school fee`,
+      badge: "Installment",
+      title: "School fee installment",
+      intro: (children: string) =>
+        `Hi, here is the payment link for the next school fee installment for ${children}. Tap the button to pay with Vipps.`,
+      cta: "Pay with Vipps",
+      totalLabel: "Total to pay",
+    },
     receipt: {
       subject: (child: string) => `Receipt - payment for ${child}`,
       badge: "Receipt",
       title: "Payment received",
       intro: (child: string) =>
         `Hi, we have received the payment for ${child}. Thank you!`,
+      enrollmentNote:
+        "This is the first part of the school fee. The remainder is due by 15 August and 15 December, or monthly by agreement. Payment links are sent by email.",
     },
     studentConfirmation: {
       subject: "We have received your registration",
@@ -241,6 +263,38 @@ export async function sendPaymentLinkEmail(opts: {
   });
 }
 
+export async function sendInstallmentEmail(opts: {
+  to: string | string[];
+  children: { name: string; amount: number }[];
+  totalAmount: number;
+  schoolYear: string | null;
+  dueDate: string;
+  url: string;
+  lang?: EmailLang;
+}): Promise<boolean> {
+  const lang = opts.lang ?? "no";
+  const t = strings(lang);
+  const dueLabel = formatDueDate(opts.dueDate, lang) ?? opts.dueDate;
+  const childNames = opts.children.map((child) => child.name).join(", ");
+  return await send({
+    lang,
+    to: opts.to,
+    subject: t.installment.subject(dueLabel),
+    badge: t.installment.badge,
+    title: t.installment.title,
+    intro: t.installment.intro(childNames),
+    cta: { label: t.installment.cta, url: opts.url },
+    rows: [
+      ...opts.children.map(
+        (child): Row => [child.name, formatNok(child.amount)],
+      ),
+      [t.installment.totalLabel, formatNok(opts.totalAmount)],
+      [t.rows.schoolYear, opts.schoolYear],
+      [t.rows.dueDate, dueLabel],
+    ],
+  });
+}
+
 export async function sendPaymentReceiptEmail(opts: {
   to: string | string[];
   guardianName: string;
@@ -248,6 +302,7 @@ export async function sendPaymentReceiptEmail(opts: {
   amount: number;
   schoolYear: string | null;
   className: string | null;
+  enrollmentDeposit?: boolean;
   lang?: EmailLang;
 }) {
   const lang = opts.lang ?? "no";
@@ -258,7 +313,9 @@ export async function sendPaymentReceiptEmail(opts: {
     subject: t.receipt.subject(opts.childName),
     badge: t.receipt.badge,
     title: t.receipt.title,
-    intro: t.receipt.intro(opts.childName),
+    intro: opts.enrollmentDeposit
+      ? `${t.receipt.intro(opts.childName)} ${t.receipt.enrollmentNote}`
+      : t.receipt.intro(opts.childName),
     rows: [
       [t.rows.student, opts.childName],
       [t.rows.class, opts.className],

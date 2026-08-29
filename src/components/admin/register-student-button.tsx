@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, UserCheck } from "lucide-react";
+import { ArrowRight, Loader2, UserCheck } from "lucide-react";
 import { createStudentFromApplication } from "@/app/[locale]/admin/students-actions";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -61,17 +61,14 @@ export function RegisterStudentButton({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Registrer som elev"
-            title="Registrer som elev"
-          >
+          <Button size="sm" className="min-h-10 rounded-xl px-3 font-bold">
             <UserCheck className="size-4" />
+            Registrer elev
+            <ArrowRight className="size-4" />
           </Button>
         }
       />
-      <DialogContent>
+      <DialogContent className="rounded-2xl border-[#E3DED3] sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Registrer som elev</DialogTitle>
           <DialogDescription>
@@ -79,14 +76,14 @@ export function RegisterStudentButton({
             senere fra elevsiden.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <div className="grid gap-4 rounded-xl bg-[#F8F6F0] p-4">
           <div className="grid gap-2">
             <Label htmlFor="reg_class">Klasse (valgfritt)</Label>
             <select
               id="reg_class"
               value={classId}
               onChange={(e) => setClassId(e.target.value)}
-              className={selectClass}
+              className={`${selectClass} min-h-11 w-full bg-white outline-none focus-visible:border-[#2F7938] focus-visible:ring-3 focus-visible:ring-[#2F7938]/20`}
             >
               <option value="">Ikke plasser ennå</option>
               {classes.map((c) => (
@@ -103,7 +100,7 @@ export function RegisterStudentButton({
                 id="reg_year"
                 value={schoolYearId}
                 onChange={(e) => setSchoolYearId(e.target.value)}
-                className={selectClass}
+                className={`${selectClass} min-h-11 w-full bg-white outline-none focus-visible:border-[#2F7938] focus-visible:ring-3 focus-visible:ring-[#2F7938]/20`}
               >
                 {schoolYears.map((y) => (
                   <option key={y.id} value={y.id}>
@@ -114,11 +111,12 @@ export function RegisterStudentButton({
             </div>
           ) : null}
         </div>
-        <DialogFooter>
+        <DialogFooter className="pt-2">
           <Button
             type="button"
             onClick={handleRegister}
             disabled={pending || (Boolean(classId) && !schoolYearId)}
+            className="min-h-11 rounded-xl px-5 font-bold"
           >
             {pending ? <Loader2 className="size-4 animate-spin" /> : null}
             Registrer elev

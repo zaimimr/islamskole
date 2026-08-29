@@ -1,5 +1,8 @@
 import "server-only";
-import { randomUUID } from "node:crypto";
+import {
+  vippsIdempotencyKey,
+  type PaymentProviderState,
+} from "@/lib/payment-integrity";
 
 type VippsConfig = {
   baseUrl: string;
@@ -184,7 +187,7 @@ export async function createPayment(
     method: "POST",
     headers: {
       ...baseHeaders(config, token),
-      "Idempotency-Key": randomUUID(),
+      "Idempotency-Key": vippsIdempotencyKey("create", input.reference),
     },
     body: JSON.stringify(body),
     cache: "no-store",
@@ -202,12 +205,7 @@ export async function createPayment(
   return { reference: data.reference, redirectUrl: data.redirectUrl };
 }
 
-export type VippsPaymentState =
-  | "CREATED"
-  | "ABORTED"
-  | "EXPIRED"
-  | "AUTHORIZED"
-  | "TERMINATED";
+export type VippsPaymentState = PaymentProviderState;
 
 export type GetPaymentResult = {
   state: VippsPaymentState;
@@ -395,7 +393,11 @@ export async function refundPayment(
       method: "POST",
       headers: {
         ...baseHeaders(config, token),
-        "Idempotency-Key": randomUUID(),
+        "Idempotency-Key": vippsIdempotencyKey(
+          "refund",
+          reference,
+          amount,
+        ),
       },
       body: JSON.stringify({
         modificationAmount: { currency: "NOK", value: amount },
@@ -420,7 +422,7 @@ export async function cancelPayment(reference: string): Promise<void> {
       method: "POST",
       headers: {
         ...baseHeaders(config, token),
-        "Idempotency-Key": randomUUID(),
+        "Idempotency-Key": vippsIdempotencyKey("cancel", reference),
       },
       cache: "no-store",
     },
@@ -445,7 +447,11 @@ export async function capturePayment(
       method: "POST",
       headers: {
         ...baseHeaders(config, token),
-        "Idempotency-Key": `capture-${reference}`,
+        "Idempotency-Key": vippsIdempotencyKey(
+          "capture",
+          reference,
+          amount,
+        ),
       },
       body: JSON.stringify({
         modificationAmount: { currency: "NOK", value: amount },

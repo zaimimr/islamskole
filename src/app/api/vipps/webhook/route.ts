@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { syncPaymentByReference } from "@/lib/payments-sync";
-import { verifyVippsSignature } from "@/lib/vipps-webhook";
+import {
+  parseVippsWebhookPayload,
+  verifyVippsSignature,
+} from "@/lib/vipps-webhook";
 
 let warnedSignatureDisabled = false;
 
@@ -8,11 +11,19 @@ export async function POST(request: NextRequest) {
   const raw = await request.text();
 
   const secret = process.env.VIPPS_WEBHOOK_SECRET;
+  const allowsUnsignedLocalWebhook = process.env.NODE_ENV === "development";
   if (!secret) {
+    if (!allowsUnsignedLocalWebhook) {
+      console.error("VIPPS_WEBHOOK_SECRET is required outside local development");
+      return NextResponse.json(
+        { error: "Webhook verification unavailable" },
+        { status: 503 },
+      );
+    }
     if (!warnedSignatureDisabled) {
       warnedSignatureDisabled = true;
       console.warn(
-        "VIPPS_WEBHOOK_SECRET is not set; webhook signature validation is disabled.",
+        "VIPPS_WEBHOOK_SECRET is not set; unsigned webhooks are accepted in local development.",
       );
     }
   } else {
@@ -34,25 +45,33 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  let reference: string | null = null;
-  let eventName: string | null = null;
-  try {
-    const body = JSON.parse(raw) as { reference?: string; name?: string };
-    reference = typeof body.reference === "string" ? body.reference : null;
-    eventName = typeof body.name === "string" ? body.name : null;
-  } catch {
-    reference = null;
+  const expectedMsn = process.env.VIPPS_MSN;
+  if (!expectedMsn) {
+    console.error("VIPPS_MSN is required for webhook validation");
+    return NextResponse.json(
+      { error: "Webhook verification unavailable" },
+      { status: 503 },
+    );
   }
 
-  if (!reference) {
-    return NextResponse.json({ error: "Missing reference" }, { status: 400 });
+  const payload = parseVippsWebhookPayload(raw, expectedMsn);
+  if (!payload) {
+    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
   try {
-    const status = await syncPaymentByReference(reference);
-    console.log("Vipps webhook handled", { reference, eventName, status });
+    const status = await syncPaymentByReference(payload.reference);
+    console.log("Vipps webhook handled", {
+      reference: payload.reference,
+      eventName: payload.name,
+      status,
+    });
   } catch (error) {
-    console.error("Vipps webhook sync failed", { reference, eventName, error });
+    console.error("Vipps webhook sync failed", {
+      reference: payload.reference,
+      eventName: payload.name,
+      error,
+    });
     return NextResponse.json({ error: "Sync failed" }, { status: 502 });
   }
 

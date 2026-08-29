@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:payment": "node --conditions=react-server --test tests/payment-integrity.test.mjs tests/vipps-webhook.test.mjs tests/installment-schedule.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
