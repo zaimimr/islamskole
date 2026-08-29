@@ -7,10 +7,30 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.17"
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -355,6 +375,13 @@ export type Database = {
             referencedRelation: "guardians"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "family_guardians_guardian_id_fkey"
+            columns: ["guardian_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_gift_report"
+            referencedColumns: ["teacher_guardian_id"]
+          },
         ]
       }
       guardians: {
@@ -363,8 +390,12 @@ export type Database = {
           email: string | null
           first_name: string | null
           id: string
+          is_teacher: boolean
+          is_volunteer: boolean
           last_name: string | null
           phone: string | null
+          source_application_id: string | null
+          teacher_note: string | null
           updated_at: string
         }
         Insert: {
@@ -372,8 +403,12 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           id?: string
+          is_teacher?: boolean
+          is_volunteer?: boolean
           last_name?: string | null
           phone?: string | null
+          source_application_id?: string | null
+          teacher_note?: string | null
           updated_at?: string
         }
         Update: {
@@ -381,11 +416,23 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           id?: string
+          is_teacher?: boolean
+          is_volunteer?: boolean
           last_name?: string | null
           phone?: string | null
+          source_application_id?: string | null
+          teacher_note?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "guardians_source_application_id_fkey"
+            columns: ["source_application_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_applications"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       info_blocks: {
         Row: {
@@ -422,6 +469,104 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      installments: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string
+          id: string
+          note: string | null
+          payment_id: string | null
+          plan_id: string
+          reminder_sent_at: string | null
+          school_year_id: string
+          sent_at: string | null
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          due_date: string
+          id?: string
+          note?: string | null
+          payment_id?: string | null
+          plan_id: string
+          reminder_sent_at?: string | null
+          school_year_id: string
+          sent_at?: string | null
+          status?: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          note?: string | null
+          payment_id?: string | null
+          plan_id?: string
+          reminder_sent_at?: string | null
+          school_year_id?: string
+          sent_at?: string | null
+          status?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installments_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_payment_candidates"
+            referencedColumns: ["matched_payment_id"]
+          },
+          {
+            foreignKeyName: "installments_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_payment_candidates"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "installments_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installments_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "sadaqa_disbursements"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "installments_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "payment_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installments_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_allocations: {
         Row: {
@@ -469,6 +614,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "sadaqa_disbursements"
+            referencedColumns: ["payment_id"]
           },
           {
             foreignKeyName: "payment_allocations_school_year_id_fkey"
@@ -545,11 +697,77 @@ export type Database = {
             referencedRelation: "payments"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "payment_events_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "sadaqa_disbursements"
+            referencedColumns: ["payment_id"]
+          },
+        ]
+      }
+      payment_plans: {
+        Row: {
+          created_at: string
+          created_by: string
+          family_id: string
+          id: string
+          monthly_amount: number | null
+          note: string | null
+          paused_at: string | null
+          plan_type: string
+          school_year_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          family_id: string
+          id?: string
+          monthly_amount?: number | null
+          note?: string | null
+          paused_at?: string | null
+          plan_type: string
+          school_year_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          family_id?: string
+          id?: string
+          monthly_amount?: number | null
+          note?: string | null
+          paused_at?: string | null
+          plan_type?: string
+          school_year_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_plans_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_plans_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
         ]
       }
       payments: {
         Row: {
           amount: number
+          authorized_amount: number
+          captured_amount: number
           captured_at: string | null
           created_at: string
           currency: string
@@ -562,6 +780,7 @@ export type Database = {
           id: string
           last_synced_at: string | null
           method: string
+          net_paid_amount: number | null
           paid_at: string | null
           payer_email: string | null
           payer_name: string | null
@@ -569,6 +788,7 @@ export type Database = {
           psp_reference: string | null
           redirect_url: string | null
           reference: string
+          refunded_amount: number
           school_year_id: string | null
           status: string
           student_id: string | null
@@ -580,6 +800,8 @@ export type Database = {
         }
         Insert: {
           amount: number
+          authorized_amount?: number
+          captured_amount?: number
           captured_at?: string | null
           created_at?: string
           currency?: string
@@ -592,6 +814,7 @@ export type Database = {
           id?: string
           last_synced_at?: string | null
           method?: string
+          net_paid_amount?: number | null
           paid_at?: string | null
           payer_email?: string | null
           payer_name?: string | null
@@ -599,6 +822,7 @@ export type Database = {
           psp_reference?: string | null
           redirect_url?: string | null
           reference: string
+          refunded_amount?: number
           school_year_id?: string | null
           status?: string
           student_id?: string | null
@@ -610,6 +834,8 @@ export type Database = {
         }
         Update: {
           amount?: number
+          authorized_amount?: number
+          captured_amount?: number
           captured_at?: string | null
           created_at?: string
           currency?: string
@@ -622,6 +848,7 @@ export type Database = {
           id?: string
           last_synced_at?: string | null
           method?: string
+          net_paid_amount?: number | null
           paid_at?: string | null
           payer_email?: string | null
           payer_name?: string | null
@@ -629,6 +856,7 @@ export type Database = {
           psp_reference?: string | null
           redirect_url?: string | null
           reference?: string
+          refunded_amount?: number
           school_year_id?: string | null
           status?: string
           student_id?: string | null
@@ -659,6 +887,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_duplicate_of_payment_id_fkey"
+            columns: ["duplicate_of_payment_id"]
+            isOneToOne: false
+            referencedRelation: "sadaqa_disbursements"
+            referencedColumns: ["payment_id"]
           },
           {
             foreignKeyName: "payments_enrollment_id_fkey"
@@ -704,38 +939,177 @@ export type Database = {
         }
         Relationships: []
       }
+      refunds: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          idempotency_key: string | null
+          method: string
+          payment_id: string
+          psp_reference: string | null
+          reason: string
+          refund_group_id: string
+          refunded_by: string
+          refunded_on: string
+          school_year_id: string | null
+          student_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          method: string
+          payment_id: string
+          psp_reference?: string | null
+          reason: string
+          refund_group_id?: string
+          refunded_by: string
+          refunded_on?: string
+          school_year_id?: string | null
+          student_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          method?: string
+          payment_id?: string
+          psp_reference?: string | null
+          reason?: string
+          refund_group_id?: string
+          refunded_by?: string
+          refunded_on?: string
+          school_year_id?: string | null
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refunds_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_payment_candidates"
+            referencedColumns: ["matched_payment_id"]
+          },
+          {
+            foreignKeyName: "refunds_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_payment_candidates"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "refunds_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refunds_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "sadaqa_disbursements"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "refunds_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refunds_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_years: {
         Row: {
           created_at: string
           ends_on: string | null
+          enrollment_fee: number
           fee: number | null
           id: string
           is_active: boolean
           label: string
+          monthly_due_day: number
+          sem1_due_on: string | null
+          sem2_due_on: string | null
           starts_on: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           ends_on?: string | null
+          enrollment_fee?: number
           fee?: number | null
           id?: string
           is_active?: boolean
           label: string
+          monthly_due_day?: number
+          sem1_due_on?: string | null
+          sem2_due_on?: string | null
           starts_on?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           ends_on?: string | null
+          enrollment_fee?: number
           fee?: number | null
           id?: string
           is_active?: boolean
           label?: string
+          monthly_due_day?: number
+          sem1_due_on?: string | null
+          sem2_due_on?: string | null
           starts_on?: string | null
           updated_at?: string
         }
         Relationships: []
+      }
+      sibling_discount_dismissals: {
+        Row: {
+          created_at: string
+          dismissed_by: string
+          family_id: string
+          school_year_id: string
+        }
+        Insert: {
+          created_at?: string
+          dismissed_by: string
+          family_id: string
+          school_year_id: string
+        }
+        Update: {
+          created_at?: string
+          dismissed_by?: string
+          family_id?: string
+          school_year_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sibling_discount_dismissals_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sibling_discount_dismissals_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       site_settings: {
         Row: {
@@ -786,11 +1160,11 @@ export type Database = {
           child_postal_code: string | null
           created_at: string
           desired_class: string | null
+          family_id: string | null
           father_email: string | null
           father_first_name: string | null
           father_last_name: string | null
           father_phone: string | null
-          family_id: string | null
           id: string
           message: string | null
           mother_email: string | null
@@ -816,11 +1190,11 @@ export type Database = {
           child_postal_code?: string | null
           created_at?: string
           desired_class?: string | null
+          family_id?: string | null
           father_email?: string | null
           father_first_name?: string | null
           father_last_name?: string | null
           father_phone?: string | null
-          family_id?: string | null
           id?: string
           message?: string | null
           mother_email?: string | null
@@ -846,11 +1220,11 @@ export type Database = {
           child_postal_code?: string | null
           created_at?: string
           desired_class?: string | null
+          family_id?: string | null
           father_email?: string | null
           father_first_name?: string | null
           father_last_name?: string | null
           father_phone?: string | null
-          family_id?: string | null
           id?: string
           message?: string | null
           mother_email?: string | null
@@ -889,6 +1263,90 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payments"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_applications_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "sadaqa_disbursements"
+            referencedColumns: ["payment_id"]
+          },
+        ]
+      }
+      student_fee_adjustments: {
+        Row: {
+          amount: number
+          created_at: string
+          granted_by: string
+          id: string
+          legacy_fee_id: string | null
+          note: string
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          school_year_id: string
+          student_id: string
+          teacher_guardian_id: string | null
+          type: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          granted_by: string
+          id?: string
+          legacy_fee_id?: string | null
+          note: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          school_year_id: string
+          student_id: string
+          teacher_guardian_id?: string | null
+          type: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          granted_by?: string
+          id?: string
+          legacy_fee_id?: string | null
+          note?: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          school_year_id?: string
+          student_id?: string
+          teacher_guardian_id?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_fee_adjustments_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_fee_adjustments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_fee_adjustments_teacher_guardian_id_fkey"
+            columns: ["teacher_guardian_id"]
+            isOneToOne: false
+            referencedRelation: "guardians"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_fee_adjustments_teacher_guardian_id_fkey"
+            columns: ["teacher_guardian_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_gift_report"
+            referencedColumns: ["teacher_guardian_id"]
           },
         ]
       }
@@ -1013,11 +1471,11 @@ export type Database = {
           child_phone: string | null
           child_postal_code: string | null
           created_at: string
+          family_id: string | null
           father_email: string | null
           father_first_name: string | null
           father_last_name: string | null
           father_phone: string | null
-          family_id: string | null
           id: string
           mother_email: string | null
           mother_first_name: string | null
@@ -1041,11 +1499,11 @@ export type Database = {
           child_phone?: string | null
           child_postal_code?: string | null
           created_at?: string
+          family_id?: string | null
           father_email?: string | null
           father_first_name?: string | null
           father_last_name?: string | null
           father_phone?: string | null
-          family_id?: string | null
           id?: string
           mother_email?: string | null
           mother_first_name?: string | null
@@ -1069,11 +1527,11 @@ export type Database = {
           child_phone?: string | null
           child_postal_code?: string | null
           created_at?: string
+          family_id?: string | null
           father_email?: string | null
           father_first_name?: string | null
           father_last_name?: string | null
           father_phone?: string | null
-          family_id?: string | null
           id?: string
           mother_email?: string | null
           mother_first_name?: string | null
@@ -1167,6 +1625,54 @@ export type Database = {
           },
         ]
       }
+      fee_adjustment_totals: {
+        Row: {
+          active_amount: number | null
+          active_count: number | null
+          revoked_amount: number | null
+          revoked_count: number | null
+          school_year_id: string | null
+          type: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_fee_adjustments_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sadaqa_disbursements: {
+        Row: {
+          allocated_amount: number | null
+          amount: number | null
+          description: string | null
+          disbursed_at: string | null
+          net_paid_amount: number | null
+          payment_id: string | null
+          refunded_amount: number | null
+          school_year_id: string | null
+          student_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_allocations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_balances: {
         Row: {
           owed: number | null
@@ -1193,6 +1699,25 @@ export type Database = {
           },
         ]
       }
+      teacher_gift_report: {
+        Row: {
+          first_name: string | null
+          last_name: string | null
+          school_year_id: string | null
+          student_count: number | null
+          teacher_guardian_id: string | null
+          total_amount: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_fee_adjustments_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       create_manual_family_student: {
@@ -1213,6 +1738,11 @@ export type Database = {
         }
         Returns: Json
       }
+      is_admin: { Args: never; Returns: boolean }
+      replace_payment_allocations: {
+        Args: { p_allocations?: Json; p_payment_id: string }
+        Returns: number
+      }
       update_family_relationships: {
         Args: {
           p_family: Json
@@ -1221,11 +1751,6 @@ export type Database = {
           p_resolve_reviews?: boolean
         }
         Returns: undefined
-      }
-      is_admin: { Args: never; Returns: boolean }
-      replace_payment_allocations: {
-        Args: { p_allocations?: Json; p_payment_id: string }
-        Returns: number
       }
     }
     Enums: {
@@ -1355,7 +1880,11 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
 } as const
+
