@@ -21,6 +21,7 @@ import {
 } from "@/components/admin/payment-manager";
 import { deleteStudent } from "@/app/[locale]/admin/students-actions";
 import { studentDisplayName } from "@/lib/student-name";
+import { formatAge, schoolYearStart } from "@/lib/age";
 
 type StudentData = {
   id: string;
@@ -372,6 +373,16 @@ export default async function ElevDetailPage({
           <div>
             <h1 className="text-balance font-heading text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
               {studentDisplayName(student) || "Elev"}
+              {student.child_birth_date ? (
+                <span className="ml-3 align-middle font-sans text-base font-bold text-admin-muted">
+                  {formatAge(
+                    student.child_birth_date,
+                    schoolYearStart(activeYear?.label) ??
+                      new Date().getFullYear(),
+                  )}{" "}
+                  år
+                </span>
+              ) : null}
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-admin-muted sm:text-base">
               Følg opp skoleplass, betaling og elevopplysninger uten å miste

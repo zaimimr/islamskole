@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminFamilyById } from "@/lib/families/service";
 import { adminBasePath } from "@/components/admin/paths";
+import { ageInYear, schoolYearStart } from "@/lib/age";
 import { FamilyEconomy } from "@/components/admin/family-economy";
 import {
   FamilyWorkbench,
@@ -105,16 +106,22 @@ function balanceFact(balance: BalanceRow | undefined): FamilyFact {
   return { value: "Ubetalt", tone: "danger" };
 }
 
-function birthDescription(birthDate: string | null, prefix: string) {
+function birthDescription(
+  birthDate: string | null,
+  prefix: string,
+  ageYear: number,
+) {
   if (!birthDate) return prefix;
   const date = new Date(`${birthDate}T12:00:00Z`);
   if (Number.isNaN(date.getTime())) return prefix;
-  return `${prefix}, født ${new Intl.DateTimeFormat("nb-NO", {
+  const age = ageInYear(birthDate, ageYear);
+  const agePart = age != null ? `, ${age} år` : "";
+  return `${prefix}${agePart} (født ${new Intl.DateTimeFormat("nb-NO", {
     day: "numeric",
     month: "short",
     year: "numeric",
     timeZone: "Europe/Oslo",
-  }).format(date)}`;
+  }).format(date)})`;
 }
 
 export default async function FamilyPage({
@@ -208,6 +215,8 @@ export default async function FamilyPage({
     label: string;
     fee: number | null;
   } | null;
+  const ageYear =
+    schoolYearStart(activeYear?.label) ?? new Date().getFullYear();
   const enrollments = (enrollmentResult.data as EnrollmentRow[] | null) ?? [];
   const balances = (balanceResult.data as BalanceRow[] | null) ?? [];
   const fees = (feeResult.data as FeeRow[] | null) ?? [];
@@ -292,7 +301,7 @@ export default async function FamilyPage({
     return {
       id: student.id,
       name: fullName(student.firstName, student.lastName),
-      description: birthDescription(student.birthDate, "Registrert elev"),
+      description: birthDescription(student.birthDate, "Registrert elev", ageYear),
       href: `${basePath}/elever/${student.id}`,
       admission: application
         ? admissionFact(application.status)
@@ -321,7 +330,7 @@ export default async function FamilyPage({
     children.push({
       id: `application-${application.id}`,
       name: childName,
-      description: birthDescription(application.birthDate, "Påmelding"),
+      description: birthDescription(application.birthDate, "Påmelding", ageYear),
       href: `${basePath}/register?q=${encodeURIComponent(childName)}`,
       admission: admissionFact(application.status),
       placement: application.desiredClass
