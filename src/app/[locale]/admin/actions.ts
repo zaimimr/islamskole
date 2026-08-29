@@ -530,6 +530,8 @@ export async function createStudentEnrollment(
         email: "Enter a valid email address",
         phone: "Enter a valid phone number",
         guardians: "Add at least one guardian.",
+        parentRequired:
+          "Provide at least one parent (mother or father). Opt out only if a parent is not in the picture.",
         children: "Add at least one child.",
         unavailable: "Enrollment is not open yet. Please contact the school.",
         failed:
@@ -542,6 +544,8 @@ export async function createStudentEnrollment(
         email: "Skriv inn en gyldig e-postadresse",
         phone: "Skriv inn et gyldig telefonnummer",
         guardians: "Legg til minst én foresatt.",
+        parentRequired:
+          "Oppgi minst én av foreldrene (mor eller far). Velg bort bare dersom en forelder ikke er i bildet.",
         children: "Legg til minst ett barn.",
         unavailable: "Innmelding er ikke åpen ennå. Ta kontakt med skolen.",
         failed: "Noe gikk galt under registreringen. Prøv igjen senere.",
@@ -622,6 +626,14 @@ export async function createStudentEnrollment(
 
   if (Object.keys(parentErrors).length > 0) {
     return { ok: false, fieldErrors: parentErrors };
+  }
+
+  if (
+    !guardians.some(
+      (guardian) => guardian.role === "mor" || guardian.role === "far",
+    )
+  ) {
+    return { ok: false, error: copy.parentRequired };
   }
 
   const indices = Array.from(

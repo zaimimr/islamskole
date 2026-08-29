@@ -229,7 +229,7 @@
     "removeCurrentChild": "Remove this child",
     "optionalLearningDetails": "Level, class preference and message (optional)",
     "guardiansStepTitle": "Family and contacts",
-    "guardiansStepHint": "One guardian is required. You can add more without choosing a specific family type.",
+    "guardiansStepHint": "We always ask for both mother and father. Tick the box if one of them is not in the picture.",
     "primaryGuardian": "Primary guardian",
     "guardianLabel": "Guardian {n}",
     "guardianRole": "Relationship to the child",
@@ -254,7 +254,11 @@
     "next": "Next",
     "paymentImmediateTitle": "Payment is captured immediately",
     "paymentImmediateBody": "When you approve in Vipps, the full amount is charged immediately. The school processes enrollment and class placement separately.",
-    "planNote": "The remainder ({rest} kr per child) is due by 15 August and 15 December, or monthly by agreement. We send payment links by email."
+    "planNote": "The remainder ({rest} kr per child) is due by 15 August and 15 December, or monthly by agreement. We send payment links by email.",
+    "motherAbsent": "Mother is not in the picture",
+    "fatherAbsent": "Father is not in the picture",
+    "parentAbsentHint": "The fields are hidden. You can add another guardian below if needed.",
+    "errorBothParentsAbsent": "At least one parent must be filled in. Use “Add a guardian” if another caregiver should be the contact."
   },
   "about": {
     "title": "About us",

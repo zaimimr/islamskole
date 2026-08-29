@@ -229,7 +229,7 @@
     "removeCurrentChild": "Fjern dette barnet",
     "optionalLearningDetails": "Nivå, klasseønske og melding (valgfritt)",
     "guardiansStepTitle": "Familie og kontaktpersoner",
-    "guardiansStepHint": "Én foresatt er påkrevd. Du kan legge til flere uten å velge en bestemt familietype.",
+    "guardiansStepHint": "Vi spør alltid etter både mor og far. Huk av dersom en av dem ikke er i bildet.",
     "primaryGuardian": "Primær foresatt",
     "guardianLabel": "Foresatt {n}",
     "guardianRole": "Relasjon til barnet",
@@ -254,7 +254,11 @@
     "next": "Neste",
     "paymentImmediateTitle": "Betalingen trekkes med en gang",
     "paymentImmediateBody": "Når du godkjenner i Vipps, trekkes hele beløpet umiddelbart. Skolen behandler innmeldingen og klasseplasseringen separat.",
-    "planNote": "Resten ({rest} kr per barn) betales innen 15. august og 15. desember, eller månedlig etter avtale. Vi sender betalingslenke på e-post."
+    "planNote": "Resten ({rest} kr per barn) betales innen 15. august og 15. desember, eller månedlig etter avtale. Vi sender betalingslenke på e-post.",
+    "motherAbsent": "Mor er ikke i bildet",
+    "fatherAbsent": "Far er ikke i bildet",
+    "parentAbsentHint": "Feltene er skjult. Du kan legge til en annen foresatt under om det trengs.",
+    "errorBothParentsAbsent": "Minst én av foreldrene må fylles ut. Bruk «Legg til en foresatt» hvis en annen omsorgsperson skal stå som kontakt."
   },
   "about": {
     "title": "Om oss",
