@@ -15,6 +15,7 @@ declare
   v_payment uuid := gen_random_uuid();
   v_manual uuid := gen_random_uuid();
   v_paid bigint;
+  v_before bigint;
   v_rows integer;
 begin
   insert into public.school_years (id, label, fee)
@@ -97,11 +98,16 @@ begin
     raise exception 'Expected partial refund to reduce paid balance';
   end if;
 
+  select coalesce(sum(amount), 0)
+  into v_before
+  from public.payment_allocations
+  where payment_id = v_payment;
+
   begin
     perform public.replace_payment_allocations(
       v_payment,
       jsonb_build_array(
-        jsonb_build_object('student_id', v_student, 'amount', 8000)
+        jsonb_build_object('student_id', v_student, 'amount', 12000)
       )
     );
     raise exception 'Expected over-allocation to fail';
@@ -114,7 +120,7 @@ begin
   from public.payment_allocations
   where payment_id = v_payment;
 
-  if v_paid <> 7500 then
+  if v_paid <> v_before then
     raise exception 'Failed replacement changed existing allocations';
   end if;
 

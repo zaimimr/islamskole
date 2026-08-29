@@ -101,8 +101,10 @@ declare
   v_child uuid;
   v_owed bigint;
 begin
-  select school_year_id, student_id into v_year, v_child
-  from public.student_fees
+  select fee.school_year_id, fee.student_id into v_year, v_child
+  from public.student_fees fee
+  join public.students student on student.id = fee.student_id
+  where student.child_first_name = 'Barn' and student.child_last_name = 'A'
   limit 1;
 
   insert into public.student_fee_adjustments
@@ -138,9 +140,11 @@ declare
   v_paid bigint;
   v_count integer;
 begin
-  select school_year_id, student_id into v_year, v_child
-  from public.student_fees
-  offset 1 limit 1;
+  select fee.school_year_id, fee.student_id into v_year, v_child
+  from public.student_fees fee
+  join public.students student on student.id = fee.student_id
+  where student.child_first_name = 'Barn' and student.child_last_name = 'B'
+  limit 1;
 
   insert into public.payments (
     id, student_id, school_year_id, reference, amount, status, method,
