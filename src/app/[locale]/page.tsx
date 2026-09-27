@@ -43,13 +43,18 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const upcoming = events.filter((e) => isUpcoming(e.starts_at, e.ends_at));
   const featured = upcoming.find((e) => isThisWeek(e.starts_at)) ?? null;
   const hasUpcoming = upcoming.length > 0;
-  const previewEvents = upcoming
+  const upcomingPreview = upcoming
     .filter((e) => e.id !== featured?.id)
     .slice(0, 3);
+  const recentPast = hasUpcoming
+    ? []
+    : events
+        .filter((e) => !isUpcoming(e.starts_at, e.ends_at))
+        .reverse()
+        .slice(0, 3);
+  const previewEvents = hasUpcoming ? upcomingPreview : recentPast;
   const showEventsTop = hasUpcoming && !featured;
-  const showEventsBottom = featured
-    ? previewEvents.length > 0
-    : !showEventsTop;
+  const showEventsBottom = !showEventsTop && previewEvents.length > 0;
 
   const eventsSection = (
     <Section className="bg-card" ariaLabelledby="home-events-heading">
@@ -70,15 +75,16 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         </Link>
       </div>
       <div className="mt-10">
-        {previewEvents.length > 0 ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {previewEvents.map((item) => (
-              <EventCard key={item.id} item={item} locale={typedLocale} />
-            ))}
-          </div>
-        ) : (
-          <EmptyState message={t("events.emptyUpcoming")} />
-        )}
+        {!hasUpcoming ? (
+          <p className="mb-6 text-base font-bold text-brand-green-dark">
+            {t("events.recentTitle")}
+          </p>
+        ) : null}
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {previewEvents.map((item) => (
+            <EventCard key={item.id} item={item} locale={typedLocale} />
+          ))}
+        </div>
       </div>
     </Section>
   );

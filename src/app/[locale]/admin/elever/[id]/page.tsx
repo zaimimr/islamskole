@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { relationshipLabel } from "@/lib/relationship";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
@@ -81,20 +82,6 @@ const levelLabels: Record<string, string> = {
 
 const genderLabels: Record<string, string> = { gutt: "Gutt", jente: "Jente" };
 
-function roleLabel(role: string) {
-  const roles: Record<string, string> = {
-    foresatt: "Foresatt",
-    guardian: "Foresatt",
-    mor: "Mor",
-    mother: "Mor",
-    far: "Far",
-    father: "Far",
-    steforelder: "Steforelder",
-    verge: "Verge",
-    annet: "Annen relasjon",
-  };
-  return roles[role] ?? role;
-}
 
 function telHref(phone: string) {
   return `tel:${phone.replace(/\s+/g, "")}`;
@@ -707,7 +694,7 @@ export default async function ElevDetailPage({
                         {guardianFullName}
                         <span className="font-normal text-admin-muted">
                           {" "}
-                          · {roleLabel(link.relationship_label)}
+                          · {relationshipLabel(link.relationship_label)}
                         </span>
                       </span>
                       {guardian.phone ? (

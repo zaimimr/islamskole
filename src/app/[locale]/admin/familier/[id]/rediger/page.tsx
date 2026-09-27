@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { relationshipKey } from "@/lib/relationship";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -53,7 +54,7 @@ export default async function EditFamilyPage({
           lastName: guardian.lastName ?? "",
           email: guardian.email ?? "",
           phone: guardian.phone ?? "",
-          role: guardian.relationshipLabel,
+          role: relationshipKey(guardian.relationshipLabel),
           isPrimary:
             guardian.isPrimaryContact ||
             (!family.guardians.some((candidate) => candidate.isPrimaryContact) &&

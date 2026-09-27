@@ -668,7 +668,7 @@ export function PaymentManager({
                   event.preventDefault();
                   handleAdjustment(new FormData(event.currentTarget));
                 }}
-                className="grid gap-3 sm:grid-cols-4 sm:items-end [&_[data-slot=input]]:min-h-11"
+                className="grid gap-3 sm:grid-cols-4 sm:items-start [&_[data-slot=input]]:min-h-11"
               >
                 <div className="grid gap-2">
                   <Label htmlFor="adjustment_type">Type</Label>

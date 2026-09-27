@@ -55,7 +55,7 @@ async function getUsers(): Promise<
           createdAt: user.created_at ?? null,
           lastSignInAt: user.last_sign_in_at ?? null,
         };
-      }),
+      }).filter((user) => user.role === "admin"),
     };
   } catch {
     return { ok: false };

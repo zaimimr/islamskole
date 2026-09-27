@@ -765,7 +765,7 @@ export function FamilyEconomy({
               event.preventDefault();
               submitAdjustment(event.currentTarget);
             }}
-            className="grid gap-3 rounded-xl bg-[#FAF9F5] p-3 ring-1 ring-[#E8E3D9] sm:grid-cols-2 lg:grid-cols-5 lg:items-end"
+            className="grid items-start gap-3 rounded-xl bg-[#FAF9F5] p-3 ring-1 ring-[#E8E3D9] sm:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]"
           >
             <div className="grid gap-1.5">
               <Label htmlFor="family-adjustment-child">Barn</Label>
@@ -861,7 +861,7 @@ export function FamilyEconomy({
                 className="h-11 rounded-xl"
               />
             </div>
-            <div className="sm:col-span-2 lg:col-span-5">
+            <div className="col-span-full">
               <Button
                 type="submit"
                 variant="outline"

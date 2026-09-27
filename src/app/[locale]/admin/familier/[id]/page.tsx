@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { relationshipLabel } from "@/lib/relationship";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminFamilies, getAdminFamilyById } from "@/lib/families/service";
@@ -54,18 +55,6 @@ function fullName(firstName: string | null, lastName: string | null) {
   return [firstName, lastName].filter(Boolean).join(" ") || "Navn mangler";
 }
 
-function roleLabel(role: string) {
-  const roles: Record<string, string> = {
-    foresatt: "Foresatt",
-    guardian: "Foresatt",
-    mor: "Mor",
-    far: "Far",
-    steforelder: "Steforelder",
-    verge: "Verge",
-    annet: "Annen relasjon",
-  };
-  return roles[role] ?? role;
-}
 
 function admissionFact(status: string): FamilyFact {
   const values: Record<string, FamilyFact> = {
@@ -452,7 +441,7 @@ export default async function FamilyPage({
   const guardians = family.guardians.map((guardian) => ({
     id: guardian.id,
     name: fullName(guardian.firstName, guardian.lastName),
-    role: roleLabel(guardian.relationshipLabel),
+    role: relationshipLabel(guardian.relationshipLabel),
     isPrimary: guardian.isPrimaryContact,
     phone: guardian.phone ?? undefined,
     email: guardian.email ?? undefined,
