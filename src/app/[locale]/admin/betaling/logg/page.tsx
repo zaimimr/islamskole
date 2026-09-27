@@ -26,6 +26,7 @@ import {
   formatOsloDateTime,
   osloLocalToIso,
 } from "@/lib/dates";
+import { SelectField } from "@/components/ui/select-field";
 
 export const metadata: Metadata = { title: "Betalingslogg" };
 
@@ -559,37 +560,36 @@ export default async function PaymentLogPage({
             <label htmlFor="payment-status" className="text-sm font-bold">
               Status
             </label>
-            <select
+            <SelectField
               id="payment-status"
               name="status"
               defaultValue={filters.status}
-              className={fieldClass}
-            >
-              <option value="">Alle statuser</option>
-              <option value="betalt">Betalt</option>
-              <option value="venter">Sendt, venter på betaling</option>
-              <option value="refundert">Refundert</option>
-              <option value="avbrutt">Avbrutt eller feilet</option>
-              <option value="annullert">Annullert</option>
-            </select>
+              options={[
+                { value: "", label: "Alle statuser" },
+                { value: "betalt", label: "Betalt" },
+                { value: "venter", label: "Sendt, venter på betaling" },
+                { value: "refundert", label: "Refundert" },
+                { value: "avbrutt", label: "Avbrutt eller feilet" },
+                { value: "annullert", label: "Annullert" },
+              ]}
+            />
           </div>
           <div className="grid gap-1.5">
             <label htmlFor="payment-method" className="text-sm font-bold">
               Betalingsmåte
             </label>
-            <select
+            <SelectField
               id="payment-method"
               name="metode"
               defaultValue={filters.method}
-              className={fieldClass}
-            >
-              <option value="">Alle</option>
-              {methodFilters.map((method) => (
-                <option key={method} value={method}>
-                  {methodLabels[method]}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: "", label: "Alle" },
+                ...methodFilters.map((method) => ({
+                  value: method,
+                  label: methodLabels[method],
+                })),
+              ]}
+            />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end md:grid-cols-[11rem_11rem_1fr]">

@@ -10,6 +10,7 @@ import { osloToday } from "@/lib/dates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
 import {
   Dialog,
   DialogContent,
@@ -36,9 +37,6 @@ function prefill(children: FamilyPaymentChild[], totalOre: number) {
   if (left > 0 && shares.length > 0) shares[0] += left;
   return shares.map((share) => (share > 0 ? String(share / 100) : ""));
 }
-
-const fieldClass =
-  "min-h-11 w-full rounded-xl border border-[#DCD7CC] bg-white px-3 text-sm outline-none focus-visible:border-[#3C8F44] focus-visible:ring-3 focus-visible:ring-ring/30";
 
 export function FamilyPaymentDialog({
   familyName,
@@ -179,17 +177,17 @@ export function FamilyPaymentDialog({
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="family-payment-method">Betalingsmåte</Label>
-              <select
+              <SelectField
                 id="family-payment-method"
                 value={method}
-                onChange={(event) => setMethod(event.target.value)}
-                className={fieldClass}
-              >
-                <option value="kontant">Kontant</option>
-                <option value="bank">Bankoverføring</option>
-                <option value="vipps">Vipps (utenfor systemet)</option>
-                <option value="annet">Annet</option>
-              </select>
+                onValueChange={setMethod}
+                options={[
+                  { value: "kontant", label: "Kontant" },
+                  { value: "bank", label: "Bankoverføring" },
+                  { value: "vipps", label: "Vipps (utenfor systemet)" },
+                  { value: "annet", label: "Annet" },
+                ]}
+              />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="family-payment-payer">Betalt av (valgfritt)</Label>

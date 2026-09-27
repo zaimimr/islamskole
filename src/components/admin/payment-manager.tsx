@@ -49,6 +49,7 @@ import { formatNok } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -476,18 +477,17 @@ export function PaymentManager({
               Ingen klasse
             </Badge>
           )}
-          <select
+          <SelectField
             aria-label="Skoleår"
             value={year}
-            onChange={(e) => setYear(e.target.value)}
-            className="min-h-11 flex-1 rounded-xl border border-[#DCD7CC] bg-white px-3 text-sm font-semibold outline-none focus-visible:border-[#3C8F44] focus-visible:ring-3 focus-visible:ring-ring/30 sm:flex-none"
-          >
-            {schoolYears.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onValueChange={setYear}
+            className="flex-1 sm:w-48 sm:flex-none"
+            triggerClassName="font-semibold"
+            options={schoolYears.map((option) => ({
+              value: option.id,
+              label: option.label,
+            }))}
+          />
         </div>
       </CardHeader>
 
@@ -672,35 +672,34 @@ export function PaymentManager({
               >
                 <div className="grid gap-2">
                   <Label htmlFor="adjustment_type">Type</Label>
-                  <select
+                  <SelectField
                     id="adjustment_type"
                     name="type"
-                    className="h-11 rounded-md border border-input bg-white px-3 text-sm shadow-xs"
                     value={adjustmentType}
-                    onChange={(event) => setAdjustmentType(event.target.value)}
-                  >
-                    <option value="soskenrabatt">Søskenrabatt</option>
-                    <option value="laererbarn">Lærerbarn</option>
-                    <option value="frivillig">Frivillig</option>
-                    <option value="annet">Annet fritak</option>
-                  </select>
+                    onValueChange={setAdjustmentType}
+                    options={[
+                      { value: "soskenrabatt", label: "Søskenrabatt" },
+                      { value: "laererbarn", label: "Lærerbarn" },
+                      { value: "frivillig", label: "Frivillig" },
+                      { value: "annet", label: "Annet fritak" },
+                    ]}
+                  />
                 </div>
                 {teachers.length > 0 ? (
                   <div className="grid gap-2">
                     <Label htmlFor="adjustment_teacher">Lærer</Label>
-                    <select
+                    <SelectField
                       id="adjustment_teacher"
                       name="teacher_guardian_id"
-                      className="h-11 rounded-md border border-input bg-white px-3 text-sm shadow-xs"
                       defaultValue=""
-                    >
-                      <option value="">Velg lærer (for lærerbarn)</option>
-                      {teachers.map((teacher) => (
-                        <option key={teacher.id} value={teacher.id}>
-                          {teacher.name}
-                        </option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: "", label: "Velg lærer (for lærerbarn)" },
+                        ...teachers.map((teacher) => ({
+                          value: teacher.id,
+                          label: teacher.name,
+                        })),
+                      ]}
+                    />
                   </div>
                 ) : null}
                 <div className="grid gap-2">
@@ -850,19 +849,19 @@ export function PaymentManager({
                   <Label htmlFor="manual_method" required>
                     Måte
                   </Label>
-                  <select
+                  <SelectField
                     id="manual_method"
                     name="method"
                     required
                     value={manualMethod}
-                    onChange={(event) => setManualMethod(event.target.value)}
-                    className="min-h-11 rounded-xl border border-[#DCD7CC] bg-white px-3 text-sm outline-none focus-visible:border-[#3C8F44] focus-visible:ring-3 focus-visible:ring-ring/30"
-                  >
-                    <option value="kontant">Kontant</option>
-                    <option value="bank">Bankoverføring</option>
-                    <option value="vipps">Vipps</option>
-                    <option value="annet">Annet</option>
-                  </select>
+                    onValueChange={setManualMethod}
+                    options={[
+                      { value: "kontant", label: "Kontant" },
+                      { value: "bank", label: "Bankoverføring" },
+                      { value: "vipps", label: "Vipps" },
+                      { value: "annet", label: "Annet" },
+                    ]}
+                  />
                 </div>
                 {manualMethod === "vipps" ? (
                   <div className="grid gap-2">

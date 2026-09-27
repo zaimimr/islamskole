@@ -14,6 +14,7 @@ import {
 import { confirmRollover } from "@/app/[locale]/admin/students-actions";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,9 +31,6 @@ import {
   type RolloverClass,
   type RolloverStudent,
 } from "./plan";
-
-const selectClassName =
-  "min-h-11 w-full rounded-xl border border-[#CFC9BD] bg-white px-3 text-sm outline-none focus-visible:border-[#2F7938] focus-visible:ring-3 focus-visible:ring-[#2F7938]/20";
 
 function kroner(value: number) {
   return `${value.toLocaleString("nb-NO")} kr`;
@@ -138,22 +136,19 @@ export function RolloverWizard({
       <section className="grid gap-4 rounded-2xl bg-white p-4 ring-1 ring-[#E3DED3] sm:grid-cols-[minmax(0,18rem)_1fr] sm:items-end sm:p-5">
         <div className="grid gap-2">
           <Label htmlFor="rollover-source">Flytt fra skoleår</Label>
-          <select
+          <SelectField
             id="rollover-source"
             value={source.id}
-            onChange={(event) =>
+            onValueChange={(value) =>
               router.push(
-                `${basePath}/skolear/${target.id}/rollover?fra=${event.target.value}`,
+                `${basePath}/skolear/${target.id}/rollover?fra=${value}`,
               )
             }
-            className={selectClassName}
-          >
-            {sourceOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            options={sourceOptions.map((option) => ({
+              value: option.id,
+              label: option.label,
+            }))}
+          />
         </div>
         <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
           <div>
@@ -288,27 +283,23 @@ export function RolloverWizard({
                       >
                         Klasse i {target.label} for {student.name}
                       </label>
-                      <select
+                      <SelectField
                         id={`choice-${student.studentId}`}
                         value={choice}
-                        onChange={(event) =>
+                        onValueChange={(value) =>
                           setChoices((prev) => ({
                             ...prev,
-                            [student.studentId]: event.target.value,
+                            [student.studentId]: value,
                           }))
                         }
-                        className={selectClassName}
-                      >
-                        <option value="">Flyttes ikke</option>
-                        {classes.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {optionLabel(item)}
-                            {item.id === student.currentClassId
-                              ? " · samme klasse"
-                              : ""}
-                          </option>
-                        ))}
-                      </select>
+                        options={[
+                          { value: "", label: "Flyttes ikke" },
+                          ...classes.map((item) => ({
+                            value: item.id,
+                            label: `${optionLabel(item)}${item.id === student.currentClassId ? " · samme klasse" : ""}`,
+                          })),
+                        ]}
+                      />
                     </div>
                   </li>
                 );

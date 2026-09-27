@@ -10,6 +10,7 @@ import { osloToday } from "@/lib/dates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
 import {
   Dialog,
   DialogContent,
@@ -325,18 +326,18 @@ export function RefundPaymentDialog({
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-1.5">
                     <Label htmlFor={`refund-method-${paymentId}`}>Måte</Label>
-                    <select
+                    <SelectField
                       id={`refund-method-${paymentId}`}
                       value={manualMethod}
-                      onChange={(event) =>
-                        setManualMethod(event.target.value as RefundMethod)
+                      onValueChange={(value) =>
+                        setManualMethod(value as RefundMethod)
                       }
-                      className="h-11 rounded-xl border border-input bg-transparent px-3 text-sm shadow-xs"
-                    >
-                      <option value="bank">Bankoverføring</option>
-                      <option value="kontant">Kontant</option>
-                      <option value="annet">Annet</option>
-                    </select>
+                      options={[
+                        { value: "bank", label: "Bankoverføring" },
+                        { value: "kontant", label: "Kontant" },
+                        { value: "annet", label: "Annet" },
+                      ]}
+                    />
                   </div>
                   <div className="grid gap-1.5">
                     <Label htmlFor={`refund-date-${paymentId}`}>Dato</Label>

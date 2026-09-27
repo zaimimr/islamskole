@@ -445,6 +445,7 @@ export default async function FamilyPage({
     isPrimary: guardian.isPrimaryContact,
     phone: guardian.phone ?? undefined,
     email: guardian.email ?? undefined,
+    isTeacher: guardian.isTeacher,
   }));
   const primaryGuardian =
     family.guardians.find((guardian) => guardian.isPrimaryContact) ??

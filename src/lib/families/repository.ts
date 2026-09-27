@@ -19,7 +19,7 @@ type FamilyGuardianQueryRow = {
   sort_order: number;
   guardian: Pick<
     GuardianRow,
-    "id" | "first_name" | "last_name" | "email" | "phone"
+    "id" | "first_name" | "last_name" | "email" | "phone" | "is_teacher"
   >;
 };
 
@@ -33,6 +33,7 @@ export type FamilyGuardian = {
   lastName: string | null;
   email: string | null;
   phone: string | null;
+  isTeacher: boolean;
   relationshipLabel: string;
   isPrimaryContact: boolean;
   isBillingContact: boolean;
@@ -97,6 +98,7 @@ function mapGuardian(row: FamilyGuardianQueryRow): FamilyGuardian {
     lastName: row.guardian.last_name,
     email: row.guardian.email,
     phone: row.guardian.phone,
+    isTeacher: row.guardian.is_teacher,
     relationshipLabel: row.relationship_label,
     isPrimaryContact: row.is_primary_contact,
     isBillingContact: row.is_billing_contact,
@@ -154,7 +156,7 @@ export function createFamilyRepository(client: Client) {
         client
           .from("family_guardians")
           .select(
-            "family_id, guardian_id, relationship_label, is_primary_contact, is_billing_contact, receives_communication, sort_order, guardian:guardians(id, first_name, last_name, email, phone)",
+            "family_id, guardian_id, relationship_label, is_primary_contact, is_billing_contact, receives_communication, sort_order, guardian:guardians(id, first_name, last_name, email, phone, is_teacher)",
           )
           .in("family_id", familyIds)
           .order("sort_order")
@@ -274,7 +276,7 @@ export function createFamilyRepository(client: Client) {
         client
           .from("family_guardians")
           .select(
-            "guardian_id, relationship_label, is_primary_contact, is_billing_contact, receives_communication, sort_order, guardian:guardians(id, first_name, last_name, email, phone)",
+            "guardian_id, relationship_label, is_primary_contact, is_billing_contact, receives_communication, sort_order, guardian:guardians(id, first_name, last_name, email, phone, is_teacher)",
           )
           .eq("family_id", familyId)
           .order("sort_order")

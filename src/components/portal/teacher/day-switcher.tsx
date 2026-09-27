@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { buttonVariants } from "@/components/ui/button";
+import { SelectField } from "@/components/ui/select-field";
 import { cn } from "@/lib/utils";
 
 export type DayOption = {
@@ -58,27 +59,22 @@ export function DaySwitcher({
           </span>
         )}
         <div className="relative min-w-0 flex-1">
-          <select
+          <SelectField
             id="school-day"
             value={selectedId}
             disabled={pending}
-            onChange={(event) => {
-              const id = event.target.value;
+            onValueChange={(id) => {
               startTransition(() => router.push(href(id), { scroll: false }));
             }}
-            className="h-11 w-full min-w-0 appearance-none truncate rounded-xl border border-input bg-card pr-10 pl-3 text-base font-semibold outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-70"
-          >
-            {days.map((day) => (
-              <option key={day.id} value={day.id}>
-                {optionLabel(day)}
-              </option>
-            ))}
-          </select>
+            triggerClassName="font-semibold sm:text-base"
+            options={days.map((day) => ({
+              value: day.id,
+              label: optionLabel(day),
+            }))}
+          />
           {pending ? (
-            <Loader2 aria-hidden="true" className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
-          ) : (
-            <ChevronRight aria-hidden="true" className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 rotate-90 text-muted-foreground" />
-          )}
+            <Loader2 aria-hidden="true" className="pointer-events-none absolute top-1/2 right-9 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+          ) : null}
         </div>
         {next ? (
           <Link

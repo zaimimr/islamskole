@@ -43,6 +43,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { SelectField } from "@/components/ui/select-field";
 
 type BulkEntity = "applications" | "teachers";
 
@@ -153,18 +154,18 @@ export function BulkActions({
           <span className="text-sm text-muted-foreground">
             {selected.size} valgt
           </span>
-          <select
+          <SelectField
+            aria-label="Ny status"
             value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-          >
-            <option value="">Velg status</option>
-            {teacherStatuses.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+            onValueChange={setStatus}
+            size="sm"
+            placeholder="Velg status"
+            className="w-48"
+            options={teacherStatuses.map((s) => ({
+              value: s.value,
+              label: s.label,
+            }))}
+          />
           <Button size="sm" onClick={handleApply} disabled={pending}>
             {pending ? <Loader2 className="size-4 animate-spin" /> : null}
             Oppdater status
@@ -408,25 +409,24 @@ function ApplicationBulkBar({
                       .join(", ")}
                   </span>
                 </label>
-                <select
+                <SelectField
                   id={`bulk-class-${candidate.id}`}
                   value={choices[candidate.id] ?? ""}
                   disabled={!admit?.schoolYear}
-                  onChange={(event) =>
+                  onValueChange={(value) =>
                     setChoices((prev) => ({
                       ...prev,
-                      [candidate.id]: event.target.value,
+                      [candidate.id]: value,
                     }))
                   }
-                  className="min-h-11 w-full rounded-xl border border-[#CFC9BD] bg-white px-3 text-sm outline-none focus-visible:border-[#2F7938] focus-visible:ring-3 focus-visible:ring-[#2F7938]/20"
-                >
-                  <option value="">Ikke plasser ennå</option>
-                  {classes.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {classOptionLabel(item)}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: "", label: "Ikke plasser ennå" },
+                    ...classes.map((item) => ({
+                      value: item.id,
+                      label: classOptionLabel(item),
+                    })),
+                  ]}
+                />
               </li>
             ))}
           </ul>

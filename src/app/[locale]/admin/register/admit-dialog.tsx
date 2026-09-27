@@ -7,6 +7,7 @@ import { Loader2, UserCheck } from "lucide-react";
 import { createStudentFromApplication } from "@/app/[locale]/admin/students-actions";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
 import {
   Dialog,
   DialogContent,
@@ -17,9 +18,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { classOptionLabel, type PlacementClass } from "./placement";
-
-export const selectClassName =
-  "min-h-11 w-full rounded-xl border border-[#CFC9BD] bg-white px-3 text-sm outline-none focus-visible:border-[#2F7938] focus-visible:ring-3 focus-visible:ring-[#2F7938]/20";
 
 export function AdmitDialog({
   applicationId,
@@ -98,27 +96,21 @@ export function AdmitDialog({
         </DialogHeader>
         <div className="grid gap-2 rounded-xl bg-[#F8F6F0] p-4">
           <Label htmlFor={`admit-class-${applicationId}`}>Klasse</Label>
-          <select
+          <SelectField
             id={`admit-class-${applicationId}`}
             value={classId}
-            onChange={(event) => setClassId(event.target.value)}
+            onValueChange={setClassId}
             disabled={!schoolYear}
-            className={selectClassName}
-          >
-            <option value="">Ikke plasser ennå</option>
-            {classes.map((item) => (
-              <option
-                key={item.id}
-                value={item.id}
-                disabled={
-                  item.capacity != null && item.enrolled >= item.capacity
-                }
-              >
-                {classOptionLabel(item)}
-                {item.id === suggestedClassId ? " · foreslått" : ""}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: "", label: "Ikke plasser ennå" },
+              ...classes.map((item) => ({
+                value: item.id,
+                label: `${classOptionLabel(item)}${item.id === suggestedClassId ? " · foreslått" : ""}`,
+                disabled:
+                  item.capacity != null && item.enrolled >= item.capacity,
+              })),
+            ]}
+          />
           <p className="text-xs text-admin-muted">
             {!schoolYear
               ? "Velg et aktivt skoleår før plassering."

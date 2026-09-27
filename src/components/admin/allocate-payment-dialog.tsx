@@ -9,6 +9,7 @@ import { formatNok } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
 import {
   Dialog,
   DialogContent,
@@ -134,9 +135,6 @@ export function AllocatePaymentDialog({
     });
   }
 
-  const selectClass =
-    "min-h-11 w-full rounded-xl border border-[#DCD7CC] bg-white px-3 text-sm outline-none focus-visible:border-[#3C8F44] focus-visible:ring-3 focus-visible:ring-ring/30";
-
   return (
     <Dialog
       open={open}
@@ -175,19 +173,16 @@ export function AllocatePaymentDialog({
             >
               <div className="grid gap-2">
                 <Label htmlFor={`alloc_student_${index}`}>Barn</Label>
-                <select
+                <SelectField
                   id={`alloc_student_${index}`}
                   value={row.studentId}
-                  onChange={(e) => update(index, { studentId: e.target.value })}
-                  className={selectClass}
-                >
-                  <option value="">Velg elev</option>
-                  {students.map((student) => (
-                    <option key={student.id} value={student.id}>
-                      {student.name}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(value) => update(index, { studentId: value })}
+                  placeholder="Velg elev"
+                  options={students.map((student) => ({
+                    value: student.id,
+                    label: student.name,
+                  }))}
+                />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor={`alloc_amount_${index}`}>Beløp (kr)</Label>

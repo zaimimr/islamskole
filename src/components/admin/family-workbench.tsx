@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { formatNok } from "@/lib/money";
 import { formatOsloDateTime } from "@/lib/dates";
 import { SendLoginLinkButton } from "@/components/admin/send-login-link-button";
+import { TeacherToggleButton } from "@/components/admin/teacher-toggle-button";
 
 export type FamilyStatusTone =
   "success" | "warning" | "danger" | "info" | "neutral";
@@ -38,6 +39,7 @@ export type FamilyGuardianSummary = {
   phone?: string;
   email?: string;
   href?: string;
+  isTeacher?: boolean;
 };
 
 export type FamilyChildSummary = {
@@ -209,9 +211,11 @@ function RelationshipMember({
   email,
   loginGuardianId,
   isPrimary = false,
+  isTeacher = false,
   child = false,
 }: {
   loginGuardianId?: string;
+  isTeacher?: boolean;
   name: string;
   role: string;
   href?: string;
@@ -240,6 +244,11 @@ function RelationshipMember({
               Primær foresatt
             </span>
           ) : null}
+          {isTeacher ? (
+            <span className="rounded-full bg-[#E4EEF8] px-2 py-0.5 text-[0.6875rem] font-bold text-[#245D84]">
+              Lærer
+            </span>
+          ) : null}
         </span>
         <span className="mt-0.5 block text-xs font-semibold text-admin-muted">
           {role}
@@ -260,7 +269,7 @@ function RelationshipMember({
       ) : (
         <div className="flex min-w-0 flex-1 gap-3">{content}</div>
       )}
-      {phone || email ? (
+      {phone || email || loginGuardianId ? (
         <div className="grid min-w-0 pl-[3.25rem] text-xs">
           {phone ? (
             <a href={telHref(phone)} className={contactLinkClass}>
@@ -279,6 +288,14 @@ function RelationshipMember({
               guardianId={loginGuardianId}
               email={email}
               className="mt-1 justify-self-start"
+            />
+          ) : null}
+          {loginGuardianId ? (
+            <TeacherToggleButton
+              guardianId={loginGuardianId}
+              name={name}
+              isTeacher={isTeacher}
+              className="justify-self-start"
             />
           ) : null}
         </div>
@@ -392,6 +409,7 @@ export function FamilyWorkbench({
                 phone={guardian.phone}
                 email={guardian.email}
                 loginGuardianId={guardian.id}
+                isTeacher={guardian.isTeacher}
               />
             ))}
             {family.children.map((child) => (

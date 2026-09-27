@@ -20,12 +20,11 @@ import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 const inputClassName = "h-12";
-const selectClassName =
-  "h-12 w-full rounded-xl border border-input bg-card px-3 py-1 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DRAFT_KEY = "islamskole-enrollment-draft-v2";
 
@@ -107,6 +106,7 @@ export function StudentSignupForm({
     null,
   );
   const [draftReady, setDraftReady] = useState(false);
+  const [selectValues, setSelectValues] = useState<Record<string, string>>({});
   const formRef = useRef<HTMLFormElement>(null);
   const dirtyRef = useRef(false);
   const loadedAtRef = useRef<number | null>(null);
@@ -190,6 +190,7 @@ export function StudentSignupForm({
         setNextChildId(Math.max(...restoredChildren) + 1);
         setNextGuardianId(Math.max(1, ...storedGuardians) + 1);
         setStep(Math.min(Math.max(draft.step ?? 0, 0), 1));
+        setSelectValues(draft.values ?? {});
         setDraftValues(draft.values ?? {});
       } catch {
         localStorage.removeItem(DRAFT_KEY);
@@ -244,6 +245,20 @@ export function StudentSignupForm({
       delete next[name];
       return next;
     });
+  }
+
+  function selectProps(name: string) {
+    return {
+      id: name,
+      name,
+      value: selectValues[name] ?? "",
+      onValueChange: (value: string) => {
+        setSelectValues((current) => ({ ...current, [name]: value }));
+        clearFieldError(name);
+        dirtyRef.current = true;
+        window.setTimeout(persistDraft, 0);
+      },
+    };
   }
 
   function describedBy(name: string) {
@@ -539,22 +554,17 @@ export function StudentSignupForm({
             <Label htmlFor={field("gender")} required>
               {t("fieldGender")}
             </Label>
-            <select
-              id={field("gender")}
-              name={field("gender")}
-              defaultValue=""
-              className={selectClassName}
+            <SelectField
+              {...selectProps(field("gender"))}
+              placeholder={t("genderPlaceholder")}
+              triggerClassName="min-h-12"
               aria-invalid={invalid(field("gender"))}
               aria-describedby={describedBy(field("gender"))}
-              onChange={() => clearFieldError(field("gender"))}
-            >
-              <option value="">{t("genderPlaceholder")}</option>
-              {(["gutt", "jente"] as const).map((value) => (
-                <option key={value} value={value}>
-                  {t(`gender.${value}`)}
-                </option>
-              ))}
-            </select>
+              options={(["gutt", "jente"] as const).map((value) => ({
+                value,
+                label: t(`gender.${value}`),
+              }))}
+            />
             <FieldError
               id={`${field("gender")}-error`}
               message={fieldErrors[field("gender")]}
@@ -632,21 +642,16 @@ export function StudentSignupForm({
               ).map(([name, label]) => (
                 <div key={name} className="grid gap-2">
                   <Label htmlFor={field(name)}>{t(label)}</Label>
-                  <select
-                    id={field(name)}
-                    name={field(name)}
-                    defaultValue=""
-                    className={selectClassName}
-                  >
-                    <option value="">{t("levelPlaceholder")}</option>
-                    {(["nybegynner", "litt", "middels", "god"] as const).map(
-                      (value) => (
-                        <option key={value} value={value}>
-                          {t(`levels.${value}`)}
-                        </option>
+                  <SelectField
+                    {...selectProps(field(name))}
+                    triggerClassName="min-h-12"
+                    options={[
+                      { value: "", label: t("levelPlaceholder") },
+                      ...(["nybegynner", "litt", "middels", "god"] as const).map(
+                        (value) => ({ value, label: t(`levels.${value}`) }),
                       ),
-                    )}
-                  </select>
+                    ]}
+                  />
                 </div>
               ))}
             </div>
@@ -918,24 +923,16 @@ export function StudentSignupForm({
           <Label htmlFor={field("role")} required>
             {t("guardianRole")}
           </Label>
-          <select
-            id={field("role")}
-            name={field("role")}
-            defaultValue=""
-            className={selectClassName}
+          <SelectField
+            {...selectProps(field("role"))}
+            placeholder={t("guardianRolePlaceholder")}
+            triggerClassName="min-h-12"
             aria-invalid={invalid(field("role"))}
             aria-describedby={describedBy(field("role"))}
-            onChange={() => clearFieldError(field("role"))}
-          >
-            <option value="">{t("guardianRolePlaceholder")}</option>
-            {(["foresatt", "steforelder", "verge", "annet"] as const).map(
-              (value) => (
-                <option key={value} value={value}>
-                  {t(`guardianRoles.${value}`)}
-                </option>
-              ),
+            options={(["foresatt", "steforelder", "verge", "annet"] as const).map(
+              (value) => ({ value, label: t(`guardianRoles.${value}`) }),
             )}
-          </select>
+          />
           <FieldError
             id={`${field("role")}-error`}
             message={fieldErrors[field("role")]}

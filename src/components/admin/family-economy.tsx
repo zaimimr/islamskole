@@ -36,6 +36,7 @@ import { SadaqaCoverDialog } from "@/components/admin/sadaqa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -457,16 +458,16 @@ export function FamilyEconomy({
             {planType === "maanedlig" ? (
               <div className="grid gap-1.5 sm:max-w-56">
                 <Label htmlFor="monthly_amount">Månedsbeløp per barn</Label>
-                <select
+                <SelectField
                   id="monthly_amount"
                   name="monthly_amount_nok"
                   value={monthlyAmount}
-                  onChange={(event) => setMonthlyAmount(event.target.value)}
-                  className="h-11 rounded-xl border border-input bg-transparent px-3 text-sm shadow-xs"
-                >
-                  <option value="1000">1 000 kr</option>
-                  <option value="500">500 kr</option>
-                </select>
+                  onValueChange={setMonthlyAmount}
+                  options={[
+                    { value: "1000", label: "1 000 kr" },
+                    { value: "500", label: "500 kr" },
+                  ]}
+                />
               </div>
             ) : null}
             <div className="flex flex-wrap gap-2">
@@ -649,18 +650,17 @@ export function FamilyEconomy({
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <select
+              <SelectField
                 value={siblingChild}
-                onChange={(event) => setSiblingChild(event.target.value)}
+                onValueChange={setSiblingChild}
                 aria-label="Barn som får rabatten"
-                className="h-11 rounded-xl border border-[#E8D6AA] bg-white px-3 text-sm"
-              >
-                {childrenOptions.map((child) => (
-                  <option key={child.id} value={child.id}>
-                    {child.name}
-                  </option>
-                ))}
-              </select>
+                className="w-full sm:w-56"
+                triggerClassName="border-[#E8D6AA]"
+                options={childrenOptions.map((child) => ({
+                  value: child.id,
+                  label: child.name,
+                }))}
+              />
               <Button
                 type="button"
                 disabled={pending || !siblingChild}
@@ -769,54 +769,49 @@ export function FamilyEconomy({
           >
             <div className="grid gap-1.5">
               <Label htmlFor="family-adjustment-child">Barn</Label>
-              <select
+              <SelectField
                 id="family-adjustment-child"
                 name="student_id"
                 required
                 value={adjustmentChild}
-                onChange={(event) => setAdjustmentChild(event.target.value)}
-                className="h-11 rounded-xl border border-input bg-white px-3 text-sm shadow-xs"
-              >
-                {childrenOptions.map((child) => (
-                  <option key={child.id} value={child.id}>
-                    {child.name}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setAdjustmentChild}
+                options={childrenOptions.map((child) => ({
+                  value: child.id,
+                  label: child.name,
+                }))}
+              />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="family-adjustment-type">Type</Label>
-              <select
+              <SelectField
                 id="family-adjustment-type"
                 name="type"
                 value={adjustmentType}
-                onChange={(event) => setAdjustmentType(event.target.value)}
-                className="h-11 rounded-xl border border-input bg-white px-3 text-sm shadow-xs"
-              >
-                <option value="soskenrabatt">Søskenrabatt</option>
-                <option value="laererbarn">Lærerbarn</option>
-                <option value="frivillig">Frivillig</option>
-                <option value="annet">Annet fritak</option>
-              </select>
+                onValueChange={setAdjustmentType}
+                options={[
+                  { value: "soskenrabatt", label: "Søskenrabatt" },
+                  { value: "laererbarn", label: "Lærerbarn" },
+                  { value: "frivillig", label: "Frivillig" },
+                  { value: "annet", label: "Annet fritak" },
+                ]}
+              />
             </div>
             {adjustmentType === "laererbarn" ? (
               <div className="grid gap-1.5">
                 <Label htmlFor="family-adjustment-teacher" required>
                   Lærer
                 </Label>
-                <select
+                <SelectField
                   id="family-adjustment-teacher"
                   name="teacher_guardian_id"
                   required
-                  className="h-11 rounded-xl border border-input bg-white px-3 text-sm shadow-xs"
-                >
-                  <option value="">Velg lærer</option>
-                  {teachers.map((teacher) => (
-                    <option key={teacher.id} value={teacher.id}>
-                      {teacher.name}
-                    </option>
-                  ))}
-                </select>
+                  defaultValue=""
+                  placeholder="Velg lærer"
+                  options={teachers.map((teacher) => ({
+                    value: teacher.id,
+                    label: teacher.name,
+                  }))}
+                />
               </div>
             ) : null}
             <div className="grid gap-1.5">

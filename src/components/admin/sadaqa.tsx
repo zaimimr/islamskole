@@ -25,6 +25,7 @@ import { osloToday } from "@/lib/dates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
 import {
   Dialog,
   DialogContent,
@@ -53,9 +54,6 @@ import {
 
 export type SadaqaChild = { id: string; name: string; remainingOre: number };
 export type SadaqaFamily = { id: string; name: string; children: SadaqaChild[] };
-
-const fieldClass =
-  "min-h-11 w-full rounded-xl border border-[#DCD7CC] bg-white px-3 text-sm outline-none focus-visible:border-[#3C8F44] focus-visible:ring-3 focus-visible:ring-ring/30";
 
 const footerClass =
   "[&_[data-slot=button]]:min-h-11 [&_[data-slot=button]]:rounded-xl [&_[data-slot=button]]:px-4";
@@ -563,17 +561,17 @@ export function SadaqaGiftDialog({
             <Label htmlFor="sadaqa-gift-method" required>
               Hvordan kom den inn?
             </Label>
-            <select
+            <SelectField
               id="sadaqa-gift-method"
               value={method}
-              onChange={(event) => setMethod(event.target.value)}
-              className={fieldClass}
-            >
-              <option value="vipps">Vipps</option>
-              <option value="bank">Bank</option>
-              <option value="kontant">Kontant</option>
-              <option value="annet">Annet</option>
-            </select>
+              onValueChange={setMethod}
+              options={[
+                { value: "vipps", label: "Vipps" },
+                { value: "bank", label: "Bank" },
+                { value: "kontant", label: "Kontant" },
+                { value: "annet", label: "Annet" },
+              ]}
+            />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="sadaqa-gift-donor">Fra (valgfritt)</Label>
@@ -588,19 +586,18 @@ export function SadaqaGiftDialog({
           {families.length > 0 ? (
             <div className="grid gap-1.5 sm:col-span-2">
               <Label htmlFor="sadaqa-gift-family">Familie (valgfritt)</Label>
-              <select
+              <SelectField
                 id="sadaqa-gift-family"
                 value={familyId}
-                onChange={(event) => setFamilyId(event.target.value)}
-                className={fieldClass}
-              >
-                <option value="">Ingen familie</option>
-                {families.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.name}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setFamilyId}
+                options={[
+                  { value: "", label: "Ingen familie" },
+                  ...families.map((option) => ({
+                    value: option.id,
+                    label: option.name,
+                  })),
+                ]}
+              />
             </div>
           ) : null}
           <div className="grid gap-1.5 sm:col-span-2">

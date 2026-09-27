@@ -33,6 +33,7 @@ import { formatOsloDate, osloLocalToIso, osloToday } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { familyDisplayName } from "@/lib/families/naming";
 import { FamilyPaymentDialog } from "./family-payment-dialog";
+import { SelectField } from "@/components/ui/select-field";
 
 export const metadata: Metadata = { title: "Økonomi" };
 
@@ -1064,19 +1065,15 @@ function AccountingExport({
           <label htmlFor="export-year" className="text-sm font-bold">
             Skoleår
           </label>
-          <select
+          <SelectField
             id="export-year"
             name="year"
             defaultValue={defaultYearId}
-            className={fieldClass}
-          >
-            <option value="">Alle skoleår</option>
-            {years.map((year) => (
-              <option key={year.id} value={year.id}>
-                {year.label}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: "", label: "Alle skoleår" },
+              ...years.map((year) => ({ value: year.id, label: year.label })),
+            ]}
+          />
         </div>
         <button
           type="submit"

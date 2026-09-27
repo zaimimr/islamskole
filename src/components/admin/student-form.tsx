@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
 import { Textarea } from "@/components/ui/textarea";
 
 export type StudentRecord = {
@@ -45,9 +46,6 @@ export type StudentRecord = {
   child_level_islam: string | null;
   notes: string | null;
 };
-
-const selectClassName =
-  "min-h-11 w-full rounded-xl border border-[#CFC9BD] bg-white px-3 text-sm shadow-none outline-none focus-visible:border-[#2F7938] focus-visible:ring-3 focus-visible:ring-[#2F7938]/20";
 
 const levelOptions = [
   { value: "", label: "Ikke satt" },
@@ -84,18 +82,12 @@ function LevelSelect({
   return (
     <div className="grid gap-2">
       <Label htmlFor={name}>{label}</Label>
-      <select
+      <SelectField
         id={name}
         name={name}
         defaultValue={defaultValue ?? ""}
-        className={selectClassName}
-      >
-        {levelOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        options={levelOptions}
+      />
     </div>
   );
 }
@@ -198,18 +190,12 @@ export function StudentForm({
             </div>
             <div className="grid gap-2">
               <Label htmlFor="gender">Kjønn</Label>
-              <select
+              <SelectField
                 id="gender"
                 name="gender"
                 defaultValue={student?.child_gender ?? ""}
-                className={selectClassName}
-              >
-                {genderOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                options={genderOptions}
+              />
             </div>
           </div>
           <div className="grid gap-2">
@@ -276,18 +262,12 @@ export function StudentForm({
             <div className="grid gap-4 p-4 sm:p-5">
               <div className="grid gap-2">
                 <Label htmlFor="mother_relationship">Relasjon</Label>
-                <select
+                <SelectField
                   id="mother_relationship"
                   name="mother_relationship"
                   defaultValue="foresatt"
-                  className={selectClassName}
-                >
-                  {guardianRoleOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  options={guardianRoleOptions}
+                />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="grid gap-2">
@@ -335,18 +315,12 @@ export function StudentForm({
             <div className="grid gap-4 p-4 sm:p-5">
               <div className="grid gap-2">
                 <Label htmlFor="father_relationship">Relasjon</Label>
-                <select
+                <SelectField
                   id="father_relationship"
                   name="father_relationship"
                   defaultValue="foresatt"
-                  className={selectClassName}
-                >
-                  {guardianRoleOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  options={guardianRoleOptions}
+                />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="grid gap-2">

@@ -22,6 +22,7 @@ import {
 } from "@/app/[locale]/admin/students-actions";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,9 +50,6 @@ export type EnrollmentRow = {
   status: string;
   price: number | null;
 };
-
-const selectClassName =
-  "min-h-11 w-full rounded-xl border border-[#CFC9BD] bg-white px-3 text-sm outline-none focus-visible:border-[#2F7938] focus-visible:ring-3 focus-visible:ring-[#2F7938]/20";
 
 function kroner(value: number) {
   return `${value.toLocaleString("nb-NO")} kr`;
@@ -317,32 +315,24 @@ export function EnrollmentManager({
                         <Label htmlFor={`switch-${enrollment.id}`}>
                           Ny klasse
                         </Label>
-                        <select
+                        <SelectField
                           id={`switch-${enrollment.id}`}
                           value={switchClass}
-                          onChange={(event) =>
-                            setSwitchClass(event.target.value)
-                          }
-                          className={selectClassName}
-                        >
-                          <option value="">Velg klasse</option>
-                          {classes
+                          onValueChange={setSwitchClass}
+                          placeholder="Velg klasse"
+                          options={classes
                             .filter(
                               (option) => option.id !== enrollment.classId,
                             )
-                            .map((option) => (
-                              <option
-                                key={option.id}
-                                value={option.id}
-                                disabled={isClassFull(option)}
-                              >
-                                {classOptionLabel(
-                                  option,
-                                  enrollment.schoolYearId,
-                                )}
-                              </option>
-                            ))}
-                        </select>
+                            .map((option) => ({
+                              value: option.id,
+                              label: classOptionLabel(
+                                option,
+                                enrollment.schoolYearId,
+                              ),
+                              disabled: isClassFull(option),
+                            }))}
+                        />
                         <p className="text-xs text-admin-muted">
                           Prisen eleven har fått for skoleåret beholdes.
                         </p>
@@ -403,44 +393,35 @@ export function EnrollmentManager({
               <Label htmlFor="class_id" required>
                 Klasse
               </Label>
-              <select
+              <SelectField
                 id="class_id"
                 name="class_id"
                 required
                 value={selectedClass}
-                onChange={(event) => setSelectedClass(event.target.value)}
-                className={selectClassName}
-              >
-                <option value="">Velg klasse</option>
-                {classes.map((option) => (
-                  <option
-                    key={option.id}
-                    value={option.id}
-                    disabled={isClassFull(option)}
-                  >
-                    {classOptionLabel(option, selectedYear)}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setSelectedClass}
+                placeholder="Velg klasse"
+                options={classes.map((option) => ({
+                  value: option.id,
+                  label: classOptionLabel(option, selectedYear),
+                  disabled: isClassFull(option),
+                }))}
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="school_year_id" required>
                 Skoleår
               </Label>
-              <select
+              <SelectField
                 id="school_year_id"
                 name="school_year_id"
                 required
                 value={selectedYear}
-                onChange={(event) => setSelectedYear(event.target.value)}
-                className={selectClassName}
-              >
-                {schoolYears.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setSelectedYear}
+                options={schoolYears.map((option) => ({
+                  value: option.id,
+                  label: option.label,
+                }))}
+              />
             </div>
             <Button
               type="submit"

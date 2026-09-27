@@ -8,6 +8,7 @@ import { updateFamilyRelationships } from "@/app/[locale]/admin/familier/familie
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
 
 type GuardianEditorValue = {
   key: string;
@@ -42,9 +43,6 @@ const roleOptions = [
   ["verge", "Verge"],
   ["annet", "Annen relasjon"],
 ] as const;
-
-const fieldClassName =
-  "min-h-11 w-full rounded-xl border border-[#CFC8BA] bg-white px-3 text-base outline-none focus-visible:border-[#2F7938] focus-visible:ring-3 focus-visible:ring-[#2F7938]/20 sm:text-sm";
 
 export function FamilyEditor({
   familyId,
@@ -233,18 +231,15 @@ export function FamilyEditor({
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor={`${prefix}_role`}>Relasjon</Label>
-                    <select
+                    <SelectField
                       id={`${prefix}_role`}
                       name={`${prefix}_role`}
                       defaultValue={guardian.role}
-                      className={fieldClassName}
-                    >
-                      {roleOptions.map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
+                      options={roleOptions.map(([value, label]) => ({
+                        value,
+                        label,
+                      }))}
+                    />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor={`${prefix}_phone`}>Telefon</Label>
