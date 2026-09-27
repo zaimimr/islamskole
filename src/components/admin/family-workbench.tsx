@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatNok } from "@/lib/money";
 import { formatOsloDateTime } from "@/lib/dates";
+import { SendLoginLinkButton } from "@/components/admin/send-login-link-button";
 
 export type FamilyStatusTone =
   "success" | "warning" | "danger" | "info" | "neutral";
@@ -206,9 +207,11 @@ function RelationshipMember({
   href,
   phone,
   email,
+  loginGuardianId,
   isPrimary = false,
   child = false,
 }: {
+  loginGuardianId?: string;
   name: string;
   role: string;
   href?: string;
@@ -270,6 +273,13 @@ function RelationshipMember({
               <Mail aria-hidden="true" className="size-3.5 shrink-0" />
               <span className="truncate">{email}</span>
             </a>
+          ) : null}
+          {loginGuardianId && email ? (
+            <SendLoginLinkButton
+              guardianId={loginGuardianId}
+              email={email}
+              className="mt-1 justify-self-start"
+            />
           ) : null}
         </div>
       ) : null}
@@ -381,6 +391,7 @@ export function FamilyWorkbench({
                 isPrimary={guardian.isPrimary}
                 phone={guardian.phone}
                 email={guardian.email}
+                loginGuardianId={guardian.id}
               />
             ))}
             {family.children.map((child) => (

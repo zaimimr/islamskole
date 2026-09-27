@@ -1,0 +1,332 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import { after } from "next/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
+import { writeAudit } from "@/lib/audit";
+import { getUser } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { getPortalContext } from "@/lib/portal/data";
+import { isPlaceholderEmail } from "@/lib/portal/emails";
+import {
+  ATTENDANCE_STATUSES,
+  type AttendanceStatus,
+  type PortalActionResult,
+  type PortalErrorCode,
+} from "@/lib/portal/types";
+
+const MIN_FILL_MS = 2_000;
+const uuid = z.string().uuid();
+const optionalText = z
+  .string()
+  .trim()
+  .max(2000)
+  .optional()
+  .nullable()
+  .transform((value) => (value ? value : null));
+
+function dbError(error: { code?: string } | null | undefined): PortalErrorCode {
+  switch (error?.code) {
+    case "23505":
+      return "duplicate";
+    case "42501":
+      return "forbidden";
+    case "23503":
+      return "not_found";
+    default:
+      return "unknown";
+  }
+}
+
+function refreshPortal() {
+  revalidatePath("/[locale]/min-side", "layout");
+}
+
+async function clientIp() {
+  return (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+}
+
+async function allowLogin(key: string, limit: number, windowSeconds: number) {
+  const { data, error } = await createAdminClient().rpc("portal_login_hit", {
+    p_key: key,
+    p_limit: limit,
+    p_window_seconds: windowSeconds,
+  });
+  if (error) {
+    console.error("portal login throttle failed", error);
+    return false;
+  }
+  return data === true;
+}
+
+async function deliverLoginLink(email: string) {
+  try {
+    if (isPlaceholderEmail(email)) return;
+    if (!(await allowLogin(`email:${email}`, 3, 600))) return;
+    if (!(await allowLogin("global", 60, 3600))) return;
+
+    const admin = createAdminClient();
+    const { data: guardians, error: lookupError } = await admin
+      .from("guardians")
+      .select("id")
+      .ilike("email", email.replace(/[\\%_]/g, "\\$&"))
+      .limit(1);
+    if (lookupError) {
+      console.error("portal login lookup failed", lookupError);
+      return;
+    }
+    if (!guardians?.length) return;
+
+    const { error: createError } = await admin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      app_metadata: { role: "member" },
+    });
+    if (createError && createError.code !== "email_exists") {
+      console.error("portal login createUser failed", createError);
+      return;
+    }
+
+    const mailer = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+    const { error: otpError } = await mailer.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false },
+    });
+    if (otpError) console.error("portal login otp failed", otpError);
+  } catch (error) {
+    console.error("portal login failed", error);
+  }
+}
+
+export async function sendPortalLoginLink(formData: FormData): Promise<PortalActionResult> {
+  const ip = await clientIp();
+  if (!(await allowLogin(`ip:${ip}`, 5, 60))) {
+    return { ok: false, error: "rate_limited" };
+  }
+
+  if (String(formData.get("hp_field_t") ?? "").trim()) return { ok: true };
+  const loadedAt = Number(formData.get("loaded_at"));
+  if (!Number.isFinite(loadedAt) || Date.now() - loadedAt < MIN_FILL_MS) {
+    return { ok: true };
+  }
+
+  const parsed = z.string().trim().toLowerCase().email().max(254).safeParse(formData.get("email"));
+  if (!parsed.success) return { ok: false, error: "invalid" };
+
+  after(() => deliverLoginLink(parsed.data));
+  return { ok: true };
+}
+
+export async function signOutPortal(): Promise<void> {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  revalidatePath("/", "layout");
+}
+
+const markAttendanceSchema = z.object({
+  studentId: uuid,
+  schoolDayId: uuid,
+  status: z.enum(ATTENDANCE_STATUSES),
+});
+
+export async function markAttendance(
+  studentId: string,
+  schoolDayId: string,
+  status: AttendanceStatus,
+): Promise<PortalActionResult> {
+  const parsed = markAttendanceSchema.safeParse({ studentId, schoolDayId, status });
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const user = await getUser();
+  if (!user) return { ok: false, error: "unauthenticated" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("attendance")
+    .upsert(
+      {
+        student_id: parsed.data.studentId,
+        school_day_id: parsed.data.schoolDayId,
+        status: parsed.data.status,
+        marked_by: user.id,
+        marked_at: new Date().toISOString(),
+      },
+      { onConflict: "student_id,school_day_id" },
+    )
+    .select("student_id")
+    .maybeSingle();
+  if (error || !data) return { ok: false, error: error ? dbError(error) : "forbidden" };
+
+  await writeAudit({
+    action: "attendance.mark",
+    entityType: "attendance",
+    entityId: parsed.data.studentId,
+    metadata: { school_day_id: parsed.data.schoolDayId, status: parsed.data.status },
+  });
+  refreshPortal();
+  return { ok: true };
+}
+
+const markManySchema = z.object({
+  studentIds: z.array(uuid).min(1).max(200),
+  schoolDayId: uuid,
+  status: z.enum(ATTENDANCE_STATUSES),
+});
+
+export async function markAttendanceMany(
+  studentIds: string[],
+  schoolDayId: string,
+  status: AttendanceStatus,
+): Promise<PortalActionResult> {
+  const parsed = markManySchema.safeParse({ studentIds, schoolDayId, status });
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const user = await getUser();
+  if (!user) return { ok: false, error: "unauthenticated" };
+
+  const ids = [...new Set(parsed.data.studentIds)];
+  const markedAt = new Date().toISOString();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("attendance")
+    .upsert(
+      ids.map((id) => ({
+        student_id: id,
+        school_day_id: parsed.data.schoolDayId,
+        status: parsed.data.status,
+        marked_by: user.id,
+        marked_at: markedAt,
+      })),
+      { onConflict: "student_id,school_day_id" },
+    )
+    .select("student_id");
+  if (error) return { ok: false, error: dbError(error) };
+  if ((data?.length ?? 0) !== ids.length) return { ok: false, error: "forbidden" };
+
+  await writeAudit({
+    action: "attendance.mark_many",
+    entityType: "attendance",
+    entityId: parsed.data.schoolDayId,
+    metadata: { student_ids: ids, status: parsed.data.status },
+  });
+  refreshPortal();
+  return { ok: true };
+}
+
+const classNoteSchema = z.object({
+  classId: uuid,
+  schoolDayId: uuid,
+  homework: optionalText,
+  summary: optionalText,
+});
+
+export async function saveClassNote(
+  classId: string,
+  schoolDayId: string,
+  note: { homework?: string | null; summary?: string | null },
+): Promise<PortalActionResult> {
+  const parsed = classNoteSchema.safeParse({ classId, schoolDayId, ...note });
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const context = await getPortalContext();
+  if (!context.user) return { ok: false, error: "unauthenticated" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("class_notes")
+    .upsert(
+      {
+        class_id: parsed.data.classId,
+        school_day_id: parsed.data.schoolDayId,
+        homework: parsed.data.homework,
+        summary: parsed.data.summary,
+        author_guardian_id: context.guardianIds[0] ?? null,
+      },
+      { onConflict: "class_id,school_day_id" },
+    )
+    .select("id")
+    .maybeSingle();
+  if (error || !data) return { ok: false, error: error ? dbError(error) : "forbidden" };
+
+  await writeAudit({
+    action: "class_note.save",
+    entityType: "class_note",
+    entityId: data.id,
+    metadata: { class_id: parsed.data.classId, school_day_id: parsed.data.schoolDayId },
+  });
+  refreshPortal();
+  return { ok: true, id: data.id };
+}
+
+const absenceSchema = z.object({
+  studentId: uuid,
+  schoolDayId: uuid,
+  reason: optionalText,
+});
+
+export async function reportAbsence(
+  studentId: string,
+  schoolDayId: string,
+  reason?: string | null,
+): Promise<PortalActionResult> {
+  const parsed = absenceSchema.safeParse({ studentId, schoolDayId, reason });
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const context = await getPortalContext();
+  if (!context.user) return { ok: false, error: "unauthenticated" };
+  if (!context.guardianIds.length) return { ok: false, error: "forbidden" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("absence_reports")
+    .insert({
+      student_id: parsed.data.studentId,
+      school_day_id: parsed.data.schoolDayId,
+      reason: parsed.data.reason,
+      reported_by_guardian_id: context.guardianIds[0],
+    })
+    .select("id")
+    .single();
+  if (error) {
+    return { ok: false, error: error.code === "42501" ? "closed" : dbError(error) };
+  }
+
+  await writeAudit({
+    action: "absence.report",
+    entityType: "absence_report",
+    entityId: data.id,
+    metadata: { student_id: parsed.data.studentId, school_day_id: parsed.data.schoolDayId },
+  });
+  refreshPortal();
+  return { ok: true, id: data.id };
+}
+
+export async function withdrawAbsence(id: string): Promise<PortalActionResult> {
+  const parsed = uuid.safeParse(id);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const user = await getUser();
+  if (!user) return { ok: false, error: "unauthenticated" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("absence_reports")
+    .update({ withdrawn_at: new Date().toISOString() })
+    .eq("id", parsed.data)
+    .is("withdrawn_at", null)
+    .select("id, student_id, school_day_id")
+    .maybeSingle();
+  if (error) return { ok: false, error: dbError(error) };
+  if (!data) return { ok: false, error: "not_found" };
+
+  await writeAudit({
+    action: "absence.withdraw",
+    entityType: "absence_report",
+    entityId: data.id,
+    metadata: { student_id: data.student_id, school_day_id: data.school_day_id },
+  });
+  refreshPortal();
+  return { ok: true, id: data.id };
+}

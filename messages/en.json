@@ -436,5 +436,172 @@
     "learnMore": "Learn more",
     "notFound": "Page not found",
     "notFoundBody": "The content you are looking for does not exist."
+  },
+  "portal": {
+    "metaTitle": "My page",
+    "signOut": "Sign out",
+    "signedInAs": "Signed in as",
+    "login": {
+      "title": "Sign in to My page",
+      "intro": "Enter the email address you gave the school at enrollment. We will send you a link, no password needed.",
+      "emailLabel": "Email",
+      "submit": "Send sign-in link",
+      "sentTitle": "Check your email",
+      "sent": "If the email is registered with us, you will receive a link within a few minutes. Also check your spam folder.",
+      "again": "Use a different email",
+      "invalidLink": "The link has been used or has expired. Request a new link below.",
+      "adminHint": "Administrator? Sign in here"
+    },
+    "errors": {
+      "invalid": "Check that what you entered is correct.",
+      "unauthenticated": "Please sign in again.",
+      "forbidden": "You do not have access to this.",
+      "duplicate": "This is already registered.",
+      "closed": "This day is not open for absence reports.",
+      "rate_limited": "Too many attempts. Please wait a moment and try again.",
+      "not_found": "We could not find what you were looking for.",
+      "unknown": "Something went wrong. Please try again."
+    },
+    "home": {
+      "title": "My page",
+      "parentTitle": "My children",
+      "teacherTitle": "My class",
+      "emptyTitle": "No children or classes yet",
+      "empty": "We found no children or classes linked to {email}. Contact the school and we will link your email to the right family.",
+      "contact": "Contact the school",
+      "adminLink": "Go to administration"
+    },
+    "teacher": {
+      "students": "{count, plural, one {# student} other {# students}}",
+      "open": "Open",
+      "todayWithDate": "Today, {date}",
+      "noDays": "No school days have been added for this school year yet.",
+      "reportedCount": "{count, plural, =0 {No absences reported} one {# absence reported} other {# absences reported}}",
+      "back": "My page",
+      "day": {
+        "label": "School day",
+        "previous": "Previous school day",
+        "next": "Next school day",
+        "today": "today",
+        "cancelled": "cancelled",
+        "cancelledNotice": "This school day is cancelled. Attendance cannot be recorded.",
+        "futureNotice": "Attendance is recorded on the school day itself. Absences reported by parents already show here."
+      },
+      "roster": {
+        "title": "Attendance",
+        "empty": "There are no students in the class yet.",
+        "age": "{age} years",
+        "allPresent": "All present",
+        "restPresent": "Rest present ({count})",
+        "statusGroup": "Attendance for {name}",
+        "call": "Call {name}",
+        "noPhone": "No phone number registered"
+      },
+      "status": {
+        "til_stede": "Present",
+        "fravaer": "Absent",
+        "sent": "Late",
+        "meldt_fravaer": "Reported absent"
+      },
+      "summary": {
+        "present": "present",
+        "absent": "absent",
+        "late": "late",
+        "unmarked": "not recorded"
+      },
+      "note": {
+        "title": "This week's note",
+        "intro": "Parents see the note on My page. One note per school day.",
+        "homework": "Homework",
+        "homeworkPlaceholder": "For example: Practise surah Al-Fatiha, page 4 in the workbook",
+        "summary": "What we did today",
+        "summaryPlaceholder": "A short summary of what the class worked on",
+        "save": "Save note",
+        "saving": "Saving ...",
+        "unsaved": "Not saved",
+        "savedAt": "Saved {time}",
+        "notWritten": "Not written yet"
+      },
+      "previous": {
+        "title": "Earlier notes",
+        "empty": "No earlier notes yet."
+      }
+    },
+    "common": {
+      "close": "Close",
+      "cancel": "Cancel",
+      "writeTo": "You can also write to us at"
+    },
+    "parent": {
+      "title": "My children",
+      "intro": "{count, plural, one {Here is what is happening with your child} other {Here is what is happening with your children}} in the {year} school year.",
+      "age": "age {age}",
+      "teachers": "{count, plural, one {Teacher} other {Teachers}}: {names}",
+      "noTeacher": "No teacher assigned yet.",
+      "detailLink": "See everything about {name}",
+      "back": "Back to My page",
+      "questions": "Questions? Write to",
+      "contactPage": "the contact page",
+      "term": {
+        "autumn": "this autumn",
+        "spring": "this spring"
+      },
+      "note": {
+        "weekTitle": "This week",
+        "latestTitle": "Latest note from the teacher",
+        "homework": "Homework",
+        "summary": "What we did",
+        "empty": "The teacher has not written a note yet.",
+        "historyTitle": "Notes from the teacher"
+      },
+      "attendance": {
+        "title": "Attendance",
+        "none": "No absences {term}.",
+        "absent": "{count, plural, one {# absence} other {# absences}} {term}.",
+        "late": "Late {count, plural, one {once} other {# times}}.",
+        "historyTitle": "Sunday by Sunday"
+      },
+      "status": {
+        "til_stede": "Present",
+        "fravaer": "Absent",
+        "sent": "Late",
+        "meldt_fravaer": "Reported absent",
+        "none": "Not recorded"
+      },
+      "payment": {
+        "paid": "Everything is paid for {year}.",
+        "remaining": "{amount} left to pay for {year}.",
+        "contact": "Contact the school about payment"
+      },
+      "absence": {
+        "open": "Report absence",
+        "title": "Report absence for {name}",
+        "intro": "Choose the Sunday your child will not come. The teacher sees it right away.",
+        "dayLabel": "Which Sunday?",
+        "reasonLabel": "Reason (optional)",
+        "reasonPlaceholder": "For example ill or travelling",
+        "submit": "Send absence report",
+        "sent": "Absence for {name} is reported.",
+        "withdrawn": "The absence report has been withdrawn.",
+        "reportedTitle": "Reported absences",
+        "reportedFor": "Reported absent {day}",
+        "undo": "Undo",
+        "undoFor": "Undo absence {day}",
+        "alreadyReported": "Reported",
+        "noDays": "There are no upcoming school days to report absence for."
+      },
+      "upcoming": {
+        "title": "Coming up",
+        "schoolDay": "School day",
+        "cancelled": "No school",
+        "empty": "No upcoming school days or activities.",
+        "reported": "Absence reported: {names}"
+      }
+    },
+    "notFound": {
+      "title": "Page not found",
+      "text": "The page does not exist, or you do not have access to it.",
+      "back": "Back to My page"
+    }
   }
 }

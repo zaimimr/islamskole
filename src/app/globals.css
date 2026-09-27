@@ -161,7 +161,9 @@
 body:has([data-admin-shell]) .site-header,
 body:has([data-admin-shell]) .site-footer,
 body:has([data-admin-login]) .site-header,
-body:has([data-admin-login]) .site-footer {
+body:has([data-admin-login]) .site-footer,
+body:has([data-portal-shell]) .site-header,
+body:has([data-portal-shell]) .site-footer {
   display: none;
 }
 
@@ -179,6 +181,11 @@ body:has([data-admin-login]) {
   --primary: var(--admin-action);
   --primary-foreground: #ffffff;
   --ring: var(--admin-action);
+}
+
+body:has([data-portal-shell]):not(:is(.dark *)) {
+  --primary: var(--admin-action);
+  --primary-foreground: #ffffff;
 }
 
 [data-admin-shell] #admin-content:focus {

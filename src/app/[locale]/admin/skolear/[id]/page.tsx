@@ -23,6 +23,8 @@ import {
 import { deleteSchoolYear } from "@/app/[locale]/admin/school-years-actions";
 import { formatNok } from "@/lib/money";
 import { schoolYearStart } from "@/lib/age";
+import { osloToday } from "@/lib/dates";
+import { SchoolDays, type SchoolDayRow } from "./school-days";
 
 export const metadata: Metadata = { title: "Skoleår" };
 
@@ -63,6 +65,7 @@ export default async function SkolearDetailPage({
     { data: enrollmentData },
     { data: activeData },
     { data: balanceData },
+    { data: dayData },
   ] = await Promise.all([
     supabase
       .from("school_years")
@@ -83,6 +86,11 @@ export default async function SkolearDetailPage({
       .from("student_balances")
       .select("student_id, owed, paid, remaining")
       .eq("school_year_id", id),
+    supabase
+      .from("school_days")
+      .select("id, date, cancelled, note")
+      .eq("school_year_id", id)
+      .order("date", { ascending: true }),
   ]);
   const year = yearData as SchoolYearRecord | null;
   if (!year) notFound();
@@ -282,6 +290,13 @@ export default async function SkolearDetailPage({
           </ul>
         )}
       </section>
+
+      <SchoolDays
+        schoolYearId={year.id}
+        days={(dayData as SchoolDayRow[] | null) ?? []}
+        hasDates={Boolean(year.starts_on && year.ends_on)}
+        today={osloToday()}
+      />
 
       <section className="rounded-2xl bg-[#FFF8E9] p-5 ring-1 ring-[#ECDCB9] sm:p-6">
         <div className="flex items-start gap-3">

@@ -5,6 +5,7 @@ import {
   CircleCheck,
   Mail,
   MessageSquareText,
+  GraduationCap,
   Phone,
   Search,
   UserCheck,
@@ -14,6 +15,7 @@ import { deleteTeacherApplication } from "@/app/[locale]/admin/actions";
 import { adminBasePath } from "@/components/admin/paths";
 import { TeacherStatusSelect } from "@/components/admin/teacher-status-select";
 import { TeacherRegisterDialog } from "@/components/admin/teacher-register-dialog";
+import { SendLoginLinkButton } from "@/components/admin/send-login-link-button";
 import { removeTeacher } from "@/app/[locale]/admin/familier/families-actions";
 import { formatNok } from "@/lib/money";
 import { formatOsloDateTime } from "@/lib/dates";
@@ -133,10 +135,16 @@ async function getRegisteredTeachers(): Promise<{
   teachers: TeacherRow[];
   familyByGuardian: Map<string, string>;
   giftTotals: Map<string, { amount: number; students: number }>;
+  classesByGuardian: Map<string, { id: string; name: string }[]>;
 }> {
   try {
     const supabase = await createClient();
-    const [teacherResult, linkResult, giftResult] = await Promise.all([
+    const { data: activeYear } = await supabase
+      .from("school_years")
+      .select("id")
+      .eq("is_active", true)
+      .maybeSingle();
+    const [teacherResult, linkResult, giftResult, assignmentResult] = await Promise.all([
       supabase
         .from("guardians")
         .select("id, first_name, last_name, email, phone, teacher_note")
@@ -146,7 +154,30 @@ async function getRegisteredTeachers(): Promise<{
       supabase
         .from("teacher_gift_report")
         .select("teacher_guardian_id, student_count, total_amount"),
+      activeYear
+        ? supabase
+            .from("class_teachers")
+            .select("guardian_id, classes(id, name_no, sort_order)")
+            .eq("school_year_id", activeYear.id)
+        : Promise.resolve({ data: [], error: null }),
     ]);
+
+    const classesByGuardian = new Map<string, { id: string; name: string }[]>();
+    for (const row of ((assignmentResult.data as
+      | {
+          guardian_id: string;
+          classes: { id: string; name_no: string | null; sort_order: number | null } | null;
+        }[]
+      | null) ?? []
+    ).sort(
+      (left, right) =>
+        (left.classes?.sort_order ?? 0) - (right.classes?.sort_order ?? 0),
+    )) {
+      if (!row.classes) continue;
+      const list = classesByGuardian.get(row.guardian_id) ?? [];
+      list.push({ id: row.classes.id, name: row.classes.name_no ?? "Klasse" });
+      classesByGuardian.set(row.guardian_id, list);
+    }
 
     const familyByGuardian = new Map<string, string>();
     for (const row of (linkResult.data as
@@ -178,12 +209,14 @@ async function getRegisteredTeachers(): Promise<{
       teachers: (teacherResult.data as TeacherRow[] | null) ?? [],
       familyByGuardian,
       giftTotals,
+      classesByGuardian,
     };
   } catch {
     return {
       teachers: [],
       familyByGuardian: new Map(),
       giftTotals: new Map(),
+      classesByGuardian: new Map(),
     };
   }
 }
@@ -212,6 +245,7 @@ export default async function LaererePage({
           teachers: [] as TeacherRow[],
           familyByGuardian: new Map<string, string>(),
           giftTotals: new Map<string, { amount: number; students: number }>(),
+          classesByGuardian: new Map<string, { id: string; name: string }[]>(),
         }),
     tab === "soknader"
       ? getApplications(page, q, status)
@@ -307,6 +341,7 @@ export default async function LaererePage({
                     .join(" ") || "(uten navn)";
                 const familyId = registry.familyByGuardian.get(teacher.id);
                 const gift = registry.giftTotals.get(teacher.id);
+                const assigned = registry.classesByGuardian.get(teacher.id) ?? [];
                 return (
                   <li
                     key={teacher.id}
@@ -353,8 +388,29 @@ export default async function LaererePage({
                           <span>{teacher.teacher_note}</span>
                         ) : null}
                       </p>
+                      <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                        <GraduationCap
+                          aria-hidden="true"
+                          className="size-4 text-admin-muted"
+                        />
+                        {assigned.length ? (
+                          assigned.map((item) => (
+                            <Link
+                              key={item.id}
+                              href={`${basePath}/klasser/${item.id}`}
+                              className="inline-flex min-h-11 items-center rounded font-bold text-[#277A31] underline-offset-2 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-0"
+                            >
+                              {item.name}
+                            </Link>
+                          ))
+                        ) : (
+                          <span className="text-admin-muted">
+                            Ingen klasse i år
+                          </span>
+                        )}
+                      </p>
                     </div>
-                    <div className="flex items-center justify-between gap-3 sm:justify-end">
+                    <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
                       {gift ? (
                         <span className="text-sm text-admin-muted">
                           Fritatt{" "}
@@ -363,6 +419,12 @@ export default async function LaererePage({
                           </span>{" "}
                           ({gift.students} barn)
                         </span>
+                      ) : null}
+                      {teacher.email ? (
+                        <SendLoginLinkButton
+                          guardianId={teacher.id}
+                          email={teacher.email}
+                        />
                       ) : null}
                       <RowActions
                         label={`Flere valg for ${name}`}

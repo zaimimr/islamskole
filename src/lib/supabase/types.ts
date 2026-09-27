@@ -34,6 +34,104 @@ export type Database = {
   }
   public: {
     Tables: {
+      absence_reports: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string | null
+          reported_by_guardian_id: string | null
+          school_day_id: string
+          student_id: string
+          withdrawn_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          reported_by_guardian_id?: string | null
+          school_day_id: string
+          student_id: string
+          withdrawn_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          reported_by_guardian_id?: string | null
+          school_day_id?: string
+          student_id?: string
+          withdrawn_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "absence_reports_reported_by_guardian_id_fkey"
+            columns: ["reported_by_guardian_id"]
+            isOneToOne: false
+            referencedRelation: "guardians"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_reports_reported_by_guardian_id_fkey"
+            columns: ["reported_by_guardian_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_gift_report"
+            referencedColumns: ["teacher_guardian_id"]
+          },
+          {
+            foreignKeyName: "absence_reports_school_day_id_fkey"
+            columns: ["school_day_id"]
+            isOneToOne: false
+            referencedRelation: "school_days"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absence_reports_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance: {
+        Row: {
+          marked_at: string
+          marked_by: string | null
+          school_day_id: string
+          status: string
+          student_id: string
+        }
+        Insert: {
+          marked_at?: string
+          marked_by?: string | null
+          school_day_id: string
+          status: string
+          student_id: string
+        }
+        Update: {
+          marked_at?: string
+          marked_by?: string | null
+          school_day_id?: string
+          status?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_school_day_id_fkey"
+            columns: ["school_day_id"]
+            isOneToOne: false
+            referencedRelation: "school_days"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action: string
@@ -66,6 +164,121 @@ export type Database = {
           metadata?: Json | null
         }
         Relationships: []
+      }
+      class_notes: {
+        Row: {
+          author_guardian_id: string | null
+          class_id: string
+          created_at: string
+          homework: string | null
+          id: string
+          school_day_id: string
+          summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          author_guardian_id?: string | null
+          class_id: string
+          created_at?: string
+          homework?: string | null
+          id?: string
+          school_day_id: string
+          summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          author_guardian_id?: string | null
+          class_id?: string
+          created_at?: string
+          homework?: string | null
+          id?: string
+          school_day_id?: string
+          summary?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_notes_author_guardian_id_fkey"
+            columns: ["author_guardian_id"]
+            isOneToOne: false
+            referencedRelation: "guardians"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_notes_author_guardian_id_fkey"
+            columns: ["author_guardian_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_gift_report"
+            referencedColumns: ["teacher_guardian_id"]
+          },
+          {
+            foreignKeyName: "class_notes_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_notes_school_day_id_fkey"
+            columns: ["school_day_id"]
+            isOneToOne: false
+            referencedRelation: "school_days"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      class_teachers: {
+        Row: {
+          class_id: string
+          created_at: string
+          guardian_id: string
+          role: string
+          school_year_id: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          guardian_id: string
+          role?: string
+          school_year_id: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          guardian_id?: string
+          role?: string
+          school_year_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_teachers_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_teachers_guardian_id_fkey"
+            columns: ["guardian_id"]
+            isOneToOne: false
+            referencedRelation: "guardians"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_teachers_guardian_id_fkey"
+            columns: ["guardian_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_gift_report"
+            referencedColumns: ["teacher_guardian_id"]
+          },
+          {
+            foreignKeyName: "class_teachers_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       classes: {
         Row: {
@@ -1287,6 +1500,41 @@ export type Database = {
           },
         ]
       }
+      school_days: {
+        Row: {
+          cancelled: boolean
+          created_at: string
+          date: string
+          id: string
+          note: string | null
+          school_year_id: string
+        }
+        Insert: {
+          cancelled?: boolean
+          created_at?: string
+          date: string
+          id?: string
+          note?: string | null
+          school_year_id: string
+        }
+        Update: {
+          cancelled?: boolean
+          created_at?: string
+          date?: string
+          id?: string
+          note?: string | null
+          school_year_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_days_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_years: {
         Row: {
           created_at: string
@@ -1995,7 +2243,79 @@ export type Database = {
         }
         Returns: Json
       }
+      ensure_school_days: {
+        Args: { p_school_year_id: string }
+        Returns: number
+      }
       is_admin: { Args: never; Returns: boolean }
+      portal_can_mark: {
+        Args: { p_school_day_id: string; p_student_id: string }
+        Returns: boolean
+      }
+      portal_class_roster: {
+        Args: { p_class_id: string; p_school_day_id: string }
+        Returns: {
+          absence_reason: string
+          absence_report_id: string
+          attendance_marked_at: string
+          attendance_status: string
+          birth_date: string
+          first_name: string
+          guardians: Json
+          last_name: string
+          student_id: string
+        }[]
+      }
+      portal_guardian_ids: { Args: never; Returns: string[] }
+      portal_is_guardian_in_class: {
+        Args: { p_class_id: string }
+        Returns: boolean
+      }
+      portal_is_guardian_of: {
+        Args: { p_student_id: string }
+        Returns: boolean
+      }
+      portal_is_open_school_day: {
+        Args: { p_school_day_id: string }
+        Returns: boolean
+      }
+      portal_is_teacher_of: { Args: { p_class_id: string }; Returns: boolean }
+      portal_login_hit: {
+        Args: { p_key: string; p_limit: number; p_window_seconds: number }
+        Returns: boolean
+      }
+      portal_my_children: {
+        Args: never
+        Returns: {
+          birth_date: string
+          class_id: string
+          class_name_en: string
+          class_name_no: string
+          first_name: string
+          last_name: string
+          remaining_ore: number
+          school_year_id: string
+          school_year_label: string
+          student_id: string
+          teachers: Json
+        }[]
+      }
+      portal_my_classes: {
+        Args: never
+        Returns: {
+          class_id: string
+          name_en: string
+          name_no: string
+          role: string
+          school_year_id: string
+          school_year_label: string
+          student_count: number
+        }[]
+      }
+      portal_teaches_student: {
+        Args: { p_student_id: string }
+        Returns: boolean
+      }
       replace_payment_allocations: {
         Args: { p_allocations?: Json; p_payment_id: string }
         Returns: number

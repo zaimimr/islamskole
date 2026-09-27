@@ -436,5 +436,172 @@
     "learnMore": "Les mer",
     "notFound": "Fant ikke siden",
     "notFoundBody": "Innholdet du leter etter finnes ikke."
+  },
+  "portal": {
+    "metaTitle": "Min side",
+    "signOut": "Logg ut",
+    "signedInAs": "Innlogget som",
+    "login": {
+      "title": "Logg inn på Min side",
+      "intro": "Skriv e-postadressen du ga skolen ved påmelding. Vi sender deg en lenke, du trenger ikke passord.",
+      "emailLabel": "E-post",
+      "submit": "Send innloggingslenke",
+      "sentTitle": "Sjekk e-posten din",
+      "sent": "Hvis e-posten er registrert hos oss, får du en lenke i løpet av noen minutter. Sjekk også søppelposten.",
+      "again": "Bruk en annen e-post",
+      "invalidLink": "Lenken er brukt eller utløpt. Be om en ny lenke under.",
+      "adminHint": "Administrator? Logg inn her"
+    },
+    "errors": {
+      "invalid": "Sjekk at det du skrev er riktig.",
+      "unauthenticated": "Du må logge inn på nytt.",
+      "forbidden": "Du har ikke tilgang til dette.",
+      "duplicate": "Dette er allerede registrert.",
+      "closed": "Denne dagen er ikke åpen for fraværsmelding.",
+      "rate_limited": "For mange forsøk. Vent litt og prøv igjen.",
+      "not_found": "Fant ikke det du lette etter.",
+      "unknown": "Noe gikk galt. Prøv igjen."
+    },
+    "home": {
+      "title": "Min side",
+      "parentTitle": "Mine barn",
+      "teacherTitle": "Min klasse",
+      "emptyTitle": "Ingen barn eller klasser ennå",
+      "empty": "Vi fant ingen barn eller klasser knyttet til {email}. Ta kontakt med skolen, så kobler vi e-posten din til riktig familie.",
+      "contact": "Kontakt skolen",
+      "adminLink": "Til administrasjonen"
+    },
+    "teacher": {
+      "students": "{count, plural, one {# elev} other {# elever}}",
+      "open": "Åpne",
+      "todayWithDate": "I dag, {date}",
+      "noDays": "Ingen skoledager er lagt inn for dette skoleåret ennå.",
+      "reportedCount": "{count, plural, =0 {Ingen har meldt fravær} other {# har meldt fravær}}",
+      "back": "Min side",
+      "day": {
+        "label": "Skoledag",
+        "previous": "Forrige skoledag",
+        "next": "Neste skoledag",
+        "today": "i dag",
+        "cancelled": "avlyst",
+        "cancelledNotice": "Denne skoledagen er avlyst. Oppmøte kan ikke registreres.",
+        "futureNotice": "Oppmøte registreres på selve skoledagen. Fravær som foreldrene melder, vises allerede nå."
+      },
+      "roster": {
+        "title": "Oppmøte",
+        "empty": "Det er ingen elever i klassen ennå.",
+        "age": "{age} år",
+        "allPresent": "Alle til stede",
+        "restPresent": "Resten til stede ({count})",
+        "statusGroup": "Oppmøte for {name}",
+        "call": "Ring {name}",
+        "noPhone": "Ingen telefonnummer registrert"
+      },
+      "status": {
+        "til_stede": "Til stede",
+        "fravaer": "Fravær",
+        "sent": "Sent",
+        "meldt_fravaer": "Meldt fravær"
+      },
+      "summary": {
+        "present": "til stede",
+        "absent": "fravær",
+        "late": "sent",
+        "unmarked": "ikke registrert"
+      },
+      "note": {
+        "title": "Ukens notat",
+        "intro": "Foreldrene ser notatet på Min side. Ett notat per skoledag.",
+        "homework": "Lekser",
+        "homeworkPlaceholder": "For eksempel: Øv på sura Al-Fatiha, side 4 i arbeidsboka",
+        "summary": "Hva vi gjorde i dag",
+        "summaryPlaceholder": "Kort om hva klassen jobbet med",
+        "save": "Lagre notat",
+        "saving": "Lagrer ...",
+        "unsaved": "Ikke lagret",
+        "savedAt": "Lagret {time}",
+        "notWritten": "Ikke skrevet ennå"
+      },
+      "previous": {
+        "title": "Tidligere notater",
+        "empty": "Ingen tidligere notater ennå."
+      }
+    },
+    "common": {
+      "close": "Lukk",
+      "cancel": "Avbryt",
+      "writeTo": "Du kan også skrive til oss på"
+    },
+    "parent": {
+      "title": "Mine barn",
+      "intro": "{count, plural, one {Her ser du hva som skjer med barnet ditt} other {Her ser du hva som skjer med barna dine}} i skoleåret {year}.",
+      "age": "{age} år",
+      "teachers": "{count, plural, one {Lærer} other {Lærere}}: {names}",
+      "noTeacher": "Læreren er ikke satt opp ennå.",
+      "detailLink": "Se alt om {name}",
+      "back": "Tilbake til Min side",
+      "questions": "Spørsmål? Skriv til",
+      "contactPage": "kontaktsiden",
+      "term": {
+        "autumn": "i høst",
+        "spring": "i vår"
+      },
+      "note": {
+        "weekTitle": "Denne uken",
+        "latestTitle": "Siste notat fra læreren",
+        "homework": "Lekser",
+        "summary": "Hva vi gjorde",
+        "empty": "Læreren har ikke skrevet noe notat ennå.",
+        "historyTitle": "Notater fra læreren"
+      },
+      "attendance": {
+        "title": "Oppmøte",
+        "none": "Ingen fravær {term}.",
+        "absent": "{count} fravær {term}.",
+        "late": "Kom for sent {count, plural, one {# gang} other {# ganger}}.",
+        "historyTitle": "Søndag for søndag"
+      },
+      "status": {
+        "til_stede": "Til stede",
+        "fravaer": "Fravær",
+        "sent": "Kom sent",
+        "meldt_fravaer": "Meldt fravær",
+        "none": "Ikke registrert"
+      },
+      "payment": {
+        "paid": "Alt er betalt for {year}.",
+        "remaining": "Gjenstår {amount} for {year}.",
+        "contact": "Kontakt skolen om betaling"
+      },
+      "absence": {
+        "open": "Meld fravær",
+        "title": "Meld fravær for {name}",
+        "intro": "Velg søndagen barnet ikke kommer. Læreren ser meldingen med en gang.",
+        "dayLabel": "Hvilken søndag?",
+        "reasonLabel": "Grunn (valgfritt)",
+        "reasonPlaceholder": "For eksempel syk eller på reise",
+        "submit": "Send fraværsmelding",
+        "sent": "Fraværet for {name} er meldt.",
+        "withdrawn": "Fraværsmeldingen er trukket tilbake.",
+        "reportedTitle": "Meldt fravær",
+        "reportedFor": "Meldt fravær {day}",
+        "undo": "Angre",
+        "undoFor": "Angre fravær {day}",
+        "alreadyReported": "Meldt",
+        "noDays": "Det er ingen kommende skoledager å melde fravær for."
+      },
+      "upcoming": {
+        "title": "Kommende",
+        "schoolDay": "Skoledag",
+        "cancelled": "Ingen skole",
+        "empty": "Ingen kommende skoledager eller aktiviteter.",
+        "reported": "Meldt fravær: {names}"
+      }
+    },
+    "notFound": {
+      "title": "Fant ikke siden",
+      "text": "Siden finnes ikke, eller du har ikke tilgang til den.",
+      "back": "Tilbake til Min side"
+    }
   }
 }

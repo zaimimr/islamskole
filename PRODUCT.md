@@ -10,7 +10,9 @@ web
 
 The primary users for this release are the principal and trusted school administrators who manage admissions, students, families, classes, school years, payments, teachers, website content, and operational records.
 
-Families use the public enrollment flow without an account. The data model must establish durable parent, guardian, sibling, and child relationships so a future parent and student portal can show every child connected to the same family.
+Families use the public enrollment flow without an account. After enrollment, guardians sign in with an emailed login link (no password) to "Mine barn": each child's class, teachers, weekly homework and class note, attendance, calendar, absence reporting, and a one-line payment status.
+
+Teachers sign in the same way to "Min klasse": their class roster on a phone, one-tap Sunday attendance, a weekly note with homework, and absences reported by parents. One person can be both a parent and a teacher.
 
 ## Product Purpose
 
@@ -35,11 +37,11 @@ Parents enroll one or more children publicly and pay intentionally through Vipps
 - Keep multi-child public enrollment, terms acceptance, computed totals, and immediate Vipps payment.
 - Keep student records, applications, class placement, capacity, school years, rollover, fee adjustments, exemptions, partial and manual payments, sibling allocations, refunds, duplicate review, exports, teachers, users, audit history, activities, classes, and website settings.
 - Restructure implementation where needed to improve correctness, safety, clarity, accessibility, responsiveness, and performance.
-- Make family, guardian, sibling, and child relationships first-class without adding a parent or student portal in this release.
+- Keep family, guardian, sibling, and child relationships first-class. Guardians and teachers see only the children and classes they are connected to; teachers never see payment data.
 - Financial history must be traceable and must not be silently or destructively lost.
 - Schema and payment changes require migration safety, automated coverage, and reconciliation checks.
 - The application remains a school operations system and does not replace bookkeeping software.
-- Full learning management, assignments, grading, payroll, transport, inventory, general chat, and native mobile applications are outside this release.
+- Student logins, Quran progress tracking, grading, full learning management, payroll, transport, inventory, general chat, and native mobile applications are outside this release. Quran progress is a planned later addition.
 
 ## Brand Commitments
 

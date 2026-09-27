@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { MenuIcon } from "lucide-react";
+import { CircleUserRound, MenuIcon } from "lucide-react";
 import { Link, usePathname } from "@/i18n/navigation";
 import {
   Sheet,
@@ -66,6 +66,14 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <Link
+            href="/min-side/logg-inn"
+            title={t("admin")}
+            className="hidden min-h-11 items-center justify-center gap-1.5 rounded-full px-3 text-[0.95rem] font-semibold whitespace-nowrap text-foreground/70 transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 sm:inline-flex lg:size-11 lg:px-0"
+          >
+            <CircleUserRound aria-hidden="true" className="size-4.5 lg:size-5" />
+            <span className="lg:sr-only">{t("admin")}</span>
+          </Link>
           <Link
             href="/pamelding"
             className="btn-pill-primary hidden lg:inline-flex"
@@ -136,8 +144,19 @@ export function SiteHeader() {
                   }
                 />
               </div>
-              <div className="mt-auto flex items-center border-t border-foreground/8 p-5">
+              <div className="mt-auto flex items-center justify-between gap-3 border-t border-foreground/8 p-5">
                 <LocaleSwitcher />
+                <SheetClose
+                  render={
+                    <Link
+                      href="/min-side/logg-inn"
+                      className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 font-semibold text-foreground/75 transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+                    >
+                      <CircleUserRound aria-hidden="true" className="size-4.5" />
+                      {t("admin")}
+                    </Link>
+                  }
+                />
               </div>
             </SheetContent>
           </Sheet>
