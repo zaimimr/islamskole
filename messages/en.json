@@ -13,7 +13,8 @@
     "menu": "Menu",
     "menuDescription": "Navigate the site",
     "localeLabel": "Language",
-    "skipToContent": "Skip to content"
+    "skipToContent": "Skip to content",
+    "close": "Close"
   },
   "notFound": {
     "eyebrow": "Error 404",
@@ -125,9 +126,10 @@
   },
   "enroll": {
     "title": "Enroll your child",
-    "body": "Send an email to admissions to enroll your child or to join the waiting list. We will reply as soon as we can.",
+    "body": "Enroll one or more children using the form on this website and pay the enrollment fee with Vipps. It only takes a few minutes.",
     "cta": "Enroll your child",
-    "note": "Enrollment for the coming school year opens in April/May."
+    "note": "You will get a confirmation by email once the payment is complete.",
+    "closedNote": "Enrollment is not open right now. Contact the school if you have any questions."
   },
   "enrollForm": {
     "eyebrow": "Enrollment",
@@ -254,7 +256,8 @@
     "next": "Next",
     "paymentImmediateTitle": "Payment is captured immediately",
     "paymentImmediateBody": "When you approve in Vipps, the full amount is charged immediately. The school processes enrollment and class placement separately.",
-    "planNote": "The remainder ({rest} kr per child) is due by 15 August and 15 December, or monthly by agreement. We send payment links by email.",
+    "planNote": "The remainder ({rest} kr per child) is due by {dates}, or monthly by agreement. We send payment links by email.",
+    "planNoteNoDates": "The remainder ({rest} kr per child) is due during the school year, or monthly by agreement. We send payment links by email.",
     "motherAbsent": "Mother is not in the picture",
     "fatherAbsent": "Father is not in the picture",
     "parentAbsentHint": "The fields are hidden. You can add another guardian below if needed.",

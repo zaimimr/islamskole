@@ -1,4 +1,5 @@
 import type { Locale } from "@/i18n/routing";
+import { OSLO } from "@/lib/dates";
 
 const localeTag: Record<Locale, string> = {
   no: "nb-NO",
@@ -17,6 +18,7 @@ export function formatEventDate(
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: OSLO,
   }).format(date);
 }
 
@@ -30,6 +32,7 @@ export function formatEventTime(
   return new Intl.DateTimeFormat(localeTag[locale], {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: OSLO,
   }).format(date);
 }
 

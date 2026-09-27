@@ -87,7 +87,11 @@ export function SiteHeader() {
             >
               <MenuIcon className="size-5" aria-hidden="true" />
             </SheetTrigger>
-            <SheetContent side="right" className="w-[88%] max-w-sm gap-0 p-0">
+            <SheetContent
+              side="right"
+              closeLabel={t("close")}
+              className="w-[88%] max-w-sm gap-0 p-0"
+            >
               <SheetHeader className="border-b border-foreground/8 p-5">
                 <SheetTitle>
                   <Logo />

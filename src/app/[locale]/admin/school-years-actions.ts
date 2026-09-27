@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getIsAdmin } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
+import { toUserError } from "@/lib/action-errors";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -43,12 +44,12 @@ const schoolYearSchema = z.object({
   label: z.string().min(1, "Navn er påkrevd (f.eks. 2026/2027)"),
 });
 
-async function clearActive() {
+async function activate(id: string) {
   const supabase = await createClient();
-  await supabase
-    .from("school_years")
-    .update({ is_active: false } as never)
-    .eq("is_active", true);
+  const { error } = await supabase.rpc("set_active_school_year", {
+    p_school_year_id: id,
+  });
+  return error;
 }
 
 export async function createSchoolYear(
@@ -63,7 +64,6 @@ export async function createSchoolYear(
   }
 
   const isActive = readBoolean(formData, "is_active");
-  if (isActive) await clearActive();
 
   const payload = {
     label,
@@ -73,7 +73,7 @@ export async function createSchoolYear(
     enrollment_fee: readNumber(formData, "enrollment_fee") ?? 2000,
     sem1_due_on: readOptionalString(formData, "sem1_due_on"),
     sem2_due_on: readOptionalString(formData, "sem2_due_on"),
-    is_active: isActive,
+    is_active: false,
   };
 
   const supabase = await createClient();
@@ -87,9 +87,19 @@ export async function createSchoolYear(
     if (error.code === "23505") {
       return { ok: false, error: "Det finnes allerede et skoleår med dette navnet" };
     }
-    return { ok: false, error: error.message };
+    return { ok: false, error: toUserError(error) };
   }
   const schoolYearId = (data as unknown as { id: string }).id;
+  if (isActive) {
+    const activateError = await activate(schoolYearId);
+    if (activateError) {
+      revalidate();
+      return {
+        ok: false,
+        error: `Skoleåret ble opprettet, men kunne ikke settes som aktivt. ${toUserError(activateError)}`,
+      };
+    }
+  }
   await writeAudit({
     action: "school_year.create",
     entityType: "school_years",
@@ -113,7 +123,6 @@ export async function updateSchoolYear(
   }
 
   const isActive = readBoolean(formData, "is_active");
-  if (isActive) await clearActive();
 
   const payload = {
     label,
@@ -123,7 +132,6 @@ export async function updateSchoolYear(
     enrollment_fee: readNumber(formData, "enrollment_fee") ?? 2000,
     sem1_due_on: readOptionalString(formData, "sem1_due_on"),
     sem2_due_on: readOptionalString(formData, "sem2_due_on"),
-    is_active: isActive,
   };
 
   const supabase = await createClient();
@@ -136,7 +144,11 @@ export async function updateSchoolYear(
     if (error.code === "23505") {
       return { ok: false, error: "Det finnes allerede et skoleår med dette navnet" };
     }
-    return { ok: false, error: error.message };
+    return { ok: false, error: toUserError(error) };
+  }
+  if (isActive) {
+    const activateError = await activate(id);
+    if (activateError) return { ok: false, error: toUserError(activateError) };
   }
   await writeAudit({
     action: "school_year.update",
@@ -150,13 +162,8 @@ export async function updateSchoolYear(
 
 export async function setActiveSchoolYear(id: string): Promise<ActionResult> {
   await requireAdmin();
-  await clearActive();
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("school_years")
-    .update({ is_active: true } as never)
-    .eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  const error = await activate(id);
+  if (error) return { ok: false, error: toUserError(error) };
   await writeAudit({
     action: "school_year.activate",
     entityType: "school_years",
@@ -169,6 +176,17 @@ export async function setActiveSchoolYear(id: string): Promise<ActionResult> {
 export async function deleteSchoolYear(id: string): Promise<ActionResult> {
   await requireAdmin();
   const supabase = await createClient();
+  const { data: target } = await supabase
+    .from("school_years")
+    .select("is_active")
+    .eq("id", id)
+    .maybeSingle();
+  if ((target as { is_active: boolean } | null)?.is_active) {
+    return {
+      ok: false,
+      error: "Kan ikke slette det aktive skoleåret. Velg et annet aktivt skoleår først.",
+    };
+  }
   const { error } = await supabase.from("school_years").delete().eq("id", id);
   if (error) {
     if (error.code === "23503") {
@@ -177,7 +195,7 @@ export async function deleteSchoolYear(id: string): Promise<ActionResult> {
         error: "Kan ikke slette: skoleåret har elever plassert i klasser",
       };
     }
-    return { ok: false, error: error.message };
+    return { ok: false, error: toUserError(error) };
   }
   await writeAudit({
     action: "school_year.delete",

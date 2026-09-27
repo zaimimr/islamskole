@@ -1,11 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { adminBasePath } from "@/components/admin/paths";
 import { EventForm, type EventRecord } from "@/components/admin/event-form";
 
-async function getEvent(id: string): Promise<EventRecord | null> {
+const getEvent = cache(async (id: string): Promise<EventRecord | null> => {
   try {
     const supabase = await createClient();
     const { data } = await supabase
@@ -17,6 +19,14 @@ async function getEvent(id: string): Promise<EventRecord | null> {
   } catch {
     return null;
   }
+});
+
+export async function generateMetadata({
+  params,
+}: PageProps<"/[locale]/admin/aktiviteter/[id]">): Promise<Metadata> {
+  const { id } = await params;
+  const event = await getEvent(id);
+  return { title: event?.title_no ?? "Rediger aktivitet" };
 }
 
 export default async function RedigerAktivitetPage({

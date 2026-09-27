@@ -1,10 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, CalendarClock } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { adminBasePath } from "@/components/admin/paths";
 import { InstallmentRowActions } from "@/components/admin/installment-row-actions";
 import { formatNok } from "@/lib/money";
+import { formatOsloDate, osloToday } from "@/lib/dates";
 import { cn } from "@/lib/utils";
+import { FinanceLoadError } from "../load-error";
+
+export const metadata: Metadata = { title: "Avdrag" };
 
 type InstallmentRow = {
   id: string;
@@ -35,14 +40,7 @@ function studentName(row: InstallmentRow) {
 }
 
 function formatDueDate(value: string) {
-  const date = new Date(`${value}T12:00:00Z`);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("nb-NO", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "Europe/Oslo",
-  });
+  return formatOsloDate(value, { day: "numeric", month: "long", year: "numeric" });
 }
 
 function Stat({
@@ -83,8 +81,7 @@ export default async function InstallmentsPage({
   const basePath = adminBasePath(locale);
   const supabase = await createClient();
 
-  const [{ data: yearRow }, { data: installmentData }, { data: familyData }] =
-    await Promise.all([
+  const [yearResult, installmentResult, familyResult] = await Promise.all([
       supabase
         .from("school_years")
         .select("id, label")
@@ -99,6 +96,17 @@ export default async function InstallmentsPage({
         .order("due_date", { ascending: true }),
       supabase.from("families").select("id, display_name"),
     ]);
+  if (yearResult.error || installmentResult.error || familyResult.error) {
+    return (
+      <FinanceLoadError
+        title="Avdragene kunne ikke lastes"
+        retryHref={`${basePath}/betaling/avdrag`}
+      />
+    );
+  }
+  const yearRow = yearResult.data;
+  const installmentData = installmentResult.data;
+  const familyData = familyResult.data;
 
   const activeYear = yearRow as { id: string; label: string } | null;
   const rows = ((installmentData as unknown as InstallmentRow[] | null) ?? [])
@@ -117,20 +125,28 @@ export default async function InstallmentsPage({
         .filter((paymentId): paymentId is string => Boolean(paymentId)),
     ),
   ];
-  const { data: paymentData } = paymentIds.length
+  const { data: paymentData, error: paymentError } = paymentIds.length
     ? await supabase
         .from("payments")
         .select("id, status")
         .in("id", paymentIds)
-    : { data: [] };
+    : { data: [], error: null };
+  if (paymentError) {
+    return (
+      <FinanceLoadError
+        title="Avdragene kunne ikke lastes"
+        retryHref={`${basePath}/betaling/avdrag`}
+      />
+    );
+  }
   const paymentStatusById = new Map(
     ((paymentData as { id: string; status: string }[] | null) ?? []).map(
       (payment) => [payment.id, payment.status],
     ),
   );
 
-  const today = new Date().toISOString().slice(0, 10);
-  const horizon = new Date();
+  const today = osloToday();
+  const horizon = new Date(`${today}T12:00:00Z`);
   horizon.setUTCDate(horizon.getUTCDate() + 30);
   const horizonDate = horizon.toISOString().slice(0, 10);
 
@@ -226,14 +242,7 @@ export default async function InstallmentsPage({
   return (
     <div className="grid gap-7 lg:gap-8">
       <header>
-        <Link
-          href={`${basePath}/betaling`}
-          className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-bold text-[#277A31] outline-none hover:bg-[#F2F7F2] focus-visible:ring-3 focus-visible:ring-ring/50"
-        >
-          <ArrowLeft aria-hidden="true" className="size-4" />
-          Tilbake til økonomi
-        </Link>
-        <h1 className="mt-3 text-balance font-heading text-[2rem] leading-tight font-bold tracking-[-0.02em] sm:text-4xl">
+        <h1 className="text-balance font-heading text-[2rem] leading-tight font-bold tracking-[-0.02em] sm:text-4xl">
           Avdrag
         </h1>
         <p className="mt-1 max-w-3xl text-admin-muted">
@@ -243,73 +252,97 @@ export default async function InstallmentsPage({
         </p>
       </header>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat
-          label="Kommende 30 dager"
-          value={formatNok(upcomingSum)}
-          hint={`${upcoming.length} avdrag`}
-        />
-        <Stat
-          label="Sendt, ikke betalt"
-          value={formatNok(sentUnpaidSum)}
-          hint={`${sentUnpaid.length} avdrag`}
-        />
-        <Stat
-          label="Forfalt"
-          value={formatNok(overdueSum)}
-          hint={`${overdue.length} avdrag over frist`}
-          tone={overdue.length > 0 ? "danger" : undefined}
-        />
-        <Stat
-          label="Stoppet"
-          value={String(stopped.length)}
-          hint="avdrag holdt tilbake"
-        />
-      </div>
+      {rows.length === 0 ? (
+        <section className="rounded-2xl bg-white px-6 py-12 text-center ring-1 ring-[#E3DED3]">
+          <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-[#F0F0ED] text-admin-muted">
+            <CalendarClock aria-hidden="true" className="size-6" />
+          </span>
+          <h2 className="mt-4 font-heading text-xl font-semibold">
+            Ingen familier har betalingsplan
+          </h2>
+          <p className="mx-auto mt-1 max-w-md text-sm text-admin-muted">
+            Familier uten plan betaler etter skoleårets frister. Tildel en
+            semester- eller månedsplan fra familiesiden når en familie trenger
+            å dele opp betalingen.
+          </p>
+          <Link
+            href={`${basePath}/familier`}
+            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-admin-action px-4 text-sm font-bold text-white outline-none transition-colors hover:bg-[#27672F] focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            Gå til familier
+          </Link>
+        </section>
+      ) : (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Stat
+              label="Kommende 30 dager"
+              value={formatNok(upcomingSum)}
+              hint={`${upcoming.length} avdrag`}
+            />
+            <Stat
+              label="Sendt, ikke betalt"
+              value={formatNok(sentUnpaidSum)}
+              hint={`${sentUnpaid.length} avdrag`}
+            />
+            <Stat
+              label="Forfalt"
+              value={formatNok(overdueSum)}
+              hint={`${overdue.length} avdrag over frist`}
+              tone={overdue.length > 0 ? "danger" : undefined}
+            />
+            <Stat
+              label="Stoppet"
+              value={String(stopped.length)}
+              hint="avdrag holdt tilbake"
+            />
+          </div>
 
-      <section
-        aria-labelledby="upcoming-installments"
-        className="rounded-2xl bg-white p-5 ring-1 ring-[#E3DED3]"
-      >
-        <h2
-          id="upcoming-installments"
-          className="flex items-center gap-2 font-heading text-xl font-bold"
-        >
-          <CalendarClock aria-hidden="true" className="size-5" />
-          Kommende utsendinger
-        </h2>
-        <div className="mt-3">
-          {planned.length > 0 ? (
-            renderRows(planned, true)
-          ) : (
-            <p className="text-sm text-admin-muted">
-              Ingen planlagte avdrag. Tildel en betalingsplan fra familiesiden
-              for å komme i gang.
-            </p>
-          )}
-        </div>
-      </section>
+          <section
+            aria-labelledby="upcoming-installments"
+            className="rounded-2xl bg-white p-5 ring-1 ring-[#E3DED3]"
+          >
+            <h2
+              id="upcoming-installments"
+              className="flex items-center gap-2 font-heading text-xl font-bold"
+            >
+              <CalendarClock aria-hidden="true" className="size-5" />
+              Kommende utsendinger
+            </h2>
+            <div className="mt-3">
+              {planned.length > 0 ? (
+                renderRows(planned, true)
+              ) : (
+                <p className="text-sm text-admin-muted">
+                  Ingen planlagte avdrag. Tildel en betalingsplan fra familiesiden
+                  for å komme i gang.
+                </p>
+              )}
+            </div>
+          </section>
 
-      <section
-        aria-labelledby="sent-installments"
-        className="rounded-2xl bg-white p-5 ring-1 ring-[#E3DED3]"
-      >
-        <h2
-          id="sent-installments"
-          className="font-heading text-xl font-bold"
-        >
-          Sendte betalingslenker
-        </h2>
-        <div className="mt-3">
-          {sent.length > 0 ? (
-            renderRows(sent, false)
-          ) : (
-            <p className="text-sm text-admin-muted">
-              Ingen avdrag er sendt ennå.
-            </p>
-          )}
-        </div>
-      </section>
+          <section
+            aria-labelledby="sent-installments"
+            className="rounded-2xl bg-white p-5 ring-1 ring-[#E3DED3]"
+          >
+            <h2
+              id="sent-installments"
+              className="font-heading text-xl font-bold"
+            >
+              Sendte betalingslenker
+            </h2>
+            <div className="mt-3">
+              {sent.length > 0 ? (
+                renderRows(sent, false)
+              ) : (
+                <p className="text-sm text-admin-muted">
+                  Ingen avdrag er sendt ennå.
+                </p>
+              )}
+            </div>
+          </section>
+        </>
+      )}
 
       {stopped.length > 0 ? (
         <details className="group rounded-2xl bg-white p-5 ring-1 ring-[#E3DED3]">

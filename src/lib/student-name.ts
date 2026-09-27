@@ -40,7 +40,7 @@ export function guardianName(record: NamedRecord): string | null {
 export function guardianEmails(record: NamedRecord): string[] {
   return [
     ...new Set(
-      [record.child_email, record.mother_email, record.father_email]
+      [record.mother_email, record.father_email]
         .filter((value): value is string => Boolean(value && value.trim()))
         .map((value) => value.trim().toLowerCase()),
     ),

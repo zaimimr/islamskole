@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CalendarDays, Eye, Globe2, Loader2, MapPin } from "lucide-react";
 import { createEvent, updateEvent } from "@/app/[locale]/admin/actions";
+import { isoToOsloLocal } from "@/lib/dates";
 import { ImageUpload } from "@/components/admin/image-upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,11 +30,8 @@ export type EventRecord = {
 };
 
 function toLocalInput(value: string | null) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const offset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  if (!value || Number.isNaN(new Date(value).getTime())) return "";
+  return isoToOsloLocal(value);
 }
 
 export function EventForm({
@@ -47,7 +45,9 @@ export function EventForm({
   const [pending, startTransition] = useTransition();
   const [published, setPublished] = useState(event?.published ?? false);
 
-  function handleSubmit(formData: FormData) {
+  function handleSubmit(submitEvent: React.FormEvent<HTMLFormElement>) {
+    submitEvent.preventDefault();
+    const formData = new FormData(submitEvent.currentTarget);
     formData.set("published", published ? "true" : "false");
     startTransition(async () => {
       const result = event
@@ -64,7 +64,7 @@ export function EventForm({
   }
 
   return (
-    <form action={handleSubmit} className="grid gap-5">
+    <form onSubmit={handleSubmit} className="grid gap-5">
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.72fr)]">
         <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
           <div className="border-b border-[#ECE8DF] px-5 py-5 sm:px-6">
@@ -187,8 +187,12 @@ export function EventForm({
                   name="starts_at"
                   type="datetime-local"
                   required
+                  aria-describedby="event-time-hint"
                   defaultValue={toLocalInput(event?.starts_at ?? null)}
                 />
+                <p id="event-time-hint" className="text-sm text-admin-muted">
+                  Oppgis i norsk tid.
+                </p>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="ends_at">Sluttidspunkt</Label>
@@ -264,17 +268,18 @@ export function EventForm({
         </aside>
       </div>
 
-      <div className="flex flex-col-reverse gap-3 rounded-2xl bg-white p-4 ring-1 ring-[#E3DED3] sm:flex-row sm:items-center sm:justify-end">
+      <div className="sticky bottom-0 z-10 flex flex-col-reverse gap-3 rounded-2xl bg-white/95 p-4 ring-1 ring-[#E3DED3] supports-backdrop-filter:backdrop-blur-md sm:flex-row sm:items-center sm:justify-end">
         <Button
           type="button"
           variant="outline"
           onClick={() => router.push(listHref)}
-          className="min-h-11"
         >
           Avbryt
         </Button>
-        <Button type="submit" disabled={pending} className="min-h-11">
-          {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+        <Button type="submit" disabled={pending}>
+          {pending ? (
+            <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+          ) : null}
           {event ? "Lagre endringer" : "Opprett aktivitet"}
         </Button>
       </div>

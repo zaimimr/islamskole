@@ -9,7 +9,7 @@ export async function updateSession(
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   ) {
-    return response;
+    return { response, user: null };
   }
 
   const supabase = createServerClient(
@@ -29,7 +29,9 @@ export async function updateSession(
     },
   );
 
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  return response;
+  return { response, user };
 }

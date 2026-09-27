@@ -27,7 +27,9 @@ export function SettingsForm({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  function handleSubmit(formData: FormData) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
     startTransition(async () => {
       const result = await updateSettings(formData);
       if (result.ok) {
@@ -40,7 +42,7 @@ export function SettingsForm({
   }
 
   return (
-    <form action={handleSubmit} className="grid gap-5">
+    <form onSubmit={handleSubmit} className="grid gap-5">
       <div className="grid items-start gap-5 xl:grid-cols-2">
         <section className="rounded-2xl bg-white p-5 ring-1 ring-[#E3DED3] sm:p-6">
           <div className="flex items-start gap-3">
@@ -174,9 +176,11 @@ export function SettingsForm({
         </div>
       </section>
 
-      <div className="flex justify-end rounded-2xl bg-white p-4 ring-1 ring-[#E3DED3]">
-        <Button type="submit" disabled={pending} className="min-h-11">
-          {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+      <div className="sticky bottom-0 z-10 flex justify-end rounded-2xl bg-white/95 p-4 ring-1 ring-[#E3DED3] supports-backdrop-filter:backdrop-blur-md">
+        <Button type="submit" disabled={pending}>
+          {pending ? (
+            <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+          ) : null}
           Lagre innstillinger
         </Button>
       </div>

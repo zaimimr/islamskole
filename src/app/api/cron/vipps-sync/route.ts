@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncPaymentByReference } from "@/lib/payments-sync";
 import { isVippsConfigured } from "@/lib/vipps";
+import { mapInChunks } from "@/lib/payment-integrity";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
     .select("reference, status")
     .eq("method", "vipps")
     .in("status", ["opprettet", "autorisert"])
+    .not("vipps_state", "is", null)
     .gte("created_at", since)
     .order("created_at", { ascending: true })
     .limit(MAX_PER_RUN);
@@ -47,7 +49,7 @@ export async function GET(request: NextRequest) {
   const changed: { reference: string; from: string; to: string }[] = [];
   let failed = 0;
 
-  for (const row of rows) {
+  await mapInChunks(rows, 4, async (row) => {
     try {
       const status = await syncPaymentByReference(row.reference);
       if (status && status !== row.status) {
@@ -57,7 +59,7 @@ export async function GET(request: NextRequest) {
       failed++;
       console.error("Cron sync failed", { reference: row.reference, error });
     }
-  }
+  });
 
   if (changed.length > 0) {
     console.log("Cron sync updated payments", changed);

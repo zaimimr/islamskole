@@ -17,6 +17,8 @@ import {
   Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatNok } from "@/lib/money";
+import { formatOsloDateTime } from "@/lib/dates";
 
 export type FamilyStatusTone =
   "success" | "warning" | "danger" | "info" | "neutral";
@@ -113,6 +115,14 @@ export type FamilyWorkbenchProps = {
   historyHref?: string;
   attentionItems?: FamilyAttentionItem[];
   allAttentionHref?: string;
+  duplicateFamilies?: FamilyDuplicate[];
+};
+
+export type FamilyDuplicate = {
+  id: string;
+  name: string;
+  href: string;
+  reasons: string[];
 };
 
 const statusClasses: Record<FamilyStatusTone, string> = {
@@ -154,26 +164,16 @@ function initials(name: string) {
     .join("");
 }
 
-function formatNok(ore: number) {
-  return new Intl.NumberFormat("nb-NO", {
-    style: "currency",
-    currency: "NOK",
-    maximumFractionDigits: 0,
-  }).format(ore / 100);
+function formatTimestamp(value: string) {
+  return formatOsloDateTime(value) || "Tidspunkt mangler";
 }
 
-function formatTimestamp(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Tidspunkt mangler";
-  return new Intl.DateTimeFormat("nb-NO", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Europe/Oslo",
-  }).format(date);
+function telHref(phone: string) {
+  return `tel:${phone.replace(/\s+/g, "")}`;
 }
+
+const contactLinkClass =
+  "inline-flex min-h-11 items-center gap-2 rounded-lg font-semibold text-[#277A31] underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 xl:min-h-0";
 
 function Fact({ label, fact }: { label: string; fact: FamilyFact }) {
   return (
@@ -202,16 +202,18 @@ function Fact({ label, fact }: { label: string; fact: FamilyFact }) {
 
 function RelationshipMember({
   name,
-  meta,
   role,
   href,
+  phone,
+  email,
   isPrimary = false,
   child = false,
 }: {
   name: string;
-  meta?: string[];
   role: string;
   href?: string;
+  phone?: string;
+  email?: string;
   isPrimary?: boolean;
   child?: boolean;
 }) {
@@ -239,20 +241,12 @@ function RelationshipMember({
         <span className="mt-0.5 block text-xs font-semibold text-admin-muted">
           {role}
         </span>
-        {meta?.map((line) => (
-          <span
-            key={line}
-            className="mt-0.5 block truncate text-xs text-admin-muted"
-          >
-            {line}
-          </span>
-        ))}
       </span>
     </>
   );
 
   return (
-    <li className="relative flex gap-3 py-2">
+    <li className="relative grid gap-1 py-2">
       {href ? (
         <Link
           href={href}
@@ -263,6 +257,22 @@ function RelationshipMember({
       ) : (
         <div className="flex min-w-0 flex-1 gap-3">{content}</div>
       )}
+      {phone || email ? (
+        <div className="grid min-w-0 pl-[3.25rem] text-xs">
+          {phone ? (
+            <a href={telHref(phone)} className={contactLinkClass}>
+              <Phone aria-hidden="true" className="size-3.5 shrink-0" />
+              {phone}
+            </a>
+          ) : null}
+          {email ? (
+            <a href={`mailto:${email}`} className={cn(contactLinkClass, "min-w-0")}>
+              <Mail aria-hidden="true" className="size-3.5 shrink-0" />
+              <span className="truncate">{email}</span>
+            </a>
+          ) : null}
+        </div>
+      ) : null}
     </li>
   );
 }
@@ -314,6 +324,7 @@ export function FamilyWorkbench({
   historyHref,
   attentionItems = [],
   allAttentionHref,
+  duplicateFamilies = [],
 }: FamilyWorkbenchProps) {
   const primaryGuardian =
     family.guardians.find((guardian) => guardian.isPrimary) ??
@@ -336,22 +347,19 @@ export function FamilyWorkbench({
             </p>
           ) : null}
           {family.phone ? (
-            <p className="flex gap-3 text-sm text-admin-muted">
-              <Phone
-                aria-hidden="true"
-                className="mt-0.5 size-4 shrink-0 text-[#3C8F44]"
-              />
-              <span>{family.phone}</span>
-            </p>
+            <a href={telHref(family.phone)} className={cn(contactLinkClass, "text-sm")}>
+              <Phone aria-hidden="true" className="size-4 shrink-0" />
+              {family.phone}
+            </a>
           ) : null}
           {family.email ? (
-            <p className="flex min-w-0 gap-3 text-sm text-admin-muted">
-              <Mail
-                aria-hidden="true"
-                className="mt-0.5 size-4 shrink-0 text-[#3C8F44]"
-              />
+            <a
+              href={`mailto:${family.email}`}
+              className={cn(contactLinkClass, "min-w-0 text-sm")}
+            >
+              <Mail aria-hidden="true" className="size-4 shrink-0" />
               <span className="min-w-0 break-words">{family.email}</span>
-            </p>
+            </a>
           ) : null}
         </address>
 
@@ -371,9 +379,8 @@ export function FamilyWorkbench({
                 role={guardian.role}
                 href={guardian.href}
                 isPrimary={guardian.isPrimary}
-                meta={[guardian.phone, guardian.email].filter(
-                  (value): value is string => Boolean(value),
-                )}
+                phone={guardian.phone}
+                email={guardian.email}
               />
             ))}
             {family.children.map((child) => (
@@ -455,6 +462,7 @@ export function FamilyWorkbench({
           <NextActionCard action={nextAction} />
         </section>
 
+        {tabs.length > 1 ? (
         <nav
           aria-label="Familieopplysninger"
           className="mt-5 overflow-x-auto border-b border-[#ECE8DF] px-3 sm:px-5"
@@ -473,8 +481,49 @@ export function FamilyWorkbench({
             ))}
           </ul>
         </nav>
+        ) : null}
 
         <div className="grid gap-6 p-5 sm:p-6">
+          {duplicateFamilies.length > 0 ? (
+            <section
+              aria-labelledby={`family-duplicates-${family.id}`}
+              className="rounded-xl bg-[#FFF8E9] p-4 ring-1 ring-[#EDD49A]"
+            >
+              <h2
+                id={`family-duplicates-${family.id}`}
+                className="flex items-center gap-2 font-bold"
+              >
+                <CircleAlert aria-hidden="true" className="size-4 text-[#775108]" />
+                Mulig duplikat
+              </h2>
+              <p className="mt-1 text-sm text-[#6D5A2D]">
+                Samme opplysninger finnes i en annen familie. Sammenlign før du
+                registrerer betaling eller søskenrabatt, og flytt barn og
+                foresatte til én familie.
+              </p>
+              <ul className="mt-3 grid gap-2">
+                {duplicateFamilies.map((duplicate) => (
+                  <li key={duplicate.id}>
+                    <Link
+                      href={duplicate.href}
+                      className="group flex min-h-11 items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm outline-none ring-1 ring-[#EDD49A] transition-colors hover:bg-[#FFFDF7] focus-visible:ring-3 focus-visible:ring-ring/50"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate font-bold">{duplicate.name}</span>
+                        <span className="block text-xs text-admin-muted">
+                          {duplicate.reasons.join(", ")}
+                        </span>
+                      </span>
+                      <ArrowRight
+                        aria-hidden="true"
+                        className="size-4 shrink-0 text-admin-muted transition-transform group-hover:translate-x-0.5"
+                      />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
           <section aria-labelledby={`family-info-${family.id}`}>
             <h2
               id={`family-info-${family.id}`}
@@ -492,14 +541,27 @@ export function FamilyWorkbench({
               <div>
                 <dt className="text-admin-muted">E-post</dt>
                 <dd className="mt-0.5 break-words font-semibold">
-                  {family.email ?? "Ikke registrert"}
+                  {family.email ? (
+                    <a href={`mailto:${family.email}`} className={contactLinkClass}>
+                      {family.email}
+                    </a>
+                  ) : (
+                    "Ikke registrert"
+                  )}
                 </dd>
               </div>
               <div>
                 <dt className="text-admin-muted">Primær kontakt</dt>
                 <dd className="mt-0.5 font-semibold">
                   {primaryGuardian?.name ?? "Ikke registrert"}
-                  {primaryGuardian?.phone ? `, ${primaryGuardian.phone}` : ""}
+                  {primaryGuardian?.phone ? (
+                    <>
+                      {", "}
+                      <a href={telHref(primaryGuardian.phone)} className={contactLinkClass}>
+                        {primaryGuardian.phone}
+                      </a>
+                    </>
+                  ) : null}
                 </dd>
               </div>
               <div>
@@ -560,7 +622,7 @@ export function FamilyWorkbench({
                           <dl className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))] gap-4">
                             <Fact label="Opptak" fact={child.admission} />
                             <Fact label="Plassering" fact={child.placement} />
-                            <Fact label="Innmelding" fact={child.enrollment} />
+                            <Fact label="Deltakelse" fact={child.enrollment} />
                             <div className="min-w-0">
                               <dt className="text-[0.6875rem] font-bold tracking-[0.04em] text-admin-muted uppercase">
                                 Kontingent
@@ -666,9 +728,8 @@ export function FamilyWorkbench({
       </section>
 
       <aside className="order-2 rounded-2xl bg-white p-5 ring-1 ring-[#E3DED3] xl:order-3">
-        <h2 className="font-heading text-xl font-bold">
-          <span className="xl:hidden">Nylig aktivitet</span>
-          <span className="hidden xl:inline">Neste og nylig</span>
+        <h2 className="hidden font-heading text-xl font-bold xl:block">
+          Neste og nylig
         </h2>
 
         <section
@@ -682,10 +743,13 @@ export function FamilyWorkbench({
         </section>
 
         <section
-          className="mt-4 xl:mt-6 xl:border-t xl:border-[#ECE8DF] xl:pt-5"
+          className="xl:mt-6 xl:border-t xl:border-[#ECE8DF] xl:pt-5"
           aria-labelledby={`activity-${family.id}`}
         >
-          <h3 id={`activity-${family.id}`} className="text-sm font-bold">
+          <h3
+            id={`activity-${family.id}`}
+            className="font-heading text-lg font-bold xl:font-sans xl:text-sm"
+          >
             Nylig aktivitet
           </h3>
           {recentActivity.length === 0 ? (

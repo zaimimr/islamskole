@@ -29,7 +29,9 @@ export function CreateUserDialog() {
   } | null>(null);
   const [copied, setCopied] = useState(false);
 
-  function handleSubmit(formData: FormData) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
     startTransition(async () => {
       const result = await createUser(formData);
       if (result.ok) {
@@ -41,12 +43,16 @@ export function CreateUserDialog() {
     });
   }
 
-  function copyPassword() {
+  async function copyPassword() {
     if (!created) return;
-    navigator.clipboard.writeText(created.password);
-    setCopied(true);
-    toast.success("Passord kopiert");
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(created.password);
+      setCopied(true);
+      toast.success("Passord kopiert");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Kunne ikke kopiere. Marker passordet og kopier det selv.");
+    }
   }
 
   function handleOpenChange(next: boolean) {
@@ -62,7 +68,7 @@ export function CreateUserDialog() {
       <DialogTrigger
         render={
           <Button>
-            <UserPlus className="size-4" />
+            <UserPlus aria-hidden="true" className="size-4" />
             Ny bruker
           </Button>
         }
@@ -73,7 +79,8 @@ export function CreateUserDialog() {
             <DialogHeader>
               <DialogTitle>Bruker opprettet</DialogTitle>
               <DialogDescription>
-                Kopier passordet nå. Det vises kun denne ene gangen.
+                Kopier passordet nå. Det vises bare denne ene gangen. Be
+                brukeren bytte det under Min konto etter første innlogging.
               </DialogDescription>
             </DialogHeader>
             <div
@@ -88,7 +95,7 @@ export function CreateUserDialog() {
                 <Input
                   readOnly
                   value={created.email}
-                  className="min-h-11 rounded-xl bg-white shadow-none"
+                  className="bg-white shadow-none"
                 />
               </div>
               <div className="grid gap-1">
@@ -97,7 +104,7 @@ export function CreateUserDialog() {
                   <Input
                     readOnly
                     value={created.password}
-                    className="min-h-11 rounded-xl bg-white font-mono shadow-none"
+                    className="bg-white font-mono shadow-none"
                   />
                   <Button
                     type="button"
@@ -106,7 +113,7 @@ export function CreateUserDialog() {
                     aria-label="Kopier passord"
                     title="Kopier passord"
                     onClick={copyPassword}
-                    className="size-11 rounded-xl bg-white"
+                    className="bg-white"
                   >
                     {copied ? (
                       <Check className="size-4" />
@@ -118,17 +125,11 @@ export function CreateUserDialog() {
               </div>
             </div>
             <DialogFooter className="pt-2">
-              <DialogClose
-                render={
-                  <Button className="min-h-11 rounded-xl px-5 font-bold">
-                    Ferdig
-                  </Button>
-                }
-              />
+              <DialogClose render={<Button>Ferdig</Button>} />
             </DialogFooter>
           </>
         ) : (
-          <form action={handleSubmit}>
+          <form onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle>Ny bruker</DialogTitle>
               <DialogDescription>
@@ -148,7 +149,7 @@ export function CreateUserDialog() {
                   placeholder="navn@islamskole.no"
                   autoComplete="off"
                   spellCheck={false}
-                  className="min-h-11 rounded-xl bg-white shadow-none"
+                  className="bg-white shadow-none"
                 />
               </div>
               <div className="grid gap-2">
@@ -158,27 +159,19 @@ export function CreateUserDialog() {
                   name="full_name"
                   placeholder="Fullt navn"
                   autoComplete="off"
-                  className="min-h-11 rounded-xl bg-white shadow-none"
+                  className="bg-white shadow-none"
                 />
               </div>
             </div>
             <DialogFooter className="pt-4">
               <DialogClose
                 render={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="min-h-11 rounded-xl px-4 font-bold"
-                  >
+                  <Button type="button" variant="outline">
                     Avbryt
                   </Button>
                 }
               />
-              <Button
-                type="submit"
-                disabled={pending}
-                className="min-h-11 rounded-xl px-5 font-bold"
-              >
+              <Button type="submit" disabled={pending}>
                 {pending ? <Loader2 className="size-4 animate-spin" /> : null}
                 Opprett bruker
               </Button>

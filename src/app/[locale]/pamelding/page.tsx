@@ -7,22 +7,30 @@ import { StudentSignupForm } from "@/components/site/StudentSignupForm";
 import { contentMetadata } from "@/lib/seo";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Locale } from "@/i18n/routing";
+import { osloToday } from "@/lib/dates";
 
 async function getActiveFee() {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("school_years")
-    .select("fee, enrollment_fee")
+    .select("fee, enrollment_fee, sem1_due_on, sem2_due_on")
     .eq("is_active", true)
     .maybeSingle();
   const row = data as unknown as {
     fee: number | null;
     enrollment_fee: number | null;
+    sem1_due_on: string | null;
+    sem2_due_on: string | null;
   } | null;
   if (!row?.fee) return null;
+  const today = osloToday();
+  const dueDates = [row.sem1_due_on, row.sem2_due_on].filter(
+    (value): value is string => Boolean(value && value >= today),
+  );
   return {
     fee: row.fee,
     deposit: Math.min(row.enrollment_fee ?? row.fee, row.fee),
+    dueDates,
   };
 }
 
@@ -90,6 +98,7 @@ export default async function PameldingPage({
               <StudentSignupForm
                 fee={pricing.fee}
                 deposit={pricing.deposit}
+                dueDates={pricing.dueDates}
                 locale={locale}
               />
             ) : (

@@ -27,7 +27,12 @@ import {
   recordSadaqaCoverage,
   revokeFeeAdjustment,
 } from "@/app/[locale]/admin/students-actions";
-import { formatNok } from "@/lib/money";
+import { formatNok, kronerToOre } from "@/lib/money";
+import { formatOsloDate } from "@/lib/dates";
+import {
+  FamilyPaymentDialog,
+  type FamilyPaymentChild,
+} from "@/app/[locale]/admin/betaling/family-payment-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -75,6 +80,13 @@ export type FamilyAdjustment = {
 
 export type TeacherOption = { id: string; name: string };
 
+export type FamilyChildBalance = {
+  id: string;
+  owedOre: number;
+  paidOre: number;
+  remainingOre: number;
+};
+
 type Confirmation = {
   title: string;
   description: string;
@@ -114,14 +126,15 @@ const adjustmentTypeLabels: Record<string, string> = {
 };
 
 function formatDueDate(value: string) {
-  const date = new Date(`${value}T12:00:00Z`);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("nb-NO", {
+  return formatOsloDate(value, {
     day: "numeric",
     month: "long",
     year: "numeric",
-    timeZone: "Europe/Oslo",
   });
+}
+
+function formatShortDate(value: string) {
+  return formatOsloDate(value, { day: "numeric", month: "long" });
 }
 
 export function FamilyEconomy({
@@ -135,6 +148,9 @@ export function FamilyEconomy({
   siblingSuggestion,
   adjustments,
   teachers,
+  childBalances,
+  sem1DueOn,
+  sem2DueOn,
 }: {
   familyId: string;
   familyName: string;
@@ -146,6 +162,9 @@ export function FamilyEconomy({
   siblingSuggestion: boolean;
   adjustments: FamilyAdjustment[];
   teachers: TeacherOption[];
+  childBalances?: FamilyChildBalance[];
+  sem1DueOn?: string | null;
+  sem2DueOn?: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -158,6 +177,37 @@ export function FamilyEconomy({
   const [siblingChild, setSiblingChild] = useState(
     childrenOptions[0]?.id ?? "",
   );
+  const [adjustmentChild, setAdjustmentChild] = useState(
+    childrenOptions[0]?.id ?? "",
+  );
+  const [adjustmentAmount, setAdjustmentAmount] = useState("");
+  const balanceById = new Map(
+    (childBalances ?? []).map((balance) => [balance.id, balance]),
+  );
+  const selectedRemaining = balanceById.get(adjustmentChild)?.remainingOre;
+  const familyRemaining = (childBalances ?? []).reduce(
+    (sum, balance) => sum + balance.remainingOre,
+    0,
+  );
+  const familyOwed = (childBalances ?? []).reduce(
+    (sum, balance) => sum + balance.owedOre,
+    0,
+  );
+  const familyPaid = (childBalances ?? []).reduce(
+    (sum, balance) => sum + Math.min(balance.paidOre, balance.owedOre),
+    0,
+  );
+  const paymentChildren: FamilyPaymentChild[] = childrenOptions.map(
+    (child) => ({
+      id: child.id,
+      name: child.name,
+      remainingOre: balanceById.get(child.id)?.remainingOre ?? 0,
+    }),
+  );
+  const semesterDetail =
+    sem1DueOn && sem2DueOn
+      ? `2 000 kr ved påmelding, 1 500 kr innen ${formatShortDate(sem1DueOn)} og 1 500 kr innen ${formatShortDate(sem2DueOn)} per barn.`
+      : "2 000 kr ved påmelding og resten fordelt på skoleårets to semesterfrister per barn.";
 
   function run(
     action: () => Promise<{ ok: boolean; error?: string }>,
@@ -211,9 +261,9 @@ export function FamilyEconomy({
     }
   }
 
-  function submitAdjustment(formData: FormData) {
+  function saveAdjustment(formData: FormData, form: HTMLFormElement) {
     const type = String(formData.get("type") ?? "");
-    startTransition(async () => {
+    return async () => {
       const result =
         type === "sadaqa"
           ? await recordSadaqaCoverage(
@@ -236,12 +286,67 @@ export function FamilyEconomy({
               })(),
             );
       if (result.ok) {
-        toast.success(
-          type === "sadaqa" ? "Sadaqa-dekning registrert" : "Fradrag lagt til",
-        );
+        setAdjustmentAmount("");
+        form.reset();
+      }
+      return result;
+    };
+  }
+
+  function submitAdjustment(form: HTMLFormElement) {
+    const formData = new FormData(form);
+    const type = String(formData.get("type") ?? "");
+    const amountOre = kronerToOre(Number(formData.get("amount_nok") ?? 0));
+    const childName =
+      childrenOptions.find((child) => child.id === formData.get("student_id"))
+        ?.name ?? "barnet";
+    const typeLabel =
+      type === "sadaqa"
+        ? "Sadaqa-dekning"
+        : (adjustmentTypeLabels[type] ?? type);
+    const selectedOwed = balanceById.get(
+      String(formData.get("student_id") ?? ""),
+    )?.owedOre;
+    const overRemaining =
+      type !== "sadaqa" &&
+      selectedRemaining != null &&
+      amountOre > selectedRemaining;
+    const limit = type === "sadaqa" ? selectedRemaining : selectedOwed;
+    if (limit != null && amountOre - limit >= 100) {
+      toast.error(
+        type === "sadaqa"
+          ? `Sadaqa kan ikke dekke mer enn det som gjenstår for ${childName} (${formatNok(Math.max(limit, 0))}).`
+          : `Fradraget kan ikke være større enn det ${childName} skal betale (${formatNok(Math.max(limit, 0))}).`,
+      );
+      return;
+    }
+    const action = saveAdjustment(formData, form);
+    const success =
+      type === "sadaqa" ? "Sadaqa-dekning registrert" : "Fradrag lagt til";
+
+    if (type === "sadaqa" || overRemaining) {
+      setConfirmation({
+        title: overRemaining
+          ? `${formatNok(amountOre)} er mer enn ${childName} har igjen`
+          : `Registrere ${formatNok(amountOre)} fra sadaqa for ${childName}?`,
+        description: overRemaining
+          ? `${childName} har ${formatNok(selectedRemaining ?? 0)} igjen å betale. ${typeLabel} på ${formatNok(amountOre)} senker kravet under det som allerede er betalt, så ${childName} får ${formatNok(amountOre - (selectedRemaining ?? 0))} til gode. Kontroller beløpet før du fortsetter.`
+          : "Beløpet føres som betalt fra sadaqa-kontoen og vises i sadaqa-oversikten.",
+        confirmLabel: overRemaining ? "Registrer likevel" : "Registrer sadaqa",
+        success,
+        destructive: overRemaining,
+        action,
+      });
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await action();
+      if (result.ok) {
+        toast.success(success);
         router.refresh();
       } else {
-        toast.error(result.error);
+        toast.error(result.error ?? "Noe gikk galt");
       }
     });
   }
@@ -252,6 +357,44 @@ export function FamilyEconomy({
 
   return (
     <>
+      {childBalances ? (
+        <Card className="rounded-2xl border-0 ring-1 ring-[#E3DED3]">
+          <CardContent className="flex flex-wrap items-center justify-between gap-4 py-4">
+            <dl className="flex flex-wrap items-baseline gap-x-8 gap-y-2">
+              <div>
+                <dt className="text-sm font-bold text-admin-muted">
+                  Familien har igjen {schoolYearLabel}
+                </dt>
+                <dd
+                  className={`font-heading text-2xl font-bold tabular-nums ${familyRemaining > 0 ? "text-[#775108]" : "text-[#216A2B]"}`}
+                >
+                  {formatNok(familyRemaining)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm font-bold text-admin-muted">
+                  Innbetalt
+                </dt>
+                <dd className="font-heading text-xl font-bold tabular-nums">
+                  {formatNok(familyPaid)}
+                  <span className="text-sm font-semibold text-admin-muted">
+                    {" "}
+                    av {formatNok(familyOwed)}
+                  </span>
+                </dd>
+              </div>
+            </dl>
+            {childrenOptions.length > 0 ? (
+              <FamilyPaymentDialog
+                familyName={familyName}
+                schoolYearId={schoolYearId}
+                familyChildren={paymentChildren}
+              />
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card className="rounded-2xl border-0 ring-1 ring-[#E3DED3]">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2 font-heading text-xl">
@@ -277,8 +420,18 @@ export function FamilyEconomy({
           )}
         </CardHeader>
         <CardContent className="grid gap-4">
-          <form action={submitPlan} className="grid gap-3">
-            <div role="radiogroup" aria-label="Betalingsplan" className="grid gap-2">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              submitPlan(new FormData(event.currentTarget));
+            }}
+            className="grid gap-3"
+          >
+            <div
+              role="radiogroup"
+              aria-label="Betalingsplan"
+              className="grid gap-2"
+            >
               {[
                 {
                   value: "full",
@@ -288,13 +441,13 @@ export function FamilyEconomy({
                 {
                   value: "semester",
                   title: "Semesterplan",
-                  detail:
-                    "2 000 kr ved påmelding, 1 500 kr innen 15. august og 1 500 kr innen 15. desember per barn.",
+                  detail: semesterDetail,
                 },
                 {
                   value: "maanedlig",
                   title: "Månedlig",
-                  detail: "Fast beløp per barn hver måned til avgiften er dekket.",
+                  detail:
+                    "Fast beløp per barn hver måned til avgiften er dekket.",
                 },
               ].map((option) => (
                 <label
@@ -536,8 +689,7 @@ export function FamilyEconomy({
                 onClick={() =>
                   setConfirmation({
                     title: `Godkjenn søskenrabatt for familien ${familyName}?`,
-                    description:
-                      "Kravet reduseres med 1 500 kr for ett barn, og avdraget 15. desember fjernes for barnet. Rabatten logges med begrunnelse.",
+                    description: `Kravet reduseres med 1 500 kr for ett barn, og avdraget ${sem2DueOn ? formatShortDate(sem2DueOn) : "for andre semester"} fjernes for barnet. Rabatten logges med begrunnelse.`,
                     confirmLabel: "Godkjenn 1 500 kr rabatt",
                     success: "Søskenrabatt godkjent",
                     action: () => {
@@ -630,7 +782,10 @@ export function FamilyEconomy({
           )}
 
           <form
-            action={submitAdjustment}
+            onSubmit={(event) => {
+              event.preventDefault();
+              submitAdjustment(event.currentTarget);
+            }}
             className="grid gap-3 rounded-xl bg-[#FAF9F5] p-3 ring-1 ring-[#E8E3D9] sm:grid-cols-2 lg:grid-cols-5 lg:items-end"
           >
             <div className="grid gap-1.5">
@@ -639,6 +794,18 @@ export function FamilyEconomy({
                 id="family-adjustment-child"
                 name="student_id"
                 required
+                value={adjustmentChild}
+                onChange={(event) => {
+                  setAdjustmentChild(event.target.value);
+                  if (adjustmentType === "sadaqa") {
+                    const remaining = balanceById.get(
+                      event.target.value,
+                    )?.remainingOre;
+                    setAdjustmentAmount(
+                      remaining ? String(remaining / 100) : "",
+                    );
+                  }
+                }}
                 className="h-11 rounded-xl border border-input bg-white px-3 text-sm shadow-xs"
               >
                 {childrenOptions.map((child) => (
@@ -654,7 +821,16 @@ export function FamilyEconomy({
                 id="family-adjustment-type"
                 name="type"
                 value={adjustmentType}
-                onChange={(event) => setAdjustmentType(event.target.value)}
+                onChange={(event) => {
+                  setAdjustmentType(event.target.value);
+                  if (
+                    event.target.value === "sadaqa" &&
+                    !adjustmentAmount &&
+                    selectedRemaining
+                  ) {
+                    setAdjustmentAmount(String(selectedRemaining / 100));
+                  }
+                }}
                 className="h-11 rounded-xl border border-input bg-white px-3 text-sm shadow-xs"
               >
                 <option value="soskenrabatt">Søskenrabatt</option>
@@ -695,8 +871,23 @@ export function FamilyEconomy({
                 min="1"
                 step="1"
                 required
+                value={adjustmentAmount}
+                onChange={(event) => setAdjustmentAmount(event.target.value)}
+                aria-describedby={
+                  selectedRemaining != null
+                    ? "family-adjustment-remaining"
+                    : undefined
+                }
                 className="h-11 rounded-xl"
               />
+              {selectedRemaining != null ? (
+                <p
+                  id="family-adjustment-remaining"
+                  className="text-xs text-admin-muted"
+                >
+                  Gjenstår {formatNok(selectedRemaining)}
+                </p>
+              ) : null}
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="family-adjustment-note" required>

@@ -6,7 +6,11 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getIsAdmin } from "@/lib/auth";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { getIsAdmin, getUser } from "@/lib/auth";
+import { toUserError } from "@/lib/action-errors";
+import { osloLocalToIso } from "@/lib/dates";
+import { formatNok } from "@/lib/money";
 import { getSiteSettings } from "@/lib/data";
 import { writeAudit } from "@/lib/audit";
 import { rateLimit } from "@/lib/rate-limit";
@@ -29,9 +33,33 @@ function generatePassword() {
   return `${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`;
 }
 
-async function requireAdmin() {
-  const isAdmin = await getIsAdmin();
-  if (!isAdmin) throw new Error("Ikke autorisert");
+type Denied = { ok: false; error: string };
+
+async function requireAdmin(): Promise<Denied | null> {
+  if (await getIsAdmin()) return null;
+  const user = await getUser();
+  return {
+    ok: false,
+    error: user
+      ? "Kontoen din har ikke tilgang til å gjøre dette."
+      : "Du er logget ut. Logg inn på nytt i en ny fane og prøv igjen, så beholder du det du har skrevet.",
+  };
+}
+
+function toAuthUserError(error: { code?: string; message?: string }) {
+  switch (error.code) {
+    case "email_exists":
+    case "user_already_exists":
+      return "Det finnes allerede en bruker med denne e-postadressen.";
+    case "weak_password":
+      return "Passordet er for svakt. Bruk minst 8 tegn, gjerne flere ord.";
+    case "same_password":
+      return "Det nye passordet må være forskjellig fra det gamle.";
+    case "user_not_found":
+      return "Fant ikke brukeren. Last siden på nytt.";
+    default:
+      return toUserError(error);
+  }
 }
 
 function slugify(value: string) {
@@ -71,6 +99,10 @@ function readBoolean(formData: FormData, key: string) {
 function readDateTime(formData: FormData, key: string) {
   const value = readString(formData, key);
   if (value === "") return null;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(value)) {
+    const iso = osloLocalToIso(value);
+    return Number.isNaN(new Date(iso).getTime()) ? null : iso;
+  }
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
@@ -89,7 +121,8 @@ function revalidateAdminAndSite() {
 }
 
 export async function createEvent(formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const titleNo = readString(formData, "title_no");
   const startsAt = readDateTime(formData, "starts_at");
 
@@ -126,7 +159,7 @@ export async function createEvent(formData: FormData): Promise<ActionResult> {
     .select("id")
     .single();
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   const eventId = (data as unknown as { id: string }).id;
   await writeAudit({
@@ -144,7 +177,8 @@ export async function updateEvent(
   id: string,
   formData: FormData,
 ): Promise<ActionResult> {
-  await requireAdmin();
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const titleNo = readString(formData, "title_no");
   const startsAt = readDateTime(formData, "starts_at");
 
@@ -180,7 +214,7 @@ export async function updateEvent(
     .update(payload as never)
     .eq("id", id);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   await writeAudit({
     action: "event.update",
@@ -194,10 +228,11 @@ export async function updateEvent(
 }
 
 export async function deleteEvent(id: string): Promise<ActionResult> {
-  await requireAdmin();
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const supabase = await createClient();
   const { error } = await supabase.from("events").delete().eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
   await writeAudit({
     action: "event.delete",
     entityType: "events",
@@ -208,7 +243,8 @@ export async function deleteEvent(id: string): Promise<ActionResult> {
 }
 
 export async function createClass(formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const nameNo = readString(formData, "name_no");
 
   const parsed = classSchema.safeParse({ name_no: nameNo });
@@ -242,7 +278,7 @@ export async function createClass(formData: FormData): Promise<ActionResult> {
     .select("id")
     .single();
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   const classId = (data as unknown as { id: string }).id;
   await writeAudit({
@@ -260,7 +296,8 @@ export async function updateClass(
   id: string,
   formData: FormData,
 ): Promise<ActionResult> {
-  await requireAdmin();
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const nameNo = readString(formData, "name_no");
 
   const parsed = classSchema.safeParse({ name_no: nameNo });
@@ -293,7 +330,7 @@ export async function updateClass(
     .update(payload as never)
     .eq("id", id);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   await writeAudit({
     action: "class.update",
@@ -307,10 +344,11 @@ export async function updateClass(
 }
 
 export async function deleteClass(id: string): Promise<ActionResult> {
-  await requireAdmin();
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const supabase = await createClient();
   const { error } = await supabase.from("classes").delete().eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
   await writeAudit({
     action: "class.delete",
     entityType: "classes",
@@ -323,7 +361,8 @@ export async function deleteClass(id: string): Promise<ActionResult> {
 export async function updateSettings(
   formData: FormData,
 ): Promise<ActionResult> {
-  await requireAdmin();
+  const denied = await requireAdmin();
+  if (denied) return denied;
 
   const payload = {
     id: true,
@@ -340,7 +379,7 @@ export async function updateSettings(
     .from("site_settings")
     .upsert(payload as never);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   await writeAudit({
     action: "settings.update",
@@ -357,8 +396,8 @@ export async function updateSettings(
 
 const MIN_FILL_MS = 3_000;
 
-function isLikelyBot(formData: FormData): boolean {
-  const honeypot = readOptionalString(formData, "company");
+function isLikelyBot(formData: FormData, honeypotField = "hp_field_t"): boolean {
+  const honeypot = readOptionalString(formData, honeypotField);
   if (honeypot) return true;
 
   const loadedAt = Number(formData.get("loaded_at"));
@@ -410,12 +449,11 @@ export async function createTeacherApplication(
     message: readOptionalString(formData, "message"),
   };
 
-  const supabase = await createClient();
-  const { error } = await supabase
+  const { error } = await createAdminClient()
     .from("teacher_applications")
     .insert(payload as never);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   {
     const settings = await getSiteSettings();
@@ -445,7 +483,8 @@ export async function updateTeacherApplicationStatus(
   id: string,
   status: string,
 ): Promise<ActionResult> {
-  await requireAdmin();
+  const denied = await requireAdmin();
+  if (denied) return denied;
 
   const parsed = teacherStatusSchema.safeParse(status);
   if (!parsed.success) {
@@ -458,7 +497,7 @@ export async function updateTeacherApplicationStatus(
     .update({ status: parsed.data } as never)
     .eq("id", id);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   await writeAudit({
     action: "teacher.status",
@@ -474,13 +513,14 @@ export async function updateTeacherApplicationStatus(
 export async function deleteTeacherApplication(
   id: string,
 ): Promise<ActionResult> {
-  await requireAdmin();
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const supabase = await createClient();
   const { error } = await supabase
     .from("teacher_applications")
     .delete()
     .eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
   await writeAudit({
     action: "teacher.delete",
     entityType: "teacher_applications",
@@ -489,6 +529,8 @@ export async function deleteTeacherApplication(
   revalidatePath("/", "layout");
   return { ok: true, id };
 }
+
+const ENROLLMENT_HONEYPOT = "hp_field_e";
 
 type SignupResult =
   | { ok: true; redirectUrl: string }
@@ -556,6 +598,10 @@ export async function createStudentEnrollment(
   const limit = rateLimit(`apply:${ip}`, { limit: 5, windowMs: 60_000 });
   if (!limit.ok) {
     return { ok: false, error: copy.rateLimit };
+  }
+
+  if (isLikelyBot(formData, ENROLLMENT_HONEYPOT)) {
+    return { ok: false, error: copy.failed };
   }
 
   const termsAccepted = formData.get("terms_accepted") != null;
@@ -779,14 +825,18 @@ export async function createStudentEnrollment(
     };
   }
 
-  return { ok: true, redirectUrl: `/api/vipps/pay/${paymentId}` };
+  return {
+    ok: true,
+    redirectUrl: `/api/vipps/pay/${paymentId}?locale=${english ? "en" : "no"}`,
+  };
 }
 
 export async function updateStudentApplicationStatus(
   id: string,
   status: string,
 ): Promise<ActionResult> {
-  await requireAdmin();
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const parsed = studentStatusSchema.safeParse(status);
   if (!parsed.success) {
     return { ok: false, error: "Ugyldig status" };
@@ -798,7 +848,7 @@ export async function updateStudentApplicationStatus(
     .update({ status: parsed.data } as never)
     .eq("id", id);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   await writeAudit({
     action: "application.status",
@@ -814,13 +864,32 @@ export async function updateStudentApplicationStatus(
 export async function deleteStudentApplication(
   id: string,
 ): Promise<ActionResult> {
-  await requireAdmin();
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const supabase = await createClient();
+  const { data: application, error: loadError } = await supabase
+    .from("student_applications")
+    .select("payment_id, payments(status)")
+    .eq("id", id)
+    .maybeSingle();
+  if (loadError) return { ok: false, error: toUserError(loadError) };
+  const paymentStatus = application?.payments?.status ?? null;
+  if (
+    application?.payment_id &&
+    paymentStatus &&
+    !["opprettet", "avbrutt", "feilet"].includes(paymentStatus)
+  ) {
+    return {
+      ok: false,
+      error:
+        "Innmeldingen har en betaling og kan ikke slettes. Arkiver den i stedet.",
+    };
+  }
   const { error } = await supabase
     .from("student_applications")
     .delete()
     .eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
   await writeAudit({
     action: "application.delete",
     entityType: "student_applications",
@@ -835,7 +904,8 @@ const createUserSchema = z.object({
 });
 
 export async function createUser(formData: FormData): Promise<PasswordResult> {
-  await requireAdmin();
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const email = readString(formData, "email");
   const fullName = readOptionalString(formData, "full_name");
 
@@ -854,7 +924,7 @@ export async function createUser(formData: FormData): Promise<PasswordResult> {
     app_metadata: { role: "admin" },
   });
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toAuthUserError(error) };
 
   await writeAudit({
     action: "user.create",
@@ -869,11 +939,12 @@ export async function createUser(formData: FormData): Promise<PasswordResult> {
 export async function resetUserPassword(
   userId: string,
 ): Promise<PasswordResult> {
-  await requireAdmin();
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const password = generatePassword();
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.updateUserById(userId, { password });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toAuthUserError(error) };
   await writeAudit({
     action: "user.reset_password",
     entityType: "users",
@@ -883,7 +954,8 @@ export async function resetUserPassword(
 }
 
 export async function deleteUser(userId: string): Promise<ActionResult> {
-  await requireAdmin();
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const supabase = await createClient();
   const {
     data: { user },
@@ -893,7 +965,7 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
   }
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.deleteUser(userId);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toAuthUserError(error) };
   await writeAudit({
     action: "user.delete",
     entityType: "users",
@@ -910,24 +982,60 @@ export async function changeOwnPassword(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "Du er ikke innlogget" };
+  if (!user?.email) {
+    return {
+      ok: false,
+      error: "Du er logget ut. Logg inn på nytt og prøv igjen.",
+    };
+  }
 
-  const password = readString(formData, "password");
-  const confirm = readString(formData, "confirm");
+  const current = String(formData.get("current_password") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirm") ?? "");
+  if (!current) {
+    return { ok: false, error: "Skriv inn passordet du bruker i dag" };
+  }
   if (password.length < 8) {
-    return { ok: false, error: "Passordet må ha minst 8 tegn" };
+    return { ok: false, error: "Det nye passordet må ha minst 8 tegn" };
   }
   if (password !== confirm) {
-    return { ok: false, error: "Passordene er ikke like" };
+    return { ok: false, error: "De nye passordene er ikke like" };
+  }
+  if (password === current) {
+    return {
+      ok: false,
+      error: "Det nye passordet må være forskjellig fra det gamle.",
+    };
   }
 
+  const verifier = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+  const { error: verifyError } = await verifier.auth.signInWithPassword({
+    email: user.email,
+    password: current,
+  });
+  if (verifyError) {
+    return { ok: false, error: "Passordet du bruker i dag er feil" };
+  }
+  await verifier.auth.signOut({ scope: "local" });
+
   const { error } = await supabase.auth.updateUser({ password });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toAuthUserError(error) };
+
+  await writeAudit({
+    action: "user.change_password",
+    entityType: "users",
+    entityId: user.id,
+  });
   return { ok: true };
 }
 
 export async function reorderClasses(ids: string[]): Promise<ActionResult> {
-  await requireAdmin();
+  const denied = await requireAdmin();
+  if (denied) return denied;
   if (!Array.isArray(ids) || ids.length === 0) {
     return { ok: false, error: "Ingen rekkefølge å lagre" };
   }
@@ -941,7 +1049,7 @@ export async function reorderClasses(ids: string[]): Promise<ActionResult> {
     ),
   );
   const failed = results.find((r) => r.error);
-  if (failed?.error) return { ok: false, error: failed.error.message };
+  if (failed?.error) return { ok: false, error: toUserError(failed.error) };
   revalidatePath("/", "layout");
   return { ok: true };
 }
@@ -950,7 +1058,8 @@ export async function bulkUpdateApplicationStatus(
   ids: string[],
   status: string,
 ): Promise<ActionResult> {
-  await requireAdmin();
+  const denied = await requireAdmin();
+  if (denied) return denied;
   if (!Array.isArray(ids) || ids.length === 0) {
     return { ok: false, error: "Ingen påmeldinger valgt" };
   }
@@ -965,7 +1074,7 @@ export async function bulkUpdateApplicationStatus(
     .update({ status: parsed.data } as never)
     .in("id", ids);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   await writeAudit({
     action: "application.bulk_status",
@@ -981,7 +1090,8 @@ export async function bulkUpdateTeacherStatus(
   ids: string[],
   status: string,
 ): Promise<ActionResult> {
-  await requireAdmin();
+  const denied = await requireAdmin();
+  if (denied) return denied;
   if (!Array.isArray(ids) || ids.length === 0) {
     return { ok: false, error: "Ingen søknader valgt" };
   }
@@ -996,7 +1106,7 @@ export async function bulkUpdateTeacherStatus(
     .update({ status: parsed.data } as never)
     .in("id", ids);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   await writeAudit({
     action: "teacher.bulk_status",
@@ -1006,6 +1116,218 @@ export async function bulkUpdateTeacherStatus(
 
   revalidatePath("/", "layout");
   return { ok: true };
+}
+
+export type AdminSearchHit = {
+  group: "Familier" | "Elever" | "Klasser" | "Betalinger";
+  id: string;
+  label: string;
+  detail: string | null;
+  path: string;
+};
+
+type AdminSearchResult = { ok: true; hits: AdminSearchHit[] } | Denied;
+
+const MAX_FAMILY_HITS = 8;
+
+function personName(first: string | null, last: string | null) {
+  return [first, last].filter(Boolean).join(" ").trim();
+}
+
+export async function searchAdmin(query: string): Promise<AdminSearchResult> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
+  const words = String(query ?? "")
+    .replace(/[%,()*\\]/g, " ")
+    .trim()
+    .toLocaleLowerCase("nb-NO")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 4);
+  if (words.length === 0 || words.join("").length < 2) {
+    return { ok: true, hits: [] };
+  }
+  const first = words[0];
+  const matchesAll = (text: string) => {
+    const haystack = text.toLocaleLowerCase("nb-NO");
+    return words.every((word) => haystack.includes(word));
+  };
+
+  const supabase = await createClient();
+  const [families, guardians, students, classes, payments] = await Promise.all([
+    supabase
+      .from("families")
+      .select("id, display_name, city")
+      .ilike("display_name", `%${first}%`)
+      .limit(20),
+    supabase
+      .from("guardians")
+      .select(
+        "first_name, last_name, email, phone, family_guardians(family_id, families(display_name, city))",
+      )
+      .or(
+        `first_name.ilike.%${first}%,last_name.ilike.%${first}%,email.ilike.%${first}%,phone.ilike.%${first}%`,
+      )
+      .limit(20),
+    supabase
+      .from("students")
+      .select("id, child_first_name, child_last_name, child_birth_date")
+      .or(`child_first_name.ilike.%${first}%,child_last_name.ilike.%${first}%`)
+      .limit(30),
+    supabase
+      .from("classes")
+      .select("id, name_no, age_min, age_max")
+      .ilike("name_no", `%${first}%`)
+      .order("sort_order", { ascending: true })
+      .limit(6),
+    supabase
+      .from("payments")
+      .select("id, reference, psp_reference, payer_name, amount, status")
+      .or(
+        `reference.ilike.%${first}%,psp_reference.ilike.%${first}%,payer_name.ilike.%${first}%`,
+      )
+      .order("created_at", { ascending: false })
+      .limit(10),
+  ]);
+
+  const hits: AdminSearchHit[] = [];
+  const familyIds = new Set<string>();
+
+  for (const family of (families.data ?? []) as {
+    id: string;
+    display_name: string | null;
+    city: string | null;
+  }[]) {
+    const label = family.display_name ?? "Familie uten navn";
+    if (!matchesAll(label) || familyIds.has(family.id)) continue;
+    familyIds.add(family.id);
+    hits.push({
+      group: "Familier",
+      id: family.id,
+      label,
+      detail: family.city,
+      path: `/familier/${family.id}`,
+    });
+  }
+
+  const guardianHits: { byName: boolean; hit: AdminSearchHit }[] = [];
+  for (const guardian of (guardians.data ?? []) as unknown as {
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+    phone: string | null;
+    family_guardians:
+      | {
+          family_id: string;
+          families: { display_name: string | null; city: string | null } | null;
+        }[]
+      | null;
+  }[]) {
+    const name = personName(guardian.first_name, guardian.last_name);
+    if (
+      !matchesAll([name, guardian.email ?? "", guardian.phone ?? ""].join(" "))
+    ) {
+      continue;
+    }
+    const byName = matchesAll(name);
+    for (const link of guardian.family_guardians ?? []) {
+      if (familyIds.has(link.family_id)) continue;
+      familyIds.add(link.family_id);
+      guardianHits.push({
+        byName,
+        hit: {
+          group: "Familier",
+          id: link.family_id,
+          label: link.families?.display_name
+            ? link.families.display_name
+            : `Familien til ${name || "foresatt"}`,
+          detail: [
+            guardian.email ?? guardian.phone,
+            link.families?.city ??
+              `ID ${link.family_id.slice(0, 8).toUpperCase()}`,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          path: `/familier/${link.family_id}`,
+        },
+      });
+    }
+  }
+  guardianHits.sort((left, right) => Number(right.byName) - Number(left.byName));
+  hits.push(...guardianHits.map((entry) => entry.hit));
+  hits.splice(MAX_FAMILY_HITS);
+
+  for (const student of (students.data ?? []) as {
+    id: string;
+    child_first_name: string | null;
+    child_last_name: string | null;
+    child_birth_date: string | null;
+  }[]) {
+    const name = personName(student.child_first_name, student.child_last_name);
+    if (!matchesAll(name)) continue;
+    hits.push({
+      group: "Elever",
+      id: student.id,
+      label: name || "Elev uten navn",
+      detail: student.child_birth_date
+        ? `Født ${student.child_birth_date.slice(0, 4)}`
+        : null,
+      path: `/elever/${student.id}`,
+    });
+  }
+
+  for (const row of (classes.data ?? []) as {
+    id: string;
+    name_no: string | null;
+    age_min: number | null;
+    age_max: number | null;
+  }[]) {
+    const label = row.name_no ?? "Klasse uten navn";
+    if (!matchesAll(label)) continue;
+    hits.push({
+      group: "Klasser",
+      id: row.id,
+      label,
+      detail:
+        row.age_min != null && row.age_max != null
+          ? `${row.age_min}-${row.age_max} år`
+          : null,
+      path: `/klasser/${row.id}`,
+    });
+  }
+
+  for (const payment of (payments.data ?? []) as {
+    id: string;
+    reference: string;
+    psp_reference: string | null;
+    payer_name: string | null;
+    amount: number;
+    status: string;
+  }[]) {
+    if (
+      !matchesAll(
+        [
+          payment.reference,
+          payment.psp_reference ?? "",
+          payment.payer_name ?? "",
+        ].join(" "),
+      )
+    ) {
+      continue;
+    }
+    hits.push({
+      group: "Betalinger",
+      id: payment.id,
+      label: payment.reference,
+      detail: [payment.payer_name, formatNok(payment.amount)]
+        .filter(Boolean)
+        .join(" · "),
+      path: `/betaling/logg?q=${encodeURIComponent(payment.reference)}`,
+    });
+  }
+
+  return { ok: true, hits: hits.slice(0, 30) };
 }
 
 export async function signOut(): Promise<void> {

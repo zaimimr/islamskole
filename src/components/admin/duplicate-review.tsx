@@ -15,6 +15,8 @@ import {
   markPaymentAsDuplicate,
 } from "@/app/[locale]/admin/students-actions";
 import { Button } from "@/components/ui/button";
+import { formatNok } from "@/lib/money";
+import { formatOsloDate } from "@/lib/dates";
 
 export type DuplicateCandidate = {
   paymentId: string;
@@ -31,22 +33,8 @@ export type DuplicateCandidate = {
   evidence: string;
 };
 
-function formatNok(ore: number) {
-  return new Intl.NumberFormat("nb-NO", {
-    style: "currency",
-    currency: "NOK",
-    maximumFractionDigits: 0,
-  }).format(ore / 100);
-}
-
 function formatDate(value: string | null) {
-  if (!value) return "Dato mangler";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Dato mangler";
-  return date.toLocaleDateString("nb-NO", {
-    dateStyle: "medium",
-    timeZone: "Europe/Oslo",
-  });
+  return formatOsloDate(value, { dateStyle: "medium" }) || "Dato mangler";
 }
 
 const methodLabels: Record<string, string> = {
@@ -54,12 +42,15 @@ const methodLabels: Record<string, string> = {
   kontant: "Kontant",
   bank: "Bankoverføring",
   annet: "Annet",
+  sadaqa: "Sadaqa",
 };
 
 export function DuplicateReview({
   candidates,
+  overpaidCount = 0,
 }: {
   candidates: DuplicateCandidate[];
+  overpaidCount?: number;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -84,6 +75,14 @@ export function DuplicateReview({
   }
 
   if (candidates.length === 0) {
+    if (overpaidCount > 0) {
+      return (
+        <p className="rounded-2xl bg-white px-5 py-4 text-sm text-admin-muted ring-1 ring-[#E3DED3]">
+          Ingen manuelle registreringer ligner på en Vipps-betaling. Se
+          overbetalingene over.
+        </p>
+      );
+    }
     return (
       <section className="rounded-2xl bg-white px-6 py-12 text-center ring-1 ring-[#E3DED3]">
         <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B]">

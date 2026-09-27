@@ -20,11 +20,10 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Pencil, UsersRound } from "lucide-react";
+import { GripVertical, Trash2 } from "lucide-react";
 import { reorderClasses, deleteClass } from "@/app/[locale]/admin/actions";
-import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DeleteButton } from "@/components/admin/delete-button";
+import { RowActionsMenu } from "@/components/admin/row-actions-menu";
 import { cn } from "@/lib/utils";
 
 export type SortableClass = {
@@ -32,9 +31,44 @@ export type SortableClass = {
   name: string;
   age: string;
   capacity: number | null;
+  enrolled: number;
   price: number | null;
   published: boolean;
 };
+
+function CapacityMeter({
+  enrolled,
+  capacity,
+}: {
+  enrolled: number;
+  capacity: number | null;
+}) {
+  const ratio = capacity ? Math.min(enrolled / capacity, 1) : 0;
+  const full = capacity != null && enrolled >= capacity;
+  return (
+    <div className="grid w-full gap-1 sm:w-32">
+      <span className="text-sm tabular-nums">
+        <span className="font-bold">{enrolled}</span>
+        {capacity != null ? ` / ${capacity}` : ""} elever
+        {full ? <span className="font-bold text-[#8B2F2B]"> · Full</span> : null}
+      </span>
+      {capacity != null ? (
+        <span
+          aria-hidden="true"
+          className="h-1.5 overflow-hidden rounded-full bg-[#ECE8DF]"
+        >
+          <span
+            className={cn(
+              "block h-full rounded-full",
+              full ? "bg-[#C5524C]" : "bg-[#3C8F44]",
+            )}
+            style={{ width: `${ratio * 100}%` }}
+          />
+        </span>
+      ) : null}
+    </div>
+  );
+}
 
 function Row({ item, basePath }: { item: SortableClass; basePath: string }) {
   const {
@@ -56,7 +90,7 @@ function Row({ item, basePath }: { item: SortableClass; basePath: string }) {
       ref={setNodeRef}
       style={style}
       className={cn(
-        "grid gap-3 bg-white px-4 py-4 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:items-center sm:px-5",
+        "grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 bg-white px-4 py-4 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] sm:px-5",
         isDragging &&
           "relative z-10 rounded-xl shadow-[0_12px_32px_rgba(45,55,43,0.14)] ring-1 ring-[#8DB793]",
       )}
@@ -65,48 +99,61 @@ function Row({ item, basePath }: { item: SortableClass; basePath: string }) {
         type="button"
         aria-label="Dra for å endre rekkefølge"
         title="Dra for å endre rekkefølge"
-        className="row-span-2 flex size-11 cursor-grab touch-none items-center justify-center self-center rounded-xl text-admin-muted outline-none transition-colors hover:bg-[#F2F1EB] active:cursor-grabbing focus-visible:ring-3 focus-visible:ring-ring/50 sm:row-span-1"
+        className="col-start-1 row-span-2 row-start-1 flex size-11 cursor-grab touch-none items-center justify-center self-center rounded-xl text-admin-muted outline-none transition-colors hover:bg-[#F2F1EB] active:cursor-grabbing focus-visible:ring-3 focus-visible:ring-ring/50 sm:col-start-auto sm:row-span-1 sm:row-start-auto"
         {...attributes}
         {...listeners}
       >
         <GripVertical className="size-5" />
       </button>
-      <div className="min-w-0">
-        <p className="truncate font-bold">{item.name}</p>
-        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-admin-muted">
+      <Link
+        href={`${basePath}/klasser/${item.id}`}
+        className="col-start-2 row-start-1 min-w-0 rounded-lg sm:col-start-auto sm:row-start-auto outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        <span className="block truncate font-bold underline-offset-4 hover:underline">
+          {item.name}
+        </span>
+        <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-admin-muted">
           <span>{item.age}</span>
-          {item.capacity != null ? (
-            <span className="inline-flex items-center gap-1.5">
-              <UsersRound aria-hidden="true" className="size-3.5" />
-              Kapasitet {item.capacity}
+          {item.price != null ? (
+            <span className="tabular-nums text-[#775108]">
+              {item.price.toLocaleString("nb-NO")} kr per år, overstyrer
+              årsavgiften
             </span>
           ) : null}
-          <span className="tabular-nums">
-            {item.price != null
-              ? `${item.price.toLocaleString("nb-NO")} kr per termin`
-              : "Pris ikke satt"}
-          </span>
-        </div>
+        </span>
+      </Link>
+      <div className="col-start-2 row-start-2 sm:col-start-auto sm:row-start-auto">
+        <CapacityMeter enrolled={item.enrolled} capacity={item.capacity} />
       </div>
       <Badge
         variant={item.published ? "default" : "secondary"}
         className={cn(
-          "w-fit",
+          "col-start-3 row-start-1 w-fit justify-self-end sm:col-start-auto sm:row-start-auto sm:justify-self-auto",
           item.published && "bg-[#DCEDDD] text-[#216A2B] hover:bg-[#DCEDDD]",
         )}
       >
         {item.published ? "Publisert" : "Utkast"}
       </Badge>
-      <div className="col-start-2 flex items-center gap-1 sm:col-start-auto">
-        <Link
-          href={`${basePath}/klasser/${item.id}`}
-          aria-label={`Rediger ${item.name}`}
-          title="Rediger klasse"
-          className={buttonVariants({ variant: "ghost", size: "icon" })}
-        >
-          <Pencil aria-hidden="true" className="size-4" />
-        </Link>
-        <DeleteButton id={item.id} label="klasse" action={deleteClass} />
+      <div className="col-start-3 row-start-2 flex items-center justify-end gap-1 sm:col-start-auto sm:row-start-auto">
+        <RowActionsMenu
+          label={`Handlinger for ${item.name}`}
+          actions={[
+            {
+              id: "delete",
+              label: "Slett klasse",
+              icon: Trash2,
+              destructive: true,
+              run: () => deleteClass(item.id),
+              success: "Klassen er slettet",
+              confirm: {
+                title: `Slette ${item.name}?`,
+                description:
+                  "Klassen fjernes fra nettsiden og kan ikke gjenopprettes. Klasser med elever plassert kan ikke slettes.",
+                confirmLabel: "Slett klasse",
+              },
+            },
+          ]}
+        />
       </div>
     </li>
   );
@@ -149,6 +196,7 @@ export function ClassSortList({
 
   return (
     <DndContext
+      id="class-sort"
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragEnd={handleDragEnd}

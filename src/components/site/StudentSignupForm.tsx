@@ -57,6 +57,18 @@ function formatNok(amount: number) {
   return amount.toLocaleString("nb-NO");
 }
 
+function formatDueDates(dates: string[], locale: string) {
+  const english = locale === "en";
+  const format = new Intl.DateTimeFormat(english ? "en-GB" : "nb-NO", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  });
+  return dates
+    .map((date) => format.format(new Date(`${date}T12:00:00Z`)))
+    .join(english ? " and " : " og ");
+}
+
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
   return (
@@ -69,10 +81,12 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 export function StudentSignupForm({
   fee,
   deposit,
+  dueDates,
   locale,
 }: {
   fee: number;
   deposit: number;
+  dueDates: string[];
   locale: string;
 }) {
   const t = useTranslations("enrollForm");
@@ -95,6 +109,7 @@ export function StudentSignupForm({
   const [draftReady, setDraftReady] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const dirtyRef = useRef(false);
+  const loadedAtRef = useRef<number | null>(null);
 
   const steps = [t("stepChildren"), t("stepGuardians"), t("stepReview")];
   const childField = (id: number, name: string) => `child_${id}_${name}`;
@@ -118,7 +133,12 @@ export function StudentSignupForm({
         )
         .filter(
           ([name]) =>
-            !["locale", "child_indices", "guardian_indices"].includes(name),
+            ![
+              "locale",
+              "child_indices",
+              "guardian_indices",
+              "hp_field_e",
+            ].includes(name),
         ),
     );
     const draft: EnrollmentDraft = {
@@ -134,6 +154,10 @@ export function StudentSignupForm({
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     } catch {}
   }, [activeChild, children, fatherAbsent, guardians, motherAbsent, step]);
+
+  useEffect(() => {
+    loadedAtRef.current = Date.now();
+  }, []);
 
   useEffect(() => {
     const restore = window.setTimeout(() => {
@@ -425,6 +449,7 @@ export function StudentSignupForm({
     }
     setFieldErrors({});
     setFormError(undefined);
+    formData.set("loaded_at", String(loadedAtRef.current ?? Date.now()));
     startTransition(async () => {
       const result = await createStudentEnrollment(formData);
       if (result.ok) {
@@ -663,7 +688,12 @@ export function StudentSignupForm({
               onChange={(event) => {
                 setAbsent(event.target.checked);
                 clearFieldError("guardian_parents");
-                for (const name of ["first_name", "last_name", "email", "phone"]) {
+                for (const name of [
+                  "first_name",
+                  "last_name",
+                  "email",
+                  "phone",
+                ]) {
                   clearFieldError(field(name));
                 }
               }}
@@ -770,7 +800,9 @@ export function StudentSignupForm({
           ) : null}
         </div>
         {absent ? (
-          <p className="text-sm text-muted-foreground">{t("parentAbsentHint")}</p>
+          <p className="text-sm text-muted-foreground">
+            {t("parentAbsentHint")}
+          </p>
         ) : null}
       </fieldset>
     );
@@ -925,6 +957,19 @@ export function StudentSignupForm({
       className="grid gap-8"
     >
       <input type="hidden" name="locale" value={locale} />
+      <div
+        aria-hidden="true"
+        className="absolute left-[-9999px] h-0 w-0 overflow-hidden"
+      >
+        <label htmlFor="hp_field_e">La stå tom</label>
+        <input
+          id="hp_field_e"
+          name="hp_field_e"
+          type="text"
+          tabIndex={-1}
+          autoComplete="one-time-code"
+        />
+      </div>
       <input type="hidden" name="child_indices" value={children.join(",")} />
       <input
         type="hidden"
@@ -1234,11 +1279,19 @@ export function StudentSignupForm({
           <div className="flex items-center justify-between gap-5 border-t border-foreground/10 pt-4">
             <div>
               <p className="text-sm text-muted-foreground">
-                {t("feeNote", { fee: formatNok(fee), deposit: formatNok(deposit) })}
+                {t("feeNote", {
+                  fee: formatNok(fee),
+                  deposit: formatNok(deposit),
+                })}
               </p>
               {restPerChild > 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  {t("planNote", { rest: formatNok(restPerChild) })}
+                  {dueDates.length
+                    ? t("planNote", {
+                        rest: formatNok(restPerChild),
+                        dates: formatDueDates(dueDates, locale),
+                      })
+                    : t("planNoteNoDates", { rest: formatNok(restPerChild) })}
                 </p>
               ) : null}
               <p className="text-sm font-semibold">{t("totalLabel")}</p>

@@ -1,5 +1,6 @@
 import "server-only";
 import { Resend } from "resend";
+import { formatNok } from "@/lib/money";
 
 const FROM =
   process.env.RESEND_FROM || "Islamskole Bærum <onboarding@resend.dev>";
@@ -15,8 +16,25 @@ const STRINGS = {
       schoolYear: "Skoleår",
       amount: "Beløp",
       amountPaid: "Beløp betalt",
+      amountCovered: "Beløp dekket",
+      amountRefunded: "Beløp tilbakebetalt",
       dueDate: "Betalingsfrist",
+      paidOn: "Dato",
+      method: "Betalingsmåte",
+      reference: "Referanse",
+      remaining: "Gjenstår for skoleåret",
+      nextDue: "Neste frist",
+      startsOn: "Første skoledag",
+      address: "Oppmøtested",
+      hours: "Tid",
     },
+    methods: {
+      vipps: "Vipps",
+      kontant: "Kontant",
+      bank: "Bankoverføring",
+      sadaqa: "Sadaqa",
+      annet: "Annet",
+    } as Record<string, string>,
     paymentLink: {
       subject: (child: string) => `Betaling for ${child}`,
       badge: "Betaling",
@@ -24,6 +42,7 @@ const STRINGS = {
       intro: (child: string) =>
         `Hei, her er betalingslenken for ${child}. Trykk på knappen for å betale med Vipps.`,
       cta: "Betal med Vipps",
+      totalLabel: "Totalt å betale",
     },
     installment: {
       subject: (dueDate: string) => `Betalingsfrist ${dueDate} - skoleavgift`,
@@ -40,15 +59,31 @@ const STRINGS = {
       title: "Betaling mottatt",
       intro: (child: string) =>
         `Hei, vi har mottatt betalingen for ${child}. Takk!`,
-      enrollmentNote:
-        "Dette er første del av skoleavgiften. Resten betales innen 15. august og 15. desember, eller månedlig etter avtale. Dere får betalingslenke på e-post.",
+      coveredSubject: (child: string) => `Skolepengene for ${child} er dekket`,
+      coveredTitle: "Skolepenger dekket",
+      coveredIntro: (child: string) =>
+        `Hei, skolen har dekket skolepenger for ${child}. Dere trenger ikke gjøre noe for dette beløpet.`,
+      enrollmentNote: (dates: string[]) =>
+        dates.length > 0
+          ? `Dette er første del av skoleavgiften. Resten betales innen ${dates.join(" og ")}, eller etter avtale med skolen. Dere får betalingslenke på e-post.`
+          : "Dette er første del av skoleavgiften. Skolen avtaler resten med dere og sender betalingslenke på e-post.",
     },
-    studentConfirmation: {
-      subject: "Vi har mottatt påmeldingen",
-      badge: "Påmelding",
-      title: "Takk for påmeldingen",
+    refund: {
+      subject: (child: string) => `Tilbakebetaling - ${child}`,
+      badge: "Tilbakebetaling",
+      title: "Penger tilbakebetalt",
       intro: (child: string) =>
-        `Hei, vi har mottatt påmeldingen for ${child}. Vi tar kontakt så snart vi har gått gjennom den.`,
+        `Hei, skolen har betalt tilbake et beløp for ${child}.`,
+      vippsNote: "Beløpet kommer tilbake på kontoen som ble brukt i Vipps, vanligvis innen noen virkedager.",
+    },
+    welcome: {
+      subject: (child: string) => `Velkommen til Islamskole Bærum, ${child}`,
+      badge: "Velkommen",
+      title: "Plassen er klar",
+      intro: (child: string, className: string | null) =>
+        className
+          ? `Hei, ${child} har fått plass i ${className}. Vi gleder oss til å se dere!`
+          : `Hei, ${child} har fått plass hos oss. Vi gleder oss til å se dere!`,
     },
     teacherConfirmation: {
       subject: "Vi har mottatt søknaden din",
@@ -66,8 +101,25 @@ const STRINGS = {
       schoolYear: "School year",
       amount: "Amount",
       amountPaid: "Amount paid",
+      amountCovered: "Amount covered",
+      amountRefunded: "Amount refunded",
       dueDate: "Payment deadline",
+      paidOn: "Date",
+      method: "Payment method",
+      reference: "Reference",
+      remaining: "Remaining this school year",
+      nextDue: "Next deadline",
+      startsOn: "First school day",
+      address: "Location",
+      hours: "Time",
     },
+    methods: {
+      vipps: "Vipps",
+      kontant: "Cash",
+      bank: "Bank transfer",
+      sadaqa: "Sadaqa",
+      annet: "Other",
+    } as Record<string, string>,
     paymentLink: {
       subject: (child: string) => `Payment for ${child}`,
       badge: "Payment",
@@ -75,6 +127,7 @@ const STRINGS = {
       intro: (child: string) =>
         `Hi, here is the payment link for ${child}. Tap the button to pay with Vipps.`,
       cta: "Pay with Vipps",
+      totalLabel: "Total to pay",
     },
     installment: {
       subject: (dueDate: string) => `Payment due ${dueDate} - school fee`,
@@ -91,15 +144,31 @@ const STRINGS = {
       title: "Payment received",
       intro: (child: string) =>
         `Hi, we have received the payment for ${child}. Thank you!`,
-      enrollmentNote:
-        "This is the first part of the school fee. The remainder is due by 15 August and 15 December, or monthly by agreement. Payment links are sent by email.",
+      coveredSubject: (child: string) => `The school fee for ${child} is covered`,
+      coveredTitle: "School fee covered",
+      coveredIntro: (child: string) =>
+        `Hi, the school has covered school fees for ${child}. You do not need to do anything for this amount.`,
+      enrollmentNote: (dates: string[]) =>
+        dates.length > 0
+          ? `This is the first part of the school fee. The remainder is due by ${dates.join(" and ")}, or as agreed with the school. Payment links are sent by email.`
+          : "This is the first part of the school fee. The school will agree the remainder with you and send a payment link by email.",
     },
-    studentConfirmation: {
-      subject: "We have received your registration",
-      badge: "Registration",
-      title: "Thank you for registering",
+    refund: {
+      subject: (child: string) => `Refund - ${child}`,
+      badge: "Refund",
+      title: "Money refunded",
       intro: (child: string) =>
-        `Hi, we have received the registration for ${child}. We will be in touch once we have reviewed it.`,
+        `Hi, the school has refunded an amount for ${child}.`,
+      vippsNote: "The amount is returned to the account used in Vipps, usually within a few business days.",
+    },
+    welcome: {
+      subject: (child: string) => `Welcome to Islamskole Bærum, ${child}`,
+      badge: "Welcome",
+      title: "The place is ready",
+      intro: (child: string, className: string | null) =>
+        className
+          ? `Hi, ${child} has been placed in ${className}. We look forward to seeing you!`
+          : `Hi, ${child} has a place with us. We look forward to seeing you!`,
     },
     teacherConfirmation: {
       subject: "We have received your application",
@@ -216,10 +285,6 @@ async function send(opts: {
   }
 }
 
-function formatNok(amountOre: number) {
-  return `${(amountOre / 100).toLocaleString("nb-NO")} kr`;
-}
-
 function formatDueDate(value: string | null | undefined, lang: EmailLang) {
   if (!value) return null;
   const date = new Date(value);
@@ -232,33 +297,49 @@ function formatDueDate(value: string | null | undefined, lang: EmailLang) {
   });
 }
 
+export type EmailChild = { name: string; amount: number };
+
+function joinNames(children: { name: string }[]) {
+  return children.map((child) => child.name).filter(Boolean).join(", ");
+}
+
 export async function sendPaymentLinkEmail(opts: {
   to: string | string[];
-  guardianName: string;
-  childName: string;
+  children: EmailChild[];
   amount: number;
   schoolYear: string | null;
-  className: string | null;
+  className?: string | null;
   dueDate?: string | null;
+  remaining?: number | null;
   url: string;
   lang?: EmailLang;
 }): Promise<boolean> {
   const lang = opts.lang ?? "no";
   const t = strings(lang);
+  const names = joinNames(opts.children);
+  const several = opts.children.length > 1;
   return await send({
     lang,
     to: opts.to,
-    subject: t.paymentLink.subject(opts.childName),
+    subject: t.paymentLink.subject(names),
     badge: t.paymentLink.badge,
     title: t.paymentLink.title,
-    intro: t.paymentLink.intro(opts.childName),
+    intro: t.paymentLink.intro(names),
     cta: { label: t.paymentLink.cta, url: opts.url },
     rows: [
-      [t.rows.student, opts.childName],
-      [t.rows.class, opts.className],
+      ...(several
+        ? opts.children.map((child): Row => [child.name, formatNok(child.amount)])
+        : [[t.rows.student, names] as Row]),
+      [t.rows.class, several ? null : opts.className],
       [t.rows.schoolYear, opts.schoolYear],
-      [t.rows.amount, formatNok(opts.amount)],
+      [several ? t.paymentLink.totalLabel : t.rows.amount, formatNok(opts.amount)],
       [t.rows.dueDate, formatDueDate(opts.dueDate, lang)],
+      [
+        t.rows.remaining,
+        opts.remaining != null && opts.remaining > opts.amount
+          ? formatNok(opts.remaining)
+          : null,
+      ],
     ],
   });
 }
@@ -269,6 +350,7 @@ export async function sendInstallmentEmail(opts: {
   totalAmount: number;
   schoolYear: string | null;
   dueDate: string;
+  remaining?: number | null;
   url: string;
   lang?: EmailLang;
 }): Promise<boolean> {
@@ -291,36 +373,97 @@ export async function sendInstallmentEmail(opts: {
       [t.installment.totalLabel, formatNok(opts.totalAmount)],
       [t.rows.schoolYear, opts.schoolYear],
       [t.rows.dueDate, dueLabel],
+      [
+        t.rows.remaining,
+        opts.remaining != null && opts.remaining > opts.totalAmount
+          ? formatNok(opts.remaining)
+          : null,
+      ],
     ],
   });
 }
 
 export async function sendPaymentReceiptEmail(opts: {
   to: string | string[];
-  guardianName: string;
   childName: string;
   amount: number;
   schoolYear: string | null;
-  className: string | null;
-  enrollmentDeposit?: boolean;
+  className?: string | null;
+  method?: string | null;
+  paidOn?: string | null;
+  reference?: string | null;
+  remaining?: number | null;
+  nextDueDate?: string | null;
+  enrollmentDueDates?: string[] | null;
   lang?: EmailLang;
-}) {
+}): Promise<boolean> {
   const lang = opts.lang ?? "no";
   const t = strings(lang);
-  await send({
+  const covered = opts.method === "sadaqa";
+  const intro = covered
+    ? t.receipt.coveredIntro(opts.childName)
+    : opts.enrollmentDueDates
+      ? `${t.receipt.intro(opts.childName)} ${t.receipt.enrollmentNote(
+          opts.enrollmentDueDates
+            .map((date) => formatDueDate(date, lang))
+            .filter((date): date is string => Boolean(date)),
+        )}`
+      : t.receipt.intro(opts.childName);
+  return await send({
     lang,
     to: opts.to,
-    subject: t.receipt.subject(opts.childName),
+    subject: covered
+      ? t.receipt.coveredSubject(opts.childName)
+      : t.receipt.subject(opts.childName),
     badge: t.receipt.badge,
-    title: t.receipt.title,
-    intro: opts.enrollmentDeposit
-      ? `${t.receipt.intro(opts.childName)} ${t.receipt.enrollmentNote}`
-      : t.receipt.intro(opts.childName),
+    title: covered ? t.receipt.coveredTitle : t.receipt.title,
+    intro,
     rows: [
       [t.rows.student, opts.childName],
       [t.rows.class, opts.className],
       [t.rows.schoolYear, opts.schoolYear],
-      [t.rows.amountPaid, formatNok(opts.amount)],
+      [covered ? t.rows.amountCovered : t.rows.amountPaid, formatNok(opts.amount)],
+      [t.rows.paidOn, formatDueDate(opts.paidOn, lang)],
+      [t.rows.method, opts.method ? (t.methods[opts.method] ?? null) : null],
+      [t.rows.reference, opts.reference],
+      [t.rows.remaining, opts.remaining != null ? formatNok(opts.remaining) : null],
+      [
+        t.rows.nextDue,
+        opts.remaining ? formatDueDate(opts.nextDueDate, lang) : null,
+      ],
+    ],
+  });
+}
+
+export async function sendRefundEmail(opts: {
+  to: string | string[];
+  childName: string;
+  amount: number;
+  schoolYear: string | null;
+  method: string;
+  refundedOn?: string | null;
+  remaining?: number | null;
+  lang?: EmailLang;
+}): Promise<boolean> {
+  const lang = opts.lang ?? "no";
+  const t = strings(lang);
+  return await send({
+    lang,
+    to: opts.to,
+    subject: t.refund.subject(opts.childName),
+    badge: t.refund.badge,
+    title: t.refund.title,
+    intro:
+      opts.method === "vipps"
+        ? `${t.refund.intro(opts.childName)} ${t.refund.vippsNote}`
+        : t.refund.intro(opts.childName),
+    rows: [
+      [t.rows.student, opts.childName],
+      [t.rows.schoolYear, opts.schoolYear],
+      [t.rows.amountRefunded, formatNok(opts.amount)],
+      [t.rows.paidOn, formatDueDate(opts.refundedOn, lang)],
+      [t.rows.method, t.methods[opts.method] ?? null],
+      [t.rows.remaining, opts.remaining != null ? formatNok(opts.remaining) : null],
     ],
   });
 }
@@ -361,22 +504,33 @@ export async function sendTeacherApplicationEmail(opts: {
   });
 }
 
-export async function sendStudentApplicationConfirmationEmail(opts: {
-  to: string;
+export async function sendWelcomeEmail(opts: {
+  to: string | string[];
   childName: string;
-  rows?: Row[];
+  className: string | null;
+  schoolYear: string | null;
+  startsOn?: string | null;
+  address?: string | null;
+  hours?: string | null;
   lang?: EmailLang;
-}) {
+}): Promise<boolean> {
   const lang = opts.lang ?? "no";
   const t = strings(lang);
-  await send({
+  return await send({
     lang,
     to: opts.to,
-    subject: t.studentConfirmation.subject,
-    badge: t.studentConfirmation.badge,
-    title: t.studentConfirmation.title,
-    intro: t.studentConfirmation.intro(opts.childName),
-    rows: opts.rows ?? [],
+    subject: t.welcome.subject(opts.childName),
+    badge: t.welcome.badge,
+    title: t.welcome.title,
+    intro: t.welcome.intro(opts.childName, opts.className),
+    rows: [
+      [t.rows.student, opts.childName],
+      [t.rows.class, opts.className],
+      [t.rows.schoolYear, opts.schoolYear],
+      [t.rows.startsOn, formatDueDate(opts.startsOn, lang)],
+      [t.rows.hours, opts.hours],
+      [t.rows.address, opts.address],
+    ],
   });
 }
 

@@ -4,7 +4,10 @@ import { familyDisplayName } from "@/lib/families/naming";
 import type { Json, Database } from "@/lib/supabase/types";
 
 type Client = SupabaseClient<Database>;
-type FamilyRow = Database["public"]["Tables"]["families"]["Row"];
+type FamilyRow = Omit<
+  Database["public"]["Tables"]["families"]["Row"],
+  "preferred_language"
+>;
 type GuardianRow = Database["public"]["Tables"]["guardians"]["Row"];
 
 type FamilyGuardianQueryRow = {

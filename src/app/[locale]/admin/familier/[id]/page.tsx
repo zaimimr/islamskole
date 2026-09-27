@@ -1,6 +1,10 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getAdminFamilyById } from "@/lib/families/service";
+import { getAdminFamilies, getAdminFamilyById } from "@/lib/families/service";
+import { formatNok } from "@/lib/money";
+import { formatOsloDate } from "@/lib/dates";
+import { findDuplicateFamilies } from "../duplicates";
 import { adminBasePath } from "@/components/admin/paths";
 import { ageInYear, schoolYearStart } from "@/lib/age";
 import { FamilyEconomy } from "@/components/admin/family-economy";
@@ -10,8 +14,9 @@ import {
   type FamilyChildSummary,
   type FamilyFact,
   type FamilyNextAction,
-  type FamilyWorkbenchTab,
 } from "@/components/admin/family-workbench";
+
+export const metadata: Metadata = { title: "Familie" };
 
 type EnrollmentRow = {
   student_id: string;
@@ -64,9 +69,9 @@ function roleLabel(role: string) {
 
 function admissionFact(status: string): FamilyFact {
   const values: Record<string, FamilyFact> = {
-    ny: { value: "Ny søknad", tone: "warning" },
+    ny: { value: "Ny innmelding", tone: "warning" },
     kontaktet: { value: "Kontaktet", tone: "info" },
-    akseptert: { value: "Akseptert", tone: "success" },
+    akseptert: { value: "Tatt opp", tone: "success" },
     avslatt: { value: "Avslått", tone: "neutral" },
     arkivert: { value: "Arkivert", tone: "neutral" },
   };
@@ -94,8 +99,11 @@ function paymentFact(payment: PaymentRow | undefined): FamilyFact {
 }
 
 function balanceFact(balance: BalanceRow | undefined): FamilyFact {
-  if (!balance || (balance.owed ?? 0) === 0) {
-    return { value: "Ikke beregnet", tone: "neutral" };
+  if (!balance) {
+    return { value: "Ingen krav", tone: "neutral" };
+  }
+  if ((balance.owed ?? 0) === 0) {
+    return { value: "Fritatt", tone: "neutral" };
   }
   if ((balance.remaining ?? 0) <= 0) {
     return { value: "Betalt", tone: "success" };
@@ -112,16 +120,11 @@ function birthDescription(
   ageYear: number,
 ) {
   if (!birthDate) return prefix;
-  const date = new Date(`${birthDate}T12:00:00Z`);
-  if (Number.isNaN(date.getTime())) return prefix;
+  const born = formatOsloDate(birthDate);
+  if (!born) return prefix;
   const age = ageInYear(birthDate, ageYear);
   const agePart = age != null ? `, ${age} år` : "";
-  return `${prefix}${agePart} (født ${new Intl.DateTimeFormat("nb-NO", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "Europe/Oslo",
-  }).format(date)})`;
+  return `${prefix}${agePart} (født ${born})`;
 }
 
 export default async function FamilyPage({
@@ -129,8 +132,19 @@ export default async function FamilyPage({
 }: PageProps<"/[locale]/admin/familier/[id]">) {
   const { locale, id } = await params;
   const basePath = adminBasePath(locale);
-  const family = await getAdminFamilyById(id);
+  const [family, allFamilies] = await Promise.all([
+    getAdminFamilyById(id),
+    getAdminFamilies(),
+  ]);
   if (!family) notFound();
+  const duplicateFamilies = (findDuplicateFamilies(allFamilies).get(family.id) ?? []).map(
+    (match) => ({
+      id: match.familyId,
+      name: match.displayName,
+      href: `${basePath}/familier/${match.familyId}`,
+      reasons: match.reasons,
+    }),
+  );
   const familyHref = `${basePath}/familier/${family.id}`;
   const editFamilyHref = `${familyHref}/rediger`;
 
@@ -163,7 +177,7 @@ export default async function FamilyPage({
   ] = await Promise.all([
     supabase
       .from("school_years")
-      .select("id, label, fee")
+      .select("id, label, fee, sem1_due_on, sem2_due_on")
       .eq("is_active", true)
       .maybeSingle(),
     supabase
@@ -214,11 +228,16 @@ export default async function FamilyPage({
     id: string;
     label: string;
     fee: number | null;
+    sem1_due_on: string | null;
+    sem2_due_on: string | null;
   } | null;
   const ageYear =
     schoolYearStart(activeYear?.label) ?? new Date().getFullYear();
   const enrollments = (enrollmentResult.data as EnrollmentRow[] | null) ?? [];
   const balances = (balanceResult.data as BalanceRow[] | null) ?? [];
+  const familyStudentIds = new Set(
+    family.students.map((student) => student.id),
+  );
   const fees = (feeResult.data as FeeRow[] | null) ?? [];
   const payments = (paymentResult.data as PaymentRow[] | null) ?? [];
   const paymentById = new Map(payments.map((payment) => [payment.id, payment]));
@@ -292,9 +311,11 @@ export default async function FamilyPage({
         row.student_id === student.id &&
         (!activeYear || row.school_year_id === activeYear.id),
     );
-    const feeAmount = fee
-      ? Math.max(fee.amount - fee.discount, 0)
-      : activeEnrollment && activeYear?.fee
+    const feeAmount = balance
+      ? (balance.owed ?? 0)
+      : fee
+        ? Math.max(fee.amount - fee.discount, 0)
+        : activeEnrollment && activeYear?.fee
         ? activeYear.fee * 100
         : null;
 
@@ -330,7 +351,7 @@ export default async function FamilyPage({
     children.push({
       id: `application-${application.id}`,
       name: childName,
-      description: birthDescription(application.birthDate, "Påmelding", ageYear),
+      description: birthDescription(application.birthDate, "Innmelding", ageYear),
       href: `${basePath}/register?q=${encodeURIComponent(childName)}`,
       admission: admissionFact(application.status),
       placement: application.desiredClass
@@ -348,7 +369,7 @@ export default async function FamilyPage({
   const recentActivity: FamilyActivity[] = [
     ...family.applications.map((application) => ({
       id: `application-${application.id}`,
-      title: `${fullName(application.firstName, application.lastName)} ble meldt på`,
+      title: `${fullName(application.firstName, application.lastName)} ble meldt inn`,
       description: admissionFact(application.status).value,
       occurredAt: application.createdAt,
       kind: "admission" as const,
@@ -356,7 +377,7 @@ export default async function FamilyPage({
     ...payments.map((payment) => ({
       id: `payment-${payment.id}`,
       title: paymentFact(payment).value,
-      description: `${new Intl.NumberFormat("nb-NO").format(payment.amount / 100)} kr`,
+      description: formatNok(payment.amount),
       occurredAt: payment.created_at,
       kind: "payment" as const,
     })),
@@ -393,10 +414,18 @@ export default async function FamilyPage({
       label: "Se opplysningene",
       tone: "danger",
     };
+  } else if (duplicateFamilies.length > 0) {
+    nextAction = {
+      title: "Kontroller mulig duplikat",
+      description: `${duplicateFamilies[0].name} har ${duplicateFamilies[0].reasons.join(", ").toLocaleLowerCase("nb-NO")}.`,
+      href: duplicateFamilies[0].href,
+      label: "Sammenlign familiene",
+      tone: "danger",
+    };
   } else if (newApplication) {
     const name = fullName(newApplication.firstName, newApplication.lastName);
     nextAction = {
-      title: "Behandle ny påmelding",
+      title: "Behandle ny innmelding",
       description: `${name} venter på opptaksvurdering.`,
       href: `${basePath}/register?q=${encodeURIComponent(name)}`,
       label: "Åpne opptak",
@@ -493,14 +522,6 @@ export default async function FamilyPage({
       !dismissedYearIds.has(activeYear.id),
   );
 
-  const tabs: FamilyWorkbenchTab[] = [
-    {
-      id: "overview",
-      label: "Oversikt",
-      href: `${basePath}/familier/${family.id}`,
-    },
-  ];
-
   return (
     <div className="grid gap-5">
       <FamilyWorkbench
@@ -508,7 +529,7 @@ export default async function FamilyPage({
         id: family.id,
         name: family.displayName,
         status:
-          family.openReviews.length > 0
+          family.openReviews.length > 0 || duplicateFamilies.length > 0
             ? { value: "Må gjennomgås", tone: "danger" }
             : nextAction
               ? { value: "Krever oppfølging", tone: "warning" }
@@ -529,14 +550,14 @@ export default async function FamilyPage({
             ? "Opplysninger fra tidligere registreringer kan tilhøre samme familie. Kontroller før du slår sammen eller endrer relasjoner."
             : undefined,
       }}
-      tabs={tabs}
+      tabs={[]}
       activeTab="overview"
       editFamilyHref={editFamilyHref}
       addGuardianHref={`${editFamilyHref}#new-guardian`}
       editRelationshipsHref={editFamilyHref}
       nextAction={nextAction}
       recentActivity={recentActivity}
-      historyHref={`${familyHref}#activity-${family.id}`}
+      duplicateFamilies={duplicateFamilies}
       />
       {activeYear ? (
         <FamilyEconomy
@@ -544,6 +565,21 @@ export default async function FamilyPage({
           familyName={family.displayName}
           schoolYearId={activeYear.id}
           schoolYearLabel={activeYear.label}
+          sem1DueOn={activeYear.sem1_due_on}
+          sem2DueOn={activeYear.sem2_due_on}
+          childBalances={balances
+            .filter(
+              (row) =>
+                row.student_id &&
+                row.school_year_id === activeYear.id &&
+                familyStudentIds.has(row.student_id),
+            )
+            .map((row) => ({
+              id: row.student_id as string,
+              owedOre: row.owed ?? 0,
+              paidOre: row.paid ?? 0,
+              remainingOre: row.remaining ?? 0,
+            }))}
           plan={
             activePlan
               ? {

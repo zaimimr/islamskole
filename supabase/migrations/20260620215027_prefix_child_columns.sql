@@ -1,0 +1,21 @@
+alter table student_applications rename column email to child_email;
+alter table student_applications rename column phone to child_phone;
+alter table student_applications rename column level_quran to child_level_quran;
+alter table student_applications rename column level_arabic to child_level_arabic;
+alter table student_applications rename column level_islam to child_level_islam;
+alter table student_applications rename column birth_date to child_birth_date;
+alter table student_applications rename column gender to child_gender;
+alter table student_applications rename column address to child_address;
+alter table student_applications rename column postal_code to child_postal_code;
+alter table student_applications rename column city to child_city;
+
+alter table students rename column email to child_email;
+alter table students rename column phone to child_phone;
+alter table students rename column level_quran to child_level_quran;
+alter table students rename column level_arabic to child_level_arabic;
+alter table students rename column level_islam to child_level_islam;
+alter table students rename column birth_date to child_birth_date;
+alter table students rename column gender to child_gender;
+alter table students rename column address to child_address;
+alter table students rename column postal_code to child_postal_code;
+alter table students rename column city to child_city;

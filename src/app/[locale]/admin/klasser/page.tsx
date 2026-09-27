@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Layers3, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -6,6 +7,8 @@ import {
   ClassSortList,
   type SortableClass,
 } from "@/components/admin/class-sort-list";
+
+export const metadata: Metadata = { title: "Klasser" };
 
 type ClassRow = {
   id: string;
@@ -17,17 +20,38 @@ type ClassRow = {
   published: boolean | null;
 };
 
-async function getClasses(): Promise<ClassRow[]> {
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase
+async function getClasses() {
+  const supabase = await createClient();
+  const [classResult, yearResult] = await Promise.all([
+    supabase
       .from("classes")
       .select("id, name_no, age_min, age_max, capacity, price, published")
-      .order("sort_order", { ascending: true });
-    return (data as ClassRow[] | null) ?? [];
-  } catch {
-    return [];
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("school_years")
+      .select("id, label")
+      .eq("is_active", true)
+      .maybeSingle(),
+  ]);
+  const activeYear = yearResult.data as { id: string; label: string } | null;
+  const enrollmentResult = activeYear
+    ? await supabase
+        .from("enrollments")
+        .select("class_id")
+        .eq("school_year_id", activeYear.id)
+        .eq("status", "aktiv")
+    : { data: [], error: null };
+  const counts = new Map<string, number>();
+  for (const row of (enrollmentResult.data as { class_id: string }[] | null) ??
+    []) {
+    counts.set(row.class_id, (counts.get(row.class_id) ?? 0) + 1);
   }
+  return {
+    ok: !classResult.error && !yearResult.error && !enrollmentResult.error,
+    classes: (classResult.data as ClassRow[] | null) ?? [],
+    activeYearLabel: activeYear?.label ?? null,
+    counts,
+  };
 }
 
 function formatAge(min: number | null, max: number | null) {
@@ -42,18 +66,33 @@ export default async function KlasserPage({
 }: PageProps<"/[locale]/admin/klasser">) {
   const { locale } = await params;
   const basePath = adminBasePath(locale);
-  const classes = await getClasses();
+  const { ok, classes, activeYearLabel, counts } = await getClasses();
 
   const items: SortableClass[] = classes.map((c) => ({
     id: c.id,
     name: c.name_no ?? "(uten navn)",
     age: formatAge(c.age_min, c.age_max),
     capacity: c.capacity,
+    enrolled: counts.get(c.id) ?? 0,
     price: c.price,
     published: Boolean(c.published),
   }));
 
   const publishedCount = items.filter((item) => item.published).length;
+  const enrolledTotal = items.reduce((sum, item) => sum + item.enrolled, 0);
+
+  if (!ok) {
+    return (
+      <section className="mx-auto max-w-2xl rounded-2xl bg-white p-6 ring-1 ring-[#E3DED3]">
+        <h1 className="font-heading text-2xl font-bold">
+          Klassene kunne ikke lastes
+        </h1>
+        <p className="mt-2 text-admin-muted">
+          Ingen tall er erstattet med null. Last siden på nytt om litt.
+        </p>
+      </section>
+    );
+  }
 
   return (
     <div className="grid gap-6 lg:gap-7">
@@ -63,7 +102,9 @@ export default async function KlasserPage({
             Klasser
           </h1>
           <p className="mt-1 max-w-2xl text-admin-muted">
-            Hold undervisningstilbud, alder, kapasitet og pris samlet.
+            {activeYearLabel
+              ? `Elever med plass i ${activeYearLabel}, kapasitet og innhold på nettsiden.`
+              : "Kapasitet og innhold på nettsiden. Velg et aktivt skoleår for å se elevtall."}
           </p>
         </div>
         <Link
@@ -80,7 +121,7 @@ export default async function KlasserPage({
           <div>
             <h2 className="font-heading text-xl font-bold">Klasseoversikt</h2>
             <p className="mt-0.5 max-w-2xl text-sm text-admin-muted">
-              Rekkefølgen styrer hvordan klassene vises på nettsiden. Bruk
+              Åpne en klasse for elevlisten. Rekkefølgen styrer nettsiden. Bruk
               håndtaket for å flytte en klasse.
             </p>
           </div>
@@ -93,7 +134,7 @@ export default async function KlasserPage({
                 <span className="font-bold tabular-nums">{items.length}</span>{" "}
                 klasser
                 <span className="text-admin-muted">
-                  {` · ${publishedCount} publisert`}
+                  {` · ${enrolledTotal} elever · ${publishedCount} publisert`}
                 </span>
               </span>
             </div>

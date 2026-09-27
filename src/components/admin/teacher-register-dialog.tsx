@@ -37,7 +37,8 @@ export function TeacherRegisterDialog({
 
   const nameParts = (defaultName ?? "").trim().split(/\s+/);
   const defaultFirst = nameParts.slice(0, -1).join(" ") || nameParts[0] || "";
-  const defaultLast = nameParts.length > 1 ? nameParts[nameParts.length - 1] : "";
+  const defaultLast =
+    nameParts.length > 1 ? nameParts[nameParts.length - 1] : "";
 
   function submit(formData: FormData) {
     if (sourceApplicationId) {
@@ -62,7 +63,7 @@ export function TeacherRegisterDialog({
           compact ? (
             <Button
               variant="ghost"
-              className="h-8 rounded-lg px-2 text-xs font-bold text-[#277A31]"
+              className="min-h-11 rounded-lg px-3 text-sm font-bold text-[#277A31]"
             >
               <GraduationCap className="size-3.5" />
               Registrer som lærer
@@ -85,7 +86,13 @@ export function TeacherRegisterDialog({
             den foresatte, slik at barna kan tagges som lærerbarn.
           </DialogDescription>
         </DialogHeader>
-        <form action={submit} className="grid gap-3 py-2">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit(new FormData(event.currentTarget));
+          }}
+          className="grid gap-3 py-2"
+        >
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
               <Label htmlFor="teacher-first-name" required>

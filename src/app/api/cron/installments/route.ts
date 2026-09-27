@@ -2,10 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { findDueInstallmentBatches } from "@/lib/payment-plans";
 import {
+  familyLanguage,
   familyRecipients,
+  remainingFor,
   sendInstallmentBatch,
   studentNames,
 } from "@/lib/installment-billing";
+import { osloToday } from "@/lib/dates";
 import { sendInstallmentEmail } from "@/lib/email";
 import { emailNotifications } from "@/flags";
 
@@ -54,7 +57,7 @@ async function sendBatches(admin: Admin, siteUrl: string) {
 }
 
 async function sendReminders(admin: Admin, siteUrl: string) {
-  const cutoff = new Date();
+  const cutoff = new Date(`${osloToday()}T12:00:00Z`);
   cutoff.setUTCDate(cutoff.getUTCDate() - REMINDER_AFTER_DAYS);
   const cutoffDate = cutoff.toISOString().slice(0, 10);
 
@@ -112,7 +115,10 @@ async function sendReminders(admin: Admin, siteUrl: string) {
       if (!payment || payment.status !== "opprettet") continue;
 
       if (await emailNotifications()) {
-        const recipients = await familyRecipients(admin, group.familyId);
+        const [recipients, lang] = await Promise.all([
+          familyRecipients(admin, group.familyId),
+          familyLanguage(admin, group.familyId),
+        ]);
         if (recipients.length > 0) {
           const names = await studentNames(
             admin,
@@ -125,6 +131,12 @@ async function sendReminders(admin: Admin, siteUrl: string) {
             .maybeSingle();
 
           await sendInstallmentEmail({
+            lang,
+            remaining: await remainingFor(
+              admin,
+              group.rows.map((row) => row.studentId),
+              group.schoolYearId,
+            ),
             to: recipients,
             children: group.rows.map((row) => ({
               name: names.get(row.studentId) ?? "Elev",

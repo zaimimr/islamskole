@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarDays, Clock3, MapPin, Pencil, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -5,9 +6,15 @@ import type { Locale } from "@/i18n/routing";
 import { deleteEvent } from "@/app/[locale]/admin/actions";
 import { adminBasePath } from "@/components/admin/paths";
 import { siteUrl, localePath } from "@/lib/seo";
-import { DeleteButton } from "@/components/admin/delete-button";
+import { formatOsloDate, formatOsloDateTime } from "@/lib/dates";
 import { CopyLinkButton } from "@/components/admin/copy-link-button";
+import { EmptyState } from "@/components/admin/empty-state";
+import { LoadError } from "@/components/admin/load-error";
+import { StatusPill } from "@/components/admin/status-pill";
 import { buttonVariants } from "@/components/ui/button";
+import { RowActions } from "@/components/ui/row-actions";
+
+export const metadata: Metadata = { title: "Aktiviteter" };
 
 type EventRow = {
   id: string;
@@ -18,17 +25,20 @@ type EventRow = {
   published: boolean | null;
 };
 
-async function getEvents(): Promise<{ rows: EventRow[]; requestedAt: number }> {
+async function getEvents(): Promise<
+  { ok: true; rows: EventRow[]; requestedAt: number } | { ok: false }
+> {
   const requestedAt = Date.now();
   try {
     const supabase = await createClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("events")
       .select("id, slug, title_no, starts_at, location, published")
       .order("starts_at", { ascending: false });
-    return { rows: (data as EventRow[] | null) ?? [], requestedAt };
+    if (error) return { ok: false };
+    return { ok: true, rows: (data as EventRow[] | null) ?? [], requestedAt };
   } catch {
-    return { rows: [], requestedAt };
+    return { ok: false };
   }
 }
 
@@ -40,31 +50,18 @@ function eventDate(value: string | null) {
 }
 
 function formatDay(value: string | null) {
-  const date = eventDate(value);
-  if (!date) return "--";
-  return date.toLocaleDateString("nb-NO", {
-    day: "2-digit",
-    timeZone: "Europe/Oslo",
-  });
+  if (!eventDate(value)) return "--";
+  return formatOsloDate(value, { day: "2-digit" });
 }
 
 function formatMonth(value: string | null) {
-  const date = eventDate(value);
-  if (!date) return "Dato";
-  return date.toLocaleDateString("nb-NO", {
-    month: "short",
-    timeZone: "Europe/Oslo",
-  });
+  if (!eventDate(value)) return "Dato";
+  return formatOsloDate(value, { month: "short" });
 }
 
 function formatDateTime(value: string | null) {
-  const date = eventDate(value);
-  if (!date) return "Tidspunkt mangler";
-  return date.toLocaleString("nb-NO", {
-    timeZone: "Europe/Oslo",
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  if (!eventDate(value)) return "Tidspunkt mangler";
+  return formatOsloDateTime(value);
 }
 
 function EventList({
@@ -110,23 +107,9 @@ function EventList({
               <h3 className="truncate font-bold">
                 {event.title_no ?? "Aktivitet uten tittel"}
               </h3>
-              <span
-                className={
-                  event.published
-                    ? "inline-flex items-center gap-1.5 rounded-full bg-[#DCEDDD] px-2.5 py-1 text-xs font-bold text-[#216A2B]"
-                    : "inline-flex items-center gap-1.5 rounded-full bg-[#F0F0ED] px-2.5 py-1 text-xs font-bold text-[#4D554F]"
-                }
-              >
-                <span
-                  aria-hidden="true"
-                  className={
-                    event.published
-                      ? "size-2 rounded-full bg-[#3C8F44]"
-                      : "size-2 rounded-full bg-[#7A827C]"
-                  }
-                />
+              <StatusPill tone={event.published ? "ok" : "neutral"}>
                 {event.published ? "Publisert" : "Utkast"}
-              </span>
+              </StatusPill>
             </div>
             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-admin-muted">
               <span className="inline-flex items-center gap-1.5">
@@ -152,18 +135,22 @@ function EventList({
             ) : null}
             <Link
               href={`${basePath}/aktiviteter/${event.id}`}
-              className={buttonVariants({
-                variant: "outline",
-                className: "min-h-11 px-3",
-              })}
+              className={buttonVariants({ variant: "outline" })}
             >
               <Pencil aria-hidden="true" className="size-4" />
               Rediger
             </Link>
-            <DeleteButton
-              id={event.id}
-              label="aktivitet"
-              action={deleteEvent}
+            <RowActions
+              label={`Flere valg for ${event.title_no ?? "aktiviteten"}`}
+              destructive={{
+                id: event.id,
+                label: "Slett aktivitet",
+                title: "Slette aktiviteten?",
+                description:
+                  "Aktiviteten fjernes fra nettsiden og kan ikke hentes tilbake. Vil du bare skjule den, gjør den til utkast i stedet.",
+                successMessage: "Aktiviteten er slettet",
+                action: deleteEvent,
+              }}
             />
           </div>
         </li>
@@ -177,7 +164,16 @@ export default async function AktiviteterPage({
 }: PageProps<"/[locale]/admin/aktiviteter">) {
   const { locale } = await params;
   const basePath = adminBasePath(locale);
-  const { rows: events, requestedAt } = await getEvents();
+  const result = await getEvents();
+  if (!result.ok) {
+    return (
+      <LoadError
+        title="Aktivitetene kunne ikke lastes"
+        retryHref={`${basePath}/aktiviteter`}
+      />
+    );
+  }
+  const { rows: events, requestedAt } = result;
   const upcomingEvents = events
     .filter((event) => {
       const date = eventDate(event.starts_at);
@@ -214,23 +210,21 @@ export default async function AktiviteterPage({
       </header>
 
       {events.length === 0 ? (
-        <section className="flex min-h-64 flex-col items-center justify-center rounded-2xl bg-white px-6 py-10 text-center ring-1 ring-[#E3DED3]">
-          <span className="flex size-12 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B]">
-            <CalendarDays aria-hidden="true" className="size-6" />
-          </span>
-          <h2 className="mt-4 font-heading text-xl font-bold">
-            Ingen aktiviteter ennå
-          </h2>
-          <p className="mt-1 max-w-sm text-sm text-admin-muted">
-            Opprett en aktivitet og publiser den når innholdet er klart.
-          </p>
-          <Link
-            href={`${basePath}/aktiviteter/ny`}
-            className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#CFC8BA] px-4 text-sm font-bold text-[#277A31] outline-none transition-colors hover:bg-[#F7FBF7] focus-visible:ring-3 focus-visible:ring-ring/50"
-          >
-            <Plus aria-hidden="true" className="size-4" />
-            Opprett aktivitet
-          </Link>
+        <section className="rounded-2xl bg-white ring-1 ring-[#E3DED3]">
+          <EmptyState
+            icon={<CalendarDays aria-hidden="true" />}
+            title="Ingen aktiviteter ennå"
+            description="Opprett en aktivitet og publiser den når innholdet er klart."
+            action={
+              <Link
+                href={`${basePath}/aktiviteter/ny`}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#CFC8BA] px-4 text-sm font-bold text-[#277A31] outline-none transition-colors hover:bg-[#F7FBF7] focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <Plus aria-hidden="true" className="size-4" />
+                Opprett aktivitet
+              </Link>
+            }
+          />
         </section>
       ) : (
         <>

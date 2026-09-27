@@ -1,20 +1,15 @@
 "use client";
 
+import { createContext, useContext } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  CalendarClock,
   CalendarDays,
   CalendarRange,
   CircleUserRound,
-  CircleAlert,
   ClipboardCheck,
-  ContactRound,
   GraduationCap,
-  HandHeart,
   LayoutDashboard,
-  Percent,
-  ReceiptText,
   ScrollText,
   Settings,
   ShieldCheck,
@@ -24,10 +19,37 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+export type NavCounts = {
+  applications: number;
+  teacherApplications: number;
+};
+
+const NavCountsContext = createContext<NavCounts>({
+  applications: 0,
+  teacherApplications: 0,
+});
+
+export function NavCountsProvider({
+  counts,
+  children,
+}: {
+  counts: NavCounts;
+  children: React.ReactNode;
+}) {
+  return (
+    <NavCountsContext.Provider value={counts}>
+      {children}
+    </NavCountsContext.Provider>
+  );
+}
+
 type NavLink = {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+  alsoMatches?: string[];
+  count?: number;
+  countLabel?: string;
 };
 
 type NavGroup = {
@@ -35,14 +57,21 @@ type NavGroup = {
   links: NavLink[];
 };
 
-function buildNavigation(basePath: string) {
+function buildNavigation(basePath: string, counts: NavCounts) {
   const primary: NavLink[] = [
     { href: basePath, label: "Arbeidsflate", icon: LayoutDashboard },
-    { href: `${basePath}/register`, label: "Opptak", icon: ClipboardCheck },
+    {
+      href: `${basePath}/register`,
+      label: "Opptak",
+      icon: ClipboardCheck,
+      count: counts.applications,
+      countLabel: "nye innmeldinger",
+    },
     {
       href: `${basePath}/familier`,
-      label: "Familier og elever",
+      label: "Familier",
       icon: Users,
+      alsoMatches: [`${basePath}/elever`],
     },
     { href: `${basePath}/klasser`, label: "Klasser", icon: GraduationCap },
     { href: `${basePath}/betaling`, label: "Økonomi", icon: Wallet },
@@ -60,38 +89,8 @@ function buildNavigation(basePath: string) {
         },
         {
           href: `${basePath}/innstillinger`,
-          label: "Kontaktopplysninger",
-          icon: ContactRound,
-        },
-      ],
-    },
-    {
-      label: "Økonomiverktøy",
-      links: [
-        {
-          href: `${basePath}/betaling/logg`,
-          label: "Betalingslogg",
-          icon: ReceiptText,
-        },
-        {
-          href: `${basePath}/betaling/avdrag`,
-          label: "Avdrag",
-          icon: CalendarClock,
-        },
-        {
-          href: `${basePath}/betaling/rabatter`,
-          label: "Rabatter",
-          icon: Percent,
-        },
-        {
-          href: `${basePath}/betaling/sadaqa`,
-          label: "Sadaqa",
-          icon: HandHeart,
-        },
-        {
-          href: `${basePath}/betaling/dobbeltforinger`,
-          label: "Dobbeltføringer",
-          icon: CircleAlert,
+          label: "Innstillinger",
+          icon: Settings,
         },
       ],
     },
@@ -100,11 +99,17 @@ function buildNavigation(basePath: string) {
       links: [
         {
           href: `${basePath}/laerere`,
-          label: "Lærersøknader",
+          label: "Lærere",
           icon: UserCheck,
+          count: counts.teacherApplications,
+          countLabel: "nye lærersøknader",
         },
         { href: `${basePath}/brukere`, label: "Brukere", icon: ShieldCheck },
-        { href: `${basePath}/revisjon`, label: "Revisjon", icon: ScrollText },
+        {
+          href: `${basePath}/revisjon`,
+          label: "Revisjonshistorikk",
+          icon: ScrollText,
+        },
       ],
     },
   ];
@@ -112,7 +117,7 @@ function buildNavigation(basePath: string) {
   const account: NavLink = {
     href: `${basePath}/konto`,
     label: "Min konto",
-    icon: Settings,
+    icon: CircleUserRound,
   };
 
   return { primary, groups, account };
@@ -126,23 +131,18 @@ export function SidebarNav({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
-  const navigation = buildNavigation(basePath);
-  const allLinks = [
-    ...navigation.primary,
-    ...navigation.groups.flatMap((group) => group.links),
-    navigation.account,
-  ];
+  const counts = useContext(NavCountsContext);
+  const navigation = buildNavigation(basePath, counts);
 
-  function matches(href: string) {
+  function matchesPath(href: string) {
     if (href === basePath) return pathname === basePath;
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
-  function isActive(href: string) {
-    if (!matches(href)) return false;
-    return !allLinks.some(
-      (link) =>
-        link.href !== href && link.href.startsWith(href) && matches(link.href),
+  function isActive(link: NavLink) {
+    return (
+      matchesPath(link.href) ||
+      (link.alsoMatches ?? []).some((href) => matchesPath(href))
     );
   }
 
@@ -153,8 +153,9 @@ export function SidebarNav({
     link: NavLink;
     compact?: boolean;
   }) {
-    const active = isActive(link.href);
+    const active = isActive(link);
     const Icon = link.icon;
+    const count = link.count ?? 0;
 
     return (
       <Link
@@ -178,7 +179,13 @@ export function SidebarNav({
               : "text-admin-muted group-hover:text-foreground/75",
           )}
         />
-        <span>{link.label}</span>
+        <span className="min-w-0 flex-1">{link.label}</span>
+        {count > 0 ? (
+          <span className="ml-auto inline-flex min-w-6 items-center justify-center rounded-full bg-[#FEEDCA] px-1.5 py-0.5 text-xs font-bold text-[#6B4A06] tabular-nums">
+            {count}
+            <span className="sr-only"> {link.countLabel}</span>
+          </span>
+        ) : null}
       </Link>
     );
   }
@@ -222,7 +229,7 @@ export function SidebarNav({
         <div className="mb-3 h-px bg-[#E9E5DC]" />
         <Link
           href={navigation.account.href}
-          aria-current={isActive(navigation.account.href) ? "page" : undefined}
+          aria-current={isActive(navigation.account) ? "page" : undefined}
           onClick={onNavigate}
           className="group flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-foreground/72 outline-none transition-colors hover:bg-[#F2F1EB] hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 aria-[current=page]:bg-[#DCEDDD] aria-[current=page]:text-[#216A2B]"
         >

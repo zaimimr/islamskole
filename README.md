@@ -13,6 +13,8 @@ Website for Islamskole Bærum, a Sunday Islamic school in Bærum, Norway.
 
 ## Local development
 
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for tests, CI, migrations and a local admin session.
+
 ```bash
 npm install
 npm run dev

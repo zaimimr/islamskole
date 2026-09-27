@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { adminBasePath } from "@/components/admin/paths";
 import { FamilyEditor } from "@/components/admin/family-editor";
 import { getAdminFamilyById } from "@/lib/families/service";
+
+export const metadata: Metadata = { title: "Rediger familie" };
 
 export default async function EditFamilyPage({
   params,

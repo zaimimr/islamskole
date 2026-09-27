@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import { KeyRound, Mail, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { ChangePasswordForm } from "@/components/admin/change-password-form";
+import { ChangePasswordForm } from "./change-password-form";
+
+export const metadata: Metadata = { title: "Min konto" };
 
 async function getEmail() {
   try {
@@ -62,7 +65,8 @@ export default async function KontoPage() {
             <div>
               <h2 className="font-heading text-xl font-bold">Endre passord</h2>
               <p className="mt-0.5 text-sm text-admin-muted">
-                Velg et nytt passord som ikke brukes på andre tjenester.
+                Bekreft med passordet du bruker i dag, og velg et nytt som ikke
+                brukes på andre tjenester.
               </p>
             </div>
           </div>

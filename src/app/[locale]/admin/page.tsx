@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -6,11 +7,13 @@ import {
   CheckCircle2,
   CircleAlert,
   ClipboardCheck,
+  Copy,
   GraduationCap,
   Inbox,
   ReceiptText,
   RotateCcw,
   UserCheck,
+  UserRoundX,
   Users,
   Wallet,
 } from "lucide-react";
@@ -18,6 +21,19 @@ import { createClient } from "@/lib/supabase/server";
 import { adminBasePath } from "@/components/admin/paths";
 import { studentDisplayName } from "@/lib/student-name";
 import { cn } from "@/lib/utils";
+import { formatNok } from "@/lib/money";
+import { formatOsloDate, osloToday } from "@/lib/dates";
+import {
+  getActiveYearBalanceSummary,
+  isSadaqaFritak,
+} from "@/lib/balances";
+import { getAdminFamilies } from "@/lib/families/service";
+import {
+  findDuplicateFamilies,
+  findDuplicateStudents,
+} from "@/app/[locale]/admin/familier/duplicates";
+
+export const metadata: Metadata = { title: "Oversikt" };
 
 type SignupRow = {
   id: string;
@@ -25,16 +41,23 @@ type SignupRow = {
   email: string | null;
   status: string;
   createdAt: string;
+  studentId: string | null;
 };
 
 type DashboardData = {
   activeYearLabel: string | null;
   newApplications: number;
+  acceptedNotRegistered: number;
   newTeachers: number;
   duplicatePayments: number;
-  rolloverNeeded: number;
+  duplicateFamilies: number;
+  duplicateStudents: number;
+  openFamilyReviews: number;
+  missingPlacement: number;
+  missingFee: number;
+  unplacedWithCharge: number;
+  unplacedRemaining: number;
   enrolledStudents: number;
-  outstandingStudents: number;
   outstandingAmount: number;
   overdueInstallments: number;
   overdueInstallmentAmount: number;
@@ -46,20 +69,32 @@ type DashboardResult =
   | { ok: true; data: DashboardData }
   | { ok: false };
 
+type EnrollmentRow = {
+  student_id: string;
+  school_year_id: string;
+  status: string;
+  school_years: { label: string } | null;
+};
+
 async function getDashboard(): Promise<DashboardResult> {
   try {
     const supabase = await createClient();
     const [
       activeYear,
       newApplications,
+      acceptedApplications,
       newTeachers,
       duplicatePayments,
-      balances,
       students,
       enrollments,
       recentApplications,
       overdueInstallments,
       sadaqaPayments,
+      familyReviews,
+      balanceSummary,
+      families,
+      sadaqaFritak,
+      feeRows,
     ] = await Promise.all([
       supabase
         .from("school_years")
@@ -71,19 +106,20 @@ async function getDashboard(): Promise<DashboardResult> {
         .select("id", { count: "exact", head: true })
         .eq("status", "ny"),
       supabase
+        .from("student_applications")
+        .select("id")
+        .eq("status", "akseptert"),
+      supabase
         .from("teacher_applications")
         .select("id", { count: "exact", head: true })
         .eq("status", "ny"),
       supabase
         .from("duplicate_payment_candidates")
         .select("payment_id", { count: "exact", head: true }),
-      supabase
-        .from("student_balances")
-        .select("student_id, school_year_id, remaining"),
-      supabase.from("students").select("id"),
+      supabase.from("students").select("id, application_id"),
       supabase
         .from("enrollments")
-        .select("student_id, school_year_id, status"),
+        .select("student_id, school_year_id, status, school_years(label)"),
       supabase
         .from("student_applications")
         .select(
@@ -96,24 +132,44 @@ async function getDashboard(): Promise<DashboardResult> {
         .select("id, amount, payment_plans!inner(status, paused_at)")
         .in("status", ["planlagt", "sendt"])
         .eq("payment_plans.status", "aktiv")
-        .lt("due_date", new Date().toISOString().slice(0, 10)),
+        .lt("due_date", osloToday()),
       supabase
         .from("payments")
         .select("id, school_year_id, net_paid_amount")
         .eq("method", "sadaqa")
         .eq("status", "fanget")
         .is("voided_at", null),
+      supabase
+        .from("family_data_reviews")
+        .select("family_id")
+        .eq("status", "open"),
+      getActiveYearBalanceSummary(supabase),
+      getAdminFamilies(),
+      supabase
+        .from("student_fee_adjustments")
+        .select("student_id, school_year_id, type, amount, note")
+        .eq("type", "annet")
+        .ilike("note", "%sadaqa%")
+        .is("revoked_at", null),
+      supabase
+        .from("student_fees")
+        .select("student_id, school_year_id, amount, discount"),
     ]);
 
     const results = [
       activeYear,
       newApplications,
+      acceptedApplications,
       newTeachers,
       duplicatePayments,
-      balances,
       students,
       enrollments,
       recentApplications,
+      overdueInstallments,
+      sadaqaPayments,
+      familyReviews,
+      sadaqaFritak,
+      feeRows,
     ];
 
     if (results.some((result) => result.error)) {
@@ -124,33 +180,64 @@ async function getDashboard(): Promise<DashboardResult> {
       id: string;
       label: string;
     } | null;
-    const balanceRows =
-      (balances.data as
-        | {
-            student_id: string | null;
-            school_year_id: string | null;
-            remaining: number | null;
-          }[]
-        | null) ?? [];
-    const enrollmentRows =
-      (enrollments.data as
+    const enrollmentRows = (enrollments.data as EnrollmentRow[] | null) ?? [];
+    const feeCaps = new Map(
+      (
+        (feeRows.data as
+          | {
+              student_id: string;
+              school_year_id: string;
+              amount: number;
+              discount: number;
+            }[]
+          | null) ?? []
+      ).map((fee) => [
+        `${fee.student_id}:${fee.school_year_id}`,
+        Math.max(fee.amount - fee.discount, 0),
+      ]),
+    );
+    const sadaqaFritakTotal = (
+      (sadaqaFritak.data as
         | {
             student_id: string;
             school_year_id: string;
-            status: string;
+            type: string;
+            amount: number;
+            note: string | null;
           }[]
-        | null) ?? [];
+        | null) ?? []
+    )
+      .filter(
+        (row) =>
+          activeYearRow != null &&
+          row.school_year_id === activeYearRow.id &&
+          isSadaqaFritak(row),
+      )
+      .reduce(
+        (sum, row) =>
+          sum +
+          Math.min(
+            row.amount,
+            feeCaps.get(`${row.student_id}:${row.school_year_id}`) ??
+              row.amount,
+          ),
+        0,
+      );
     const studentRows =
-      (students.data as { id: string }[] | null) ?? [];
-
-    const activeBalances = activeYearRow
-      ? balanceRows.filter(
-          (row) => row.school_year_id === activeYearRow.id,
-        )
-      : [];
-    const outstandingBalances = activeBalances.filter(
-      (row) => (row.remaining ?? 0) > 0,
+      (students.data as { id: string; application_id: string | null }[] | null) ??
+      [];
+    const studentByApplication = new Map(
+      studentRows
+        .filter((row) => row.application_id)
+        .map((row) => [row.application_id as string, row.id]),
     );
+
+    const enrollmentsByStudent = new Map<string, EnrollmentRow[]>();
+    for (const row of enrollmentRows) {
+      const list = enrollmentsByStudent.get(row.student_id) ?? [];
+      list.push(row);
+      enrollmentsByStudent.set(row.student_id, list);
+    }
     const activeEnrollmentIds = new Set(
       activeYearRow
         ? enrollmentRows
@@ -162,39 +249,54 @@ async function getDashboard(): Promise<DashboardResult> {
             .map((row) => row.student_id)
         : [],
     );
-    const studentsWithEnrollment = new Set(
-      enrollmentRows.map((row) => row.student_id),
-    );
-    const rolloverNeeded = activeYearRow
-      ? studentRows.filter(
-          (student) =>
-            studentsWithEnrollment.has(student.id) &&
-            !activeEnrollmentIds.has(student.id),
-        ).length
+    const missingPlacement = activeYearRow
+      ? studentRows.filter((student) => {
+          if (activeEnrollmentIds.has(student.id)) return false;
+          const rows = enrollmentsByStudent.get(student.id) ?? [];
+          if (rows.length === 0) return true;
+          const latest = [...rows].sort((left, right) =>
+            (right.school_years?.label ?? "").localeCompare(
+              left.school_years?.label ?? "",
+            ),
+          )[0];
+          return latest.status === "aktiv";
+        }).length
       : 0;
+
+    const acceptedNotRegistered = (
+      (acceptedApplications.data as { id: string }[] | null) ?? []
+    ).filter((row) => !studentByApplication.has(row.id)).length;
+
+    const overdueRows =
+      (overdueInstallments.data as { id: string; amount: number }[] | null) ??
+      [];
 
     return {
       ok: true,
       data: {
         activeYearLabel: activeYearRow?.label ?? null,
         newApplications: newApplications.count ?? 0,
+        acceptedNotRegistered,
         newTeachers: newTeachers.count ?? 0,
         duplicatePayments: duplicatePayments.count ?? 0,
-        rolloverNeeded,
+        duplicateFamilies: findDuplicateFamilies(families).size,
+        duplicateStudents: findDuplicateStudents(families).length,
+        openFamilyReviews: new Set(
+          ((familyReviews.data as { family_id: string }[] | null) ?? []).map(
+            (row) => row.family_id,
+          ),
+        ).size,
+        missingPlacement,
+        missingFee: balanceSummary.missingFeeCount,
+        unplacedWithCharge: balanceSummary.unplacedCount,
+        unplacedRemaining: balanceSummary.unplacedRemainingOre,
         enrolledStudents: activeEnrollmentIds.size,
-        outstandingStudents: outstandingBalances.length,
-        outstandingAmount: outstandingBalances.reduce(
-          (sum, row) => sum + (row.remaining ?? 0),
+        outstandingAmount: balanceSummary.remainingOre,
+        overdueInstallments: overdueRows.length,
+        overdueInstallmentAmount: overdueRows.reduce(
+          (sum, row) => sum + (row.amount ?? 0),
           0,
         ),
-        overdueInstallments:
-          (overdueInstallments.data as { id: string; amount: number }[] | null)
-            ?.length ?? 0,
-        overdueInstallmentAmount: (
-          (overdueInstallments.data as
-            | { id: string; amount: number }[]
-            | null) ?? []
-        ).reduce((sum, row) => sum + (row.amount ?? 0), 0),
         sadaqaUsedThisYear: (
           (sadaqaPayments.data as
             | {
@@ -205,10 +307,10 @@ async function getDashboard(): Promise<DashboardResult> {
             | null) ?? []
         )
           .filter(
-            (row) =>
-              !activeYearRow || row.school_year_id === activeYearRow.id,
+            (row) => activeYearRow != null && row.school_year_id === activeYearRow.id,
           )
-          .reduce((sum, row) => sum + (row.net_paid_amount ?? 0), 0),
+          .reduce((sum, row) => sum + (row.net_paid_amount ?? 0), 0) +
+          sadaqaFritakTotal,
         recentApplications: (
           (recentApplications.data as
             | {
@@ -226,6 +328,7 @@ async function getDashboard(): Promise<DashboardResult> {
           email: row.child_email,
           status: row.status,
           createdAt: row.created_at,
+          studentId: studentByApplication.get(row.id) ?? null,
         })),
       },
     };
@@ -234,30 +337,15 @@ async function getDashboard(): Promise<DashboardResult> {
   }
 }
 
-function formatNok(ore: number) {
-  return new Intl.NumberFormat("nb-NO", {
-    style: "currency",
-    currency: "NOK",
-    maximumFractionDigits: 0,
-  }).format(ore / 100);
-}
-
 function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Dato mangler";
-  return date.toLocaleDateString("nb-NO", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "Europe/Oslo",
-  });
+  return formatOsloDate(value) || "Dato mangler";
 }
 
 function applicationStatusLabel(status: string) {
   const labels: Record<string, string> = {
     ny: "Ny",
     kontaktet: "Kontaktet",
-    akseptert: "Akseptert",
+    akseptert: "Tatt opp",
     avslatt: "Avslått",
     arkivert: "Arkivert",
   };
@@ -271,11 +359,22 @@ type AttentionItem = {
   href: string;
   action: string;
   icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
-  tone: "green" | "yellow" | "red" | "blue";
+  tone: "yellow" | "red" | "blue";
+};
+
+const toneRank: Record<AttentionItem["tone"], number> = {
+  red: 0,
+  yellow: 1,
+  blue: 2,
+};
+
+const toneLabel: Record<AttentionItem["tone"], string> = {
+  red: "Stopper arbeid",
+  yellow: "Trenger beslutning",
+  blue: "Til orientering",
 };
 
 const attentionTone = {
-  green: "bg-[#DCEDDD] text-[#216A2B]",
   yellow: "bg-[#FEEDCA] text-[#775108]",
   red: "bg-[#F9DEDB] text-[#8B2F2B]",
   blue: "bg-[#DDEEF9] text-[#245D84]",
@@ -319,6 +418,7 @@ function AttentionList({ items }: { items: AttentionItem[] }) {
               <span className="min-w-0">
                 <span className="flex flex-wrap items-baseline gap-x-2">
                   <span className="font-bold text-foreground">{item.title}</span>
+                  <span className="sr-only">, {toneLabel[item.tone]}</span>
                   {item.count != null ? (
                     <span className="font-heading text-lg font-bold text-foreground">
                       {item.count}
@@ -393,64 +493,17 @@ export default async function AdminDashboardPage({
   }
 
   const data = result.data;
-  const attentionItems: AttentionItem[] = [];
-
-  if (!data.activeYearLabel) {
-    attentionItems.push({
+  const yearLabel = data.activeYearLabel ?? "aktivt skoleår";
+  const candidates: (AttentionItem | false)[] = [
+    !data.activeYearLabel && {
       title: "Aktivt skoleår mangler",
       description: "Velg skoleår før plassering og innkreving fortsetter.",
       href: `${basePath}/skolear`,
       action: "Velg skoleår",
       icon: CalendarRange,
-      tone: "yellow",
-    });
-  }
-  if (data.newApplications > 0) {
-    attentionItems.push({
-      title: "Nye innmeldinger",
-      description: "Venter på gjennomgang og opptaksbeslutning.",
-      count: data.newApplications,
-      href: `${basePath}/register?status=ny`,
-      action: "Gå gjennom",
-      icon: ClipboardCheck,
-      tone: "green",
-    });
-  }
-  if (data.rolloverNeeded > 0) {
-    attentionItems.push({
-      title: "Elever må videreføres",
-      description: `Mangler plass i ${data.activeYearLabel}.`,
-      count: data.rolloverNeeded,
-      href: `${basePath}/elever?year=needs_rollover`,
-      action: "Plasser elever",
-      icon: RotateCcw,
-      tone: "yellow",
-    });
-  }
-  if (data.outstandingStudents > 0) {
-    attentionItems.push({
-      title: "Utestående betalinger",
-      description: `${formatNok(data.outstandingAmount)} gjenstår i aktivt skoleår.`,
-      count: data.outstandingStudents,
-      href: `${basePath}/betaling`,
-      action: "Se økonomi",
-      icon: Wallet,
-      tone: "blue",
-    });
-  }
-  if (data.overdueInstallments > 0) {
-    attentionItems.push({
-      title: "Forfalte avdrag",
-      description: `${formatNok(data.overdueInstallmentAmount)} er over frist uten registrert betaling.`,
-      count: data.overdueInstallments,
-      href: `${basePath}/betaling/avdrag`,
-      action: "Følg opp",
-      icon: CalendarClock,
       tone: "red",
-    });
-  }
-  if (data.duplicatePayments > 0) {
-    attentionItems.push({
+    },
+    data.duplicatePayments > 0 && {
       title: "Betalinger til kontroll",
       description: "Mulige dobbeltføringer må avstemmes.",
       count: data.duplicatePayments,
@@ -458,8 +511,92 @@ export default async function AdminDashboardPage({
       action: "Kontroller",
       icon: ReceiptText,
       tone: "red",
-    });
-  }
+    },
+    data.overdueInstallments > 0 && {
+      title: "Forfalte avdrag",
+      description: `${formatNok(data.overdueInstallmentAmount)} er over frist uten registrert betaling.`,
+      count: data.overdueInstallments,
+      href: `${basePath}/betaling/avdrag`,
+      action: "Følg opp",
+      icon: CalendarClock,
+      tone: "red",
+    },
+    data.missingFee > 0 && {
+      title: "Plassert uten krav",
+      description: `Har plass i ${yearLabel}, men ingen skolepenger er beregnet.`,
+      count: data.missingFee,
+      href: `${basePath}/elever?betaling=ingen_krav`,
+      action: "Se elevene",
+      icon: Wallet,
+      tone: "red",
+    },
+    data.unplacedWithCharge > 0 && {
+      title: "Krav uten plass",
+      description: `${formatNok(data.unplacedRemaining)} står ubetalt på barn uten klasse i ${yearLabel}.`,
+      count: data.unplacedWithCharge,
+      href: `${basePath}/elever?year=needs_rollover`,
+      action: "Avklar",
+      icon: UserRoundX,
+      tone: "red",
+    },
+    data.duplicateFamilies + data.duplicateStudents > 0 && {
+      title: "Mulige duplikater",
+      description:
+        "Familier eller barn som ser ut til å være registrert flere ganger.",
+      count: data.duplicateFamilies + data.duplicateStudents,
+      href: `${basePath}/familier?vis=gjennomga`,
+      action: "Sammenlign",
+      icon: Copy,
+      tone: "red",
+    },
+    data.acceptedNotRegistered > 0 && {
+      title: "Tatt opp, ikke registrert",
+      description: "Merket som tatt opp, men barnet er ikke registrert som elev.",
+      count: data.acceptedNotRegistered,
+      href: `${basePath}/register?status=akseptert`,
+      action: "Fullfør opptak",
+      icon: UserCheck,
+      tone: "yellow",
+    },
+    data.newApplications > 0 && {
+      title: "Nye innmeldinger",
+      description: "Venter på gjennomgang og opptak.",
+      count: data.newApplications,
+      href: `${basePath}/register?status=ny`,
+      action: "Gå gjennom",
+      icon: ClipboardCheck,
+      tone: "yellow",
+    },
+    data.missingPlacement > 0 && {
+      title: "Mangler plass",
+      description: `Registrerte elever uten klasse i ${yearLabel}.`,
+      count: data.missingPlacement,
+      href: `${basePath}/elever?year=needs_rollover`,
+      action: "Plasser elever",
+      icon: RotateCcw,
+      tone: "yellow",
+    },
+    data.openFamilyReviews > 0 && {
+      title: "Familier må gjennomgås",
+      description: "Motstridende opplysninger fra tidligere registreringer.",
+      count: data.openFamilyReviews,
+      href: `${basePath}/familier?vis=gjennomga`,
+      action: "Gjennomgå",
+      icon: Users,
+      tone: "yellow",
+    },
+    data.outstandingAmount > 0 && {
+      title: "Utestående",
+      description: `${formatNok(data.outstandingAmount)} gjenstår i ${yearLabel}.`,
+      href: `${basePath}/elever?betaling=ikke_betalt`,
+      action: "Se hvem",
+      icon: Wallet,
+      tone: "blue",
+    },
+  ];
+  const attentionItems = candidates
+    .filter((item): item is AttentionItem => Boolean(item))
+    .sort((left, right) => toneRank[left.tone] - toneRank[right.tone]);
 
   return (
     <div className="grid gap-7 lg:gap-8">
@@ -550,7 +687,7 @@ export default async function AdminDashboardPage({
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <dt className="text-admin-muted">Utestående</dt>
+                <dt className="text-admin-muted">Gjenstår</dt>
                 <dd className="font-bold tabular-nums">
                   {formatNok(data.outstandingAmount)}
                 </dd>
@@ -604,7 +741,7 @@ export default async function AdminDashboardPage({
               Siste innmeldinger
             </h2>
             <p className="mt-0.5 text-sm text-admin-muted">
-              Nyeste registreringer, uavhengig av status.
+              Nyeste innmeldinger, uavhengig av status.
             </p>
           </div>
           <Link
@@ -632,7 +769,11 @@ export default async function AdminDashboardPage({
             {data.recentApplications.map((application) => (
               <li key={application.id}>
                 <Link
-                  href={`${basePath}/register?q=${encodeURIComponent(application.name)}`}
+                  href={
+                    application.studentId
+                      ? `${basePath}/elever/${application.studentId}`
+                      : `${basePath}/register?status=alle&q=${encodeURIComponent(application.name)}`
+                  }
                   className="group grid min-h-[4.75rem] gap-2 px-4 py-3 outline-none transition-colors hover:bg-[#FBFAF6] focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-5 sm:px-5"
                 >
                   <span className="min-w-0">

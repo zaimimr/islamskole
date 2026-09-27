@@ -7,7 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:payment": "node --conditions=react-server --test tests/payment-integrity.test.mjs tests/vipps-webhook.test.mjs tests/installment-schedule.test.mjs"
+    "typecheck": "tsc --noEmit",
+    "test": "node --conditions=react-server --test 'tests/*.test.mjs'",
+    "test:e2e": "playwright test",
+    "test:db": "supabase test db",
+    "db:types": "supabase gen types typescript --project-id shryfgcxydlhgyhcbryq --schema public > src/lib/supabase/types.ts",
+    "db:drift": "node scripts/check-migration-drift.mjs",
+    "test:payment": "node --conditions=react-server --test tests/payment-integrity.test.mjs tests/vipps-webhook.test.mjs tests/installment-schedule.test.mjs tests/family-billing.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

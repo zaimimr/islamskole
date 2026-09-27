@@ -35,6 +35,7 @@ export function SchoolYearForm({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [isActive, setIsActive] = useState(schoolYear?.is_active ?? false);
+  const lockedActive = Boolean(schoolYear?.is_active);
 
   function handleSubmit(formData: FormData) {
     formData.set("is_active", isActive ? "true" : "false");
@@ -53,7 +54,13 @@ export function SchoolYearForm({
   }
 
   return (
-    <form action={handleSubmit} className="grid gap-5">
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        handleSubmit(new FormData(event.currentTarget));
+      }}
+      className="grid gap-5"
+    >
       <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
         <div className="border-b border-[#ECE8DF] px-5 py-5 sm:px-6">
           <div className="flex items-start gap-3">
@@ -129,11 +136,11 @@ export function SchoolYearForm({
                   className="mt-2 bg-white"
                 />
                 <p className="mt-2 text-sm text-admin-muted">
-                  En klasse med egen pris overstyrer denne standardavgiften.
+                  En klasse med egen pris overstyrer denne årsavgiften.
                 </p>
                 <div className="mt-4 grid gap-4 sm:grid-cols-3">
                   <div className="grid gap-2">
-                    <Label htmlFor="enrollment_fee">Ved påmelding (kr)</Label>
+                    <Label htmlFor="enrollment_fee">Ved innmelding (kr)</Label>
                     <Input
                       id="enrollment_fee"
                       name="enrollment_fee"
@@ -166,7 +173,7 @@ export function SchoolYearForm({
                   </div>
                 </div>
                 <p className="mt-2 text-sm text-admin-muted">
-                  Beløpet ved påmelding betales i det offentlige skjemaet.
+                  Beløpet ved innmelding betales i det offentlige skjemaet.
                   Fristene brukes av semesterplanen for avdrag.
                 </p>
               </div>
@@ -179,16 +186,19 @@ export function SchoolYearForm({
                     Aktivt skoleår
                   </Label>
                   <p className="mt-0.5 text-xs text-admin-muted">
-                    Brukes som standard i administrasjonen.
+                    {lockedActive
+                      ? "Gjør et annet skoleår aktivt for å bytte."
+                      : "Brukes som standard i administrasjonen."}
                   </p>
                 </div>
                 <Switch
                   id="is_active"
                   checked={isActive}
                   onCheckedChange={setIsActive}
+                  disabled={lockedActive}
                 />
               </div>
-              {isActive ? (
+              {isActive && !lockedActive ? (
                 <p className="mt-3 flex gap-2 rounded-lg bg-[#FFF8E9] p-3 text-xs text-[#6D5A2D]">
                   <CircleAlert
                     aria-hidden="true"

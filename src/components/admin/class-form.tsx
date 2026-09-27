@@ -58,7 +58,13 @@ export function ClassForm({
   }
 
   return (
-    <form action={handleSubmit} className="grid gap-5">
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        handleSubmit(new FormData(event.currentTarget));
+      }}
+      className="grid gap-5"
+    >
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.72fr)]">
         <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
           <div className="border-b border-[#ECE8DF] px-5 py-5 sm:px-6">
@@ -78,11 +84,21 @@ export function ClassForm({
           </div>
 
           <div className="grid gap-6 p-5 sm:p-6">
-            <fieldset className="grid gap-4">
-              <legend className="font-heading text-lg font-bold">Norsk</legend>
-              <p className="-mt-3 text-sm text-admin-muted">
-                Primær informasjon for elever og foresatte.
-              </p>
+            <fieldset
+              className="grid gap-4"
+              aria-labelledby="class-norsk-title"
+            >
+              <div>
+                <h3
+                  id="class-norsk-title"
+                  className="font-heading text-lg font-bold"
+                >
+                  Norsk
+                </h3>
+                <p className="mt-0.5 text-sm text-admin-muted">
+                  Primær informasjon for elever og foresatte.
+                </p>
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="name_no" required>
                   Navn
@@ -115,14 +131,22 @@ export function ClassForm({
               </div>
             </fieldset>
 
-            <fieldset className="grid gap-4 border-t border-[#ECE8DF] pt-6">
-              <legend className="font-heading text-lg font-bold">
-                Engelsk
-              </legend>
-              <p className="-mt-3 text-sm text-admin-muted">
-                La feltene stå tomme dersom klassen ikke skal beskrives på
-                engelsk ennå.
-              </p>
+            <fieldset
+              className="grid gap-4 border-t border-[#ECE8DF] pt-6"
+              aria-labelledby="class-engelsk-title"
+            >
+              <div>
+                <h3
+                  id="class-engelsk-title"
+                  className="font-heading text-lg font-bold"
+                >
+                  Engelsk
+                </h3>
+                <p className="mt-0.5 text-sm text-admin-muted">
+                  La feltene stå tomme dersom klassen ikke skal beskrives på
+                  engelsk ennå.
+                </p>
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="name_en">Navn</Label>
                 <Input
@@ -206,18 +230,19 @@ export function ClassForm({
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="price">Pris per termin (kr)</Label>
+                <Label htmlFor="price">Egen pris per år (kr)</Label>
                 <Input
                   id="price"
                   name="price"
                   type="number"
                   min="0"
                   inputMode="numeric"
-                  placeholder="For eksempel 1500"
+                  placeholder="La stå tom for å bruke årsavgiften"
                   defaultValue={classRecord?.price ?? ""}
                 />
                 <p className="text-sm text-admin-muted">
-                  Overstyrer standardavgiften for skoleåret.
+                  Brukes sjelden. En egen pris overstyrer årsavgiften for alle
+                  elever som plasseres i klassen.
                 </p>
               </div>
             </div>

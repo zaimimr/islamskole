@@ -1,7 +1,9 @@
 import "server-only";
+import { toUserError } from "@/lib/action-errors";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
 import { ensureStudentFee, fetchBalance } from "@/lib/payment-ledger";
+import { osloToday } from "@/lib/dates";
 
 type Client = SupabaseClient<Database>;
 
@@ -47,7 +49,7 @@ export async function getFamilyEnrolledStudents(
     .eq("status", "aktiv")
     .eq("students.family_id", familyId);
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(toUserError(error), { cause: error });
   const ids = (data ?? []).map((row) => row.student_id as string);
   return [...new Set(ids)].sort();
 }
@@ -71,7 +73,7 @@ async function fetchPlan(client: Client, planId: string): Promise<PlanRow> {
     .eq("id", planId)
     .maybeSingle();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(toUserError(error), { cause: error });
   if (!data) throw new Error("Fant ikke betalingsplanen");
   return data as PlanRow;
 }
@@ -83,7 +85,7 @@ async function fetchYearSchedule(client: Client, schoolYearId: string) {
     .eq("id", schoolYearId)
     .maybeSingle();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(toUserError(error), { cause: error });
   return {
     sem1DueOn: data?.sem1_due_on ?? null,
     sem2DueOn: data?.sem2_due_on ?? null,
@@ -103,7 +105,7 @@ async function outstandingHeldAmount(
     .eq("student_id", studentId)
     .in("status", ["sendt", "stoppet"]);
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(toUserError(error), { cause: error });
   return (data ?? []).reduce((sum, row) => sum + (row.amount ?? 0), 0);
 }
 
@@ -126,7 +128,7 @@ export async function generateInstallments(
     .delete()
     .eq("plan_id", plan.id)
     .eq("status", "planlagt");
-  if (deleteError) throw new Error(deleteError.message);
+  if (deleteError) throw new Error(toUserError(deleteError), { cause: deleteError });
 
   const rows: Database["public"]["Tables"]["installments"]["Insert"][] = [];
 
@@ -155,7 +157,7 @@ export async function generateInstallments(
 
   if (rows.length > 0) {
     const { error } = await client.from("installments").insert(rows);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(toUserError(error), { cause: error });
   }
 
   return rows.length;
@@ -179,7 +181,7 @@ export async function assignPaymentPlan(
     .eq("school_year_id", input.schoolYearId)
     .eq("status", "aktiv")
     .maybeSingle();
-  if (existingError) throw new Error(existingError.message);
+  if (existingError) throw new Error(toUserError(existingError), { cause: existingError });
 
   if (existing) {
     const { error: cancelError } = await client
@@ -187,13 +189,13 @@ export async function assignPaymentPlan(
       .update({ status: "kansellert" })
       .eq("plan_id", existing.id)
       .in("status", ["planlagt", "stoppet"]);
-    if (cancelError) throw new Error(cancelError.message);
+    if (cancelError) throw new Error(toUserError(cancelError), { cause: cancelError });
 
     const { error: closeError } = await client
       .from("payment_plans")
       .update({ status: "avsluttet" })
       .eq("id", existing.id);
-    if (closeError) throw new Error(closeError.message);
+    if (closeError) throw new Error(toUserError(closeError), { cause: closeError });
   }
 
   const { data: created, error } = await client
@@ -210,7 +212,7 @@ export async function assignPaymentPlan(
     .select("id")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(toUserError(error), { cause: error });
 
   await generateInstallments(client, created.id);
   return created.id;
@@ -229,7 +231,7 @@ export async function rebuildPendingInstallments(
     .eq("status", "aktiv")
     .maybeSingle();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(toUserError(error), { cause: error });
   if (!data) return;
 
   await generateInstallments(client, data.id);
@@ -246,7 +248,7 @@ export async function rebuildPendingInstallmentsForStudent(
     .eq("id", studentId)
     .maybeSingle();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(toUserError(error), { cause: error });
   if (!data?.family_id) return;
 
   await rebuildPendingInstallments(client, data.family_id, schoolYearId);
@@ -259,7 +261,7 @@ export async function findDueInstallmentBatches(
   const leadDays = options.leadDays ?? 14;
   const limit = options.limit ?? 20;
 
-  const horizon = new Date();
+  const horizon = new Date(`${osloToday()}T12:00:00Z`);
   horizon.setUTCDate(horizon.getUTCDate() + leadDays);
 
   const { data, error } = await client
@@ -275,7 +277,7 @@ export async function findDueInstallmentBatches(
     .order("due_date")
     .limit(500);
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(toUserError(error), { cause: error });
 
   const batches = new Map<string, InstallmentBatch>();
   for (const row of data ?? []) {

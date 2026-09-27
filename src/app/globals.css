@@ -159,13 +159,34 @@
 }
 
 body:has([data-admin-shell]) .site-header,
-body:has([data-admin-shell]) .site-footer {
+body:has([data-admin-shell]) .site-footer,
+body:has([data-admin-login]) .site-header,
+body:has([data-admin-login]) .site-footer {
   display: none;
 }
 
 body:has([data-admin-shell]) #main-content {
   display: block;
   min-height: 100dvh;
+}
+
+body:has([data-admin-shell]) a[href="#main-content"] {
+  display: none;
+}
+
+body:has([data-admin-shell]),
+body:has([data-admin-login]) {
+  --primary: var(--admin-action);
+  --primary-foreground: #ffffff;
+  --ring: var(--admin-action);
+}
+
+[data-admin-shell] #admin-content:focus {
+  outline: none;
+}
+
+[data-admin-shell] table {
+  font-variant-numeric: tabular-nums;
 }
 
 html:has([data-admin-shell]) {

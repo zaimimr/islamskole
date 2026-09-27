@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, UserRoundPlus } from "lucide-react";
 import { adminBasePath } from "@/components/admin/paths";
 import { StudentForm } from "@/components/admin/student-form";
+
+export const metadata: Metadata = { title: "Ny elev" };
 
 export default async function NyElevPage({
   params,

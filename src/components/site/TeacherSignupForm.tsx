@@ -63,13 +63,13 @@ export function TeacherSignupForm() {
         aria-hidden="true"
         className="absolute left-[-9999px] h-0 w-0 overflow-hidden"
       >
-        <label htmlFor="company">Firma</label>
+        <label htmlFor="hp_field_t">La stå tom</label>
         <input
-          id="company"
-          name="company"
+          id="hp_field_t"
+          name="hp_field_t"
           type="text"
           tabIndex={-1}
-          autoComplete="off"
+          autoComplete="one-time-code"
         />
       </div>
 

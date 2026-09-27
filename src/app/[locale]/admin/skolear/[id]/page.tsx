@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft,
-  CalendarRange,
+  ArrowRight,
+  ChevronDown,
   CircleAlert,
+  CopyPlus,
   Settings2,
   UsersRound,
   Wallet,
@@ -18,62 +21,32 @@ import {
   type SchoolYearRecord,
 } from "@/components/admin/school-year-form";
 import { deleteSchoolYear } from "@/app/[locale]/admin/school-years-actions";
-import {
-  guardianName,
-  studentDisplayName,
-  type NamedRecord,
-} from "@/lib/student-name";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { formatNok } from "@/lib/money";
+import { schoolYearStart } from "@/lib/age";
+
+export const metadata: Metadata = { title: "Skoleår" };
 
 type EnrollmentRow = {
   student_id: string;
-  students:
-    | (NamedRecord & {
-        child_first_name: string | null;
-        child_last_name: string | null;
-        mother_first_name: string | null;
-        mother_last_name: string | null;
-        father_first_name: string | null;
-        father_last_name: string | null;
-      })
-    | null;
-  classes: { name_no: string | null } | null;
+  class_id: string;
+  classes: { name_no: string | null; capacity: number | null; sort_order: number | null } | null;
 };
 
-type PaymentRow = { student_id: string; amount: number; status: string };
-type PaymentState = "betalt" | "delvis" | "venter" | "ubetalt";
+type BalanceRow = {
+  student_id: string | null;
+  owed: number | null;
+  paid: number | null;
+  remaining: number | null;
+};
 
-function formatNok(ore: number) {
-  return `${(ore / 100).toLocaleString("nb-NO")} kr`;
-}
-
-function paymentStateLabel(state: PaymentState) {
-  const labels: Record<PaymentState, string> = {
-    betalt: "Betalt",
-    delvis: "Delvis betalt",
-    venter: "Venter på betaling",
-    ubetalt: "Ikke betalt",
-  };
-  return labels[state];
-}
-
-function paymentStateClasses(state: PaymentState) {
-  const classes: Record<PaymentState, string> = {
-    betalt: "bg-[#DCEDDD] text-[#216A2B] hover:bg-[#DCEDDD]",
-    delvis: "bg-[#FEEDCA] text-[#775108] hover:bg-[#FEEDCA]",
-    venter: "bg-[#DDEEF9] text-[#245D84] hover:bg-[#DDEEF9]",
-    ubetalt: "bg-[#F0F0ED] text-[#4D554F] hover:bg-[#F0F0ED]",
-  };
-  return classes[state];
-}
+type ClassSummary = {
+  id: string;
+  name: string;
+  capacity: number | null;
+  sortOrder: number;
+  count: number;
+  unsettled: number;
+};
 
 export default async function SkolearDetailPage({
   params,
@@ -88,7 +61,6 @@ export default async function SkolearDetailPage({
   const [
     { data: yearData },
     { data: enrollmentData },
-    { data: paymentData },
     { data: activeData },
     { data: balanceData },
   ] = await Promise.all([
@@ -99,17 +71,12 @@ export default async function SkolearDetailPage({
       .maybeSingle(),
     supabase
       .from("enrollments")
-      .select(
-        "student_id, students(child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name), classes(name_no)",
-      )
-      .eq("school_year_id", id),
-    supabase
-      .from("payments")
-      .select("student_id, amount, status")
-      .eq("school_year_id", id),
+      .select("student_id, class_id, classes(name_no, capacity, sort_order)")
+      .eq("school_year_id", id)
+      .eq("status", "aktiv"),
     supabase
       .from("school_years")
-      .select("label")
+      .select("id, label, starts_on")
       .eq("is_active", true)
       .maybeSingle(),
     supabase
@@ -121,72 +88,66 @@ export default async function SkolearDetailPage({
   if (!year) notFound();
 
   const enrollments = (enrollmentData as EnrollmentRow[] | null) ?? [];
-  const payments = (paymentData as PaymentRow[] | null) ?? [];
-  const activeYearLabel =
-    (activeData as { label: string } | null)?.label ?? null;
-  const balances =
-    (balanceData as
-      | {
-          student_id: string | null;
-          owed: number | null;
-          paid: number | null;
-          remaining: number | null;
-        }[]
-      | null) ?? [];
+  const activeYear = activeData as {
+    id: string;
+    label: string;
+    starts_on: string | null;
+  } | null;
+  const activeYearLabel = activeYear?.label ?? null;
+  const balances = (balanceData as BalanceRow[] | null) ?? [];
 
-  const balanceByStudent = new Map<
-    string,
-    { owed: number; paid: number; remaining: number }
-  >();
+  const balanceByStudent = new Map<string, BalanceRow>();
   for (const balance of balances) {
-    if (!balance.student_id) continue;
-    balanceByStudent.set(balance.student_id, {
-      owed: balance.owed ?? 0,
-      paid: balance.paid ?? 0,
-      remaining: balance.remaining ?? 0,
-    });
-  }
-
-  const hasPending = new Set(
-    payments
-      .filter(
-        (payment) =>
-          payment.status === "opprettet" || payment.status === "autorisert",
-      )
-      .map((payment) => payment.student_id),
-  );
-
-  const stateByStudent = new Map<string, PaymentState>();
-  for (const enrollment of enrollments) {
-    const balance = balanceByStudent.get(enrollment.student_id);
-    const owed = balance?.owed ?? 0;
-    const paid = balance?.paid ?? 0;
-    const remaining = balance?.remaining ?? 0;
-    if (owed > 0 && remaining <= 0) {
-      stateByStudent.set(enrollment.student_id, "betalt");
-    } else if (paid > 0) {
-      stateByStudent.set(enrollment.student_id, "delvis");
-    } else if (hasPending.has(enrollment.student_id)) {
-      stateByStudent.set(enrollment.student_id, "venter");
-    } else {
-      stateByStudent.set(enrollment.student_id, "ubetalt");
-    }
+    if (balance.student_id) balanceByStudent.set(balance.student_id, balance);
   }
 
   const enrolledIds = [
     ...new Set(enrollments.map((enrollment) => enrollment.student_id)),
   ];
-  const totalPaid = enrolledIds.reduce(
-    (sum, studentId) => sum + (balanceByStudent.get(studentId)?.paid ?? 0),
+  const enrolledSet = new Set(enrolledIds);
+  const placedBalances = balances.filter(
+    (row) => row.student_id && enrolledSet.has(row.student_id),
+  );
+  const totalOwed = placedBalances.reduce((sum, row) => sum + (row.owed ?? 0), 0);
+  const totalPaid = placedBalances.reduce(
+    (sum, row) => sum + Math.max((row.owed ?? 0) - (row.remaining ?? 0), 0),
     0,
   );
-  const totalRemaining = enrolledIds.reduce(
-    (sum, studentId) => sum + (balanceByStudent.get(studentId)?.remaining ?? 0),
+  const totalRemaining = placedBalances.reduce(
+    (sum, row) => sum + (row.remaining ?? 0),
     0,
   );
-  const unsettledCount = enrolledIds.filter(
-    (studentId) => (balanceByStudent.get(studentId)?.remaining ?? 0) > 0,
+  const unsettledCount = placedBalances.filter(
+    (row) => (row.remaining ?? 0) > 0,
   ).length;
+
+  const classMap = new Map<string, ClassSummary>();
+  for (const enrollment of enrollments) {
+    const summary = classMap.get(enrollment.class_id) ?? {
+      id: enrollment.class_id,
+      name: enrollment.classes?.name_no ?? "Klasse uten navn",
+      capacity: enrollment.classes?.capacity ?? null,
+      sortOrder: enrollment.classes?.sort_order ?? 0,
+      count: 0,
+      unsettled: 0,
+    };
+    summary.count += 1;
+    if ((balanceByStudent.get(enrollment.student_id)?.remaining ?? 0) > 0) {
+      summary.unsettled += 1;
+    }
+    classMap.set(enrollment.class_id, summary);
+  }
+  const classSummaries = [...classMap.values()].sort(
+    (left, right) => left.sortOrder - right.sortOrder,
+  );
+  const registerHref = `${basePath}/elever?year=${year.id}`;
+  const canRollover = !year.is_active && Boolean(activeYear);
+  const yearKey = (row: { label: string | null; starts_on: string | null }) =>
+    row.starts_on ?? `${schoolYearStart(row.label) ?? 0}-08-01`;
+  const isUpcoming = Boolean(activeYear && yearKey(year) > yearKey(activeYear));
+  const rolloverHref = isUpcoming
+    ? `${basePath}/skolear/${year.id}/rollover?fra=${activeYear?.id}`
+    : `${basePath}/skolear/${activeYear?.id}/rollover?fra=${year.id}`;
 
   return (
     <div className="grid gap-6 lg:gap-7">
@@ -226,7 +187,7 @@ export default async function SkolearDetailPage({
             <div>
               <dt className="text-sm text-admin-muted">Elever med plass</dt>
               <dd className="font-heading text-2xl font-bold tabular-nums">
-                {enrollments.length}
+                {enrolledIds.length}
               </dd>
             </div>
           </div>
@@ -235,9 +196,12 @@ export default async function SkolearDetailPage({
               <Wallet aria-hidden="true" className="size-5" />
             </span>
             <div>
-              <dt className="text-sm text-admin-muted">Registrert betalt</dt>
+              <dt className="text-sm text-admin-muted">Innbetalt</dt>
               <dd className="font-heading text-2xl font-bold tabular-nums">
                 {formatNok(totalPaid)}
+                <span className="block font-sans text-xs font-normal text-admin-muted">
+                  av {formatNok(totalOwed)} i krav
+                </span>
               </dd>
             </div>
           </div>
@@ -247,7 +211,8 @@ export default async function SkolearDetailPage({
             </span>
             <div>
               <dt className="text-sm text-admin-muted">
-                Gjenstår fra {unsettledCount} elever
+                Gjenstår fra {unsettledCount}{" "}
+                {unsettledCount === 1 ? "elev" : "elever"}
               </dt>
               <dd className="font-heading text-2xl font-bold tabular-nums">
                 {formatNok(totalRemaining)}
@@ -255,6 +220,67 @@ export default async function SkolearDetailPage({
             </div>
           </div>
         </dl>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
+          <div>
+            <h2 className="font-heading text-xl font-bold">Klasser dette skoleåret</h2>
+            <p className="mt-0.5 text-sm text-admin-muted">
+              Elever med aktiv plass. Åpne elevregisteret for navn og betaling.
+            </p>
+          </div>
+          <Link
+            href={registerHref}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#DCD7CC] bg-white px-4 text-sm font-bold outline-none transition-colors hover:bg-[#F2F1EB] focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            Åpne elevregisteret
+            <ArrowRight aria-hidden="true" className="size-4" />
+          </Link>
+        </div>
+
+        {classSummaries.length === 0 ? (
+          <div className="flex min-h-40 flex-col items-center justify-center px-6 py-10 text-center">
+            <UsersRound aria-hidden="true" className="size-7 text-admin-muted" />
+            <p className="mt-3 font-bold">Ingen elever plassert</p>
+            <p className="mt-1 max-w-sm text-sm text-admin-muted">
+              Elever vises her når de får en klasse i dette skoleåret.
+            </p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-[#ECE8DF]">
+            {classSummaries.map((summary) => (
+              <li key={summary.id}>
+                <Link
+                  href={`${registerHref}&class=${summary.id}`}
+                  className="group grid min-h-16 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-4 px-4 py-3 outline-none transition-colors hover:bg-[#FBFAF6] focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50 sm:px-5"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-bold">{summary.name}</span>
+                    {summary.unsettled > 0 ? (
+                      <span className="block text-xs text-[#775108]">
+                        {summary.unsettled} med utestående beløp
+                      </span>
+                    ) : (
+                      <span className="block text-xs text-admin-muted">
+                        Ingen utestående
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-sm font-bold tabular-nums">
+                    {summary.count}
+                    {summary.capacity != null ? ` / ${summary.capacity}` : ""}
+                    <span className="sr-only"> elever</span>
+                  </span>
+                  <ArrowRight
+                    aria-hidden="true"
+                    className="size-4 text-admin-muted transition-transform group-hover:translate-x-0.5"
+                  />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="rounded-2xl bg-[#FFF8E9] p-5 ring-1 ring-[#ECDCB9] sm:p-6">
@@ -273,170 +299,56 @@ export default async function SkolearDetailPage({
           </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-3">
+          {canRollover ? (
+            <Link
+              href={rolloverHref}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-admin-action px-4 text-sm font-bold text-white outline-none transition-colors hover:bg-[#245E2B] focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <CopyPlus aria-hidden="true" className="size-4" />
+              {isUpcoming
+                ? `Hent elever fra ${activeYearLabel}`
+                : `Videreføre elever til ${activeYearLabel}`}
+            </Link>
+          ) : null}
           <BatchSendButton
             schoolYearId={year.id}
             yearLabel={year.label ?? "skoleåret"}
           />
-          <YearActions
-            schoolYearId={year.id}
-            isActiveYear={Boolean(year.is_active)}
-            activeYearLabel={activeYearLabel}
+          <YearActions schoolYearId={year.id} />
+        </div>
+      </section>
+
+      <details className="group overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
+        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 font-heading text-lg font-bold outline-none hover:bg-[#FBFAF6] focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+          Innstillinger for skoleåret
+          <ChevronDown
+            aria-hidden="true"
+            className="size-5 text-admin-muted transition-transform group-open:rotate-180"
           />
-        </div>
-      </section>
+        </summary>
+        <div className="grid gap-5 border-t border-[#ECE8DF] bg-[#FBFAF6] p-4 sm:p-5">
+          <SchoolYearForm schoolYear={year} listHref={listHref} />
 
-      <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
-        <div className="border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
-          <h2 className="font-heading text-xl font-bold">
-            Elever dette skoleåret
-          </h2>
-          <p className="mt-0.5 text-sm text-admin-muted">
-            Klasse og betalingsstatus holdes adskilt for hver elev.
-          </p>
-        </div>
-
-        {enrollments.length === 0 ? (
-          <div className="flex min-h-52 flex-col items-center justify-center px-6 py-10 text-center">
-            <CalendarRange
-              aria-hidden="true"
-              className="size-7 text-admin-muted"
-            />
-            <p className="mt-3 font-bold">Ingen elever plassert</p>
-            <p className="mt-1 max-w-sm text-sm text-admin-muted">
-              Elever vil vises her når de får en klasse i dette skoleåret.
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Navn</TableHead>
-                    <TableHead>Foresatt</TableHead>
-                    <TableHead>Klasse</TableHead>
-                    <TableHead>Betalt</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {enrollments.map((enrollment) => {
-                    const state =
-                      stateByStudent.get(enrollment.student_id) ?? "ubetalt";
-                    const balance = balanceByStudent.get(enrollment.student_id);
-                    return (
-                      <TableRow
-                        key={`${enrollment.student_id}-${enrollment.classes?.name_no}`}
-                      >
-                        <TableCell className="font-bold">
-                          <Link
-                            href={`${basePath}/elever/${enrollment.student_id}`}
-                            className="rounded underline-offset-2 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
-                          >
-                            {enrollment.students
-                              ? studentDisplayName(enrollment.students) || "-"
-                              : "-"}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-admin-muted">
-                          {enrollment.students
-                            ? (guardianName(enrollment.students) ?? "-")
-                            : "-"}
-                        </TableCell>
-                        <TableCell>
-                          {enrollment.classes?.name_no ?? "Ikke plassert"}
-                        </TableCell>
-                        <TableCell className="tabular-nums">
-                          {formatNok(balance?.paid ?? 0)}
-                          <span className="text-admin-muted">
-                            {` av ${formatNok(balance?.owed ?? 0)}`}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={paymentStateClasses(state)}>
-                            {paymentStateLabel(state)}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+          <section className="flex flex-col gap-4 rounded-2xl bg-white p-5 ring-1 ring-[#E3DED3] sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-heading text-lg font-bold">Slett skoleåret</h2>
+              <p className="mt-0.5 max-w-2xl text-sm text-admin-muted">
+                {year.is_active
+                  ? "Det aktive skoleåret kan ikke slettes."
+                  : "Går bare når ingen elever er plassert og ingen betalinger er knyttet til året."}
+              </p>
             </div>
-
-            <ul className="divide-y divide-[#ECE8DF] md:hidden">
-              {enrollments.map((enrollment) => {
-                const state =
-                  stateByStudent.get(enrollment.student_id) ?? "ubetalt";
-                const balance = balanceByStudent.get(enrollment.student_id);
-                return (
-                  <li
-                    key={`${enrollment.student_id}-${enrollment.classes?.name_no}`}
-                    className="p-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <Link
-                          href={`${basePath}/elever/${enrollment.student_id}`}
-                          className="rounded font-bold underline-offset-2 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
-                        >
-                          {enrollment.students
-                            ? studentDisplayName(enrollment.students) || "-"
-                            : "-"}
-                        </Link>
-                        <p className="mt-0.5 truncate text-sm text-admin-muted">
-                          {enrollment.students
-                            ? (guardianName(enrollment.students) ??
-                              "Foresatt mangler")
-                            : "Foresatt mangler"}
-                        </p>
-                      </div>
-                      <Badge className={paymentStateClasses(state)}>
-                        {paymentStateLabel(state)}
-                      </Badge>
-                    </div>
-                    <dl className="mt-4 grid grid-cols-2 gap-4 rounded-xl bg-[#F7F6F1] p-3 text-sm">
-                      <div>
-                        <dt className="text-xs text-admin-muted">Klasse</dt>
-                        <dd className="mt-0.5 font-bold">
-                          {enrollment.classes?.name_no ?? "Ikke plassert"}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs text-admin-muted">Betalt</dt>
-                        <dd className="mt-0.5 font-bold tabular-nums">
-                          {formatNok(balance?.paid ?? 0)}
-                          <span className="block text-xs font-normal text-admin-muted">
-                            av {formatNok(balance?.owed ?? 0)}
-                          </span>
-                        </dd>
-                      </div>
-                    </dl>
-                  </li>
-                );
-              })}
-            </ul>
-          </>
-        )}
-      </section>
-
-      <SchoolYearForm schoolYear={year} listHref={listHref} />
-
-      <section className="flex flex-col gap-4 rounded-2xl bg-white p-5 ring-1 ring-[#E3DED3] sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="font-heading text-lg font-bold">Slett skoleåret</h2>
-          <p className="mt-0.5 max-w-2xl text-sm text-admin-muted">
-            Sletting følger eksisterende kontroll av tilknyttede data og kan
-            ikke omgås her.
-          </p>
+            {year.is_active ? null : (
+              <DeleteButton
+                id={year.id}
+                label="skoleår"
+                action={deleteSchoolYear}
+                redirectTo={listHref}
+              />
+            )}
+          </section>
         </div>
-        <DeleteButton
-          id={year.id}
-          label="skoleår"
-          action={deleteSchoolYear}
-          redirectTo={listHref}
-        />
-      </section>
+      </details>
     </div>
   );
 }

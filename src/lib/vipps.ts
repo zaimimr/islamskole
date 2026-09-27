@@ -383,6 +383,7 @@ export async function deleteWebhook(id: string): Promise<void> {
 export async function refundPayment(
   reference: string,
   amount: number,
+  idempotencyKey: string,
 ): Promise<void> {
   const config = getConfig();
   const token = await getAccessToken(config);
@@ -393,11 +394,7 @@ export async function refundPayment(
       method: "POST",
       headers: {
         ...baseHeaders(config, token),
-        "Idempotency-Key": vippsIdempotencyKey(
-          "refund",
-          reference,
-          amount,
-        ),
+        "Idempotency-Key": idempotencyKey,
       },
       body: JSON.stringify({
         modificationAmount: { currency: "NOK", value: amount },

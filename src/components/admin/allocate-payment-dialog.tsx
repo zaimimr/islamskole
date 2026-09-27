@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CheckCircle2, Loader2, Plus, Split, X } from "lucide-react";
 import { updatePaymentAllocations } from "@/app/[locale]/admin/students-actions";
+import { formatNok } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,10 +23,6 @@ export type AllocationStudent = { id: string; name: string };
 export type ExistingAllocation = { studentId: string; amount: number };
 
 type Row = { studentId: string; amountNok: string };
-
-function formatNok(ore: number) {
-  return `${(ore / 100).toLocaleString("nb-NO")} kr`;
-}
 
 export function AllocatePaymentDialog({
   paymentId,
@@ -165,7 +162,8 @@ export function AllocatePaymentDialog({
           <DialogTitle>Fordel betaling</DialogTitle>
           <DialogDescription>
             Betalingen er på {formatNok(paymentAmount)}. Velg hvilke barn den
-            dekker og hvor mye som gjelder hvert barn.
+            dekker og hvor mye som gjelder hvert barn. En manuell fordeling
+            beholdes når betalingen synkroniseres eller året fordeles på nytt.
           </DialogDescription>
         </DialogHeader>
 

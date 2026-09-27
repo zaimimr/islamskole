@@ -132,7 +132,9 @@ export function StudentForm({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  function handleSubmit(formData: FormData) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
     startTransition(async () => {
       const result = student
         ? await updateStudent(student.id, formData)
@@ -149,7 +151,7 @@ export function StudentForm({
 
   return (
     <form
-      action={handleSubmit}
+      onSubmit={handleSubmit}
       className="grid gap-5 [&_input]:min-h-11 [&_input]:rounded-xl [&_input]:border-[#CFC9BD] [&_input]:shadow-none [&_textarea]:rounded-xl [&_textarea]:border-[#CFC9BD] [&_textarea]:shadow-none"
       aria-busy={pending}
     >
@@ -263,135 +265,131 @@ export function StudentForm({
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
-        <FormSectionHeading
-          icon={<UsersRound aria-hidden="true" className="size-4" />}
-          title="Primær foresatt"
-          description="Minst én foresatt må registreres for barnet."
-        />
-        <div className="grid gap-4 p-4 sm:p-5">
-          <div className="grid gap-2">
-            <Label htmlFor="mother_relationship">Relasjon</Label>
-            <select
-              id="mother_relationship"
-              name="mother_relationship"
-              defaultValue="foresatt"
-              className={selectClassName}
-            >
-              {guardianRoleOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="mother_first_name">Fornavn</Label>
-              <Input
-                id="mother_first_name"
-                name="mother_first_name"
-                defaultValue={student?.mother_first_name ?? ""}
-              />
+      {student ? null : (
+        <>
+          <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
+            <FormSectionHeading
+              icon={<UsersRound aria-hidden="true" className="size-4" />}
+              title="Primær foresatt"
+              description="Minst én foresatt må registreres for barnet."
+            />
+            <div className="grid gap-4 p-4 sm:p-5">
+              <div className="grid gap-2">
+                <Label htmlFor="mother_relationship">Relasjon</Label>
+                <select
+                  id="mother_relationship"
+                  name="mother_relationship"
+                  defaultValue="foresatt"
+                  className={selectClassName}
+                >
+                  {guardianRoleOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="mother_first_name">Fornavn</Label>
+                  <Input
+                    id="mother_first_name"
+                    name="mother_first_name"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="mother_last_name">Etternavn</Label>
+                  <Input
+                    id="mother_last_name"
+                    name="mother_last_name"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="mother_phone">Telefon</Label>
+                  <Input
+                    id="mother_phone"
+                    name="mother_phone"
+                    type="tel"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="mother_email">E-post</Label>
+                  <Input
+                    id="mother_email"
+                    name="mother_email"
+                    type="email"
+                  />
+                </div>
+              </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="mother_last_name">Etternavn</Label>
-              <Input
-                id="mother_last_name"
-                name="mother_last_name"
-                defaultValue={student?.mother_last_name ?? ""}
-              />
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="mother_phone">Telefon</Label>
-              <Input
-                id="mother_phone"
-                name="mother_phone"
-                type="tel"
-                defaultValue={student?.mother_phone ?? ""}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="mother_email">E-post</Label>
-              <Input
-                id="mother_email"
-                name="mother_email"
-                type="email"
-                defaultValue={student?.mother_email ?? ""}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
+          </section>
 
-      <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
-        <FormSectionHeading
-          icon={<UsersRound aria-hidden="true" className="size-4" />}
-          title="Ekstra foresatt"
-          description="Valgfri kontakt som også kan knyttes til familien."
-        />
-        <div className="grid gap-4 p-4 sm:p-5">
-          <div className="grid gap-2">
-            <Label htmlFor="father_relationship">Relasjon</Label>
-            <select
-              id="father_relationship"
-              name="father_relationship"
-              defaultValue="foresatt"
-              className={selectClassName}
-            >
-              {guardianRoleOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="father_first_name">Fornavn</Label>
-              <Input
-                id="father_first_name"
-                name="father_first_name"
-                defaultValue={student?.father_first_name ?? ""}
-              />
+          <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
+            <FormSectionHeading
+              icon={<UsersRound aria-hidden="true" className="size-4" />}
+              title="Ekstra foresatt"
+              description="Valgfri kontakt som også kan knyttes til familien."
+            />
+            <div className="grid gap-4 p-4 sm:p-5">
+              <div className="grid gap-2">
+                <Label htmlFor="father_relationship">Relasjon</Label>
+                <select
+                  id="father_relationship"
+                  name="father_relationship"
+                  defaultValue="foresatt"
+                  className={selectClassName}
+                >
+                  {guardianRoleOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="father_first_name">Fornavn</Label>
+                  <Input
+                    id="father_first_name"
+                    name="father_first_name"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="father_last_name">Etternavn</Label>
+                  <Input
+                    id="father_last_name"
+                    name="father_last_name"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="father_phone">Telefon</Label>
+                  <Input
+                    id="father_phone"
+                    name="father_phone"
+                    type="tel"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="father_email">E-post</Label>
+                  <Input
+                    id="father_email"
+                    name="father_email"
+                    type="email"
+                  />
+                </div>
+              </div>
+              <p className="rounded-xl bg-[#EFF8FD] p-3 text-sm text-[#245D7C]">
+                Betalingslenken kan sendes til begge foresatte. Når én har
+                betalt, ser den andre kvitteringssiden.
+              </p>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="father_last_name">Etternavn</Label>
-              <Input
-                id="father_last_name"
-                name="father_last_name"
-                defaultValue={student?.father_last_name ?? ""}
-              />
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="father_phone">Telefon</Label>
-              <Input
-                id="father_phone"
-                name="father_phone"
-                type="tel"
-                defaultValue={student?.father_phone ?? ""}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="father_email">E-post</Label>
-              <Input
-                id="father_email"
-                name="father_email"
-                type="email"
-                defaultValue={student?.father_email ?? ""}
-              />
-            </div>
-          </div>
-          <p className="rounded-xl bg-[#EFF8FD] p-3 text-sm text-[#245D7C]">
-            Betalingslenken kan sendes til begge foresatte. Når én har betalt,
-            ser den andre kvitteringssiden.
-          </p>
-        </div>
-      </section>
+          </section>
+        </>
+      )}
 
       <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
         <FormSectionHeading
@@ -439,7 +437,9 @@ export function StudentForm({
         <Button
           type="button"
           variant="outline"
-          onClick={() => router.push(listHref)}
+          onClick={() =>
+            router.push(student ? `${listHref}/${student.id}` : listHref)
+          }
           className="min-h-11 rounded-xl px-5 font-bold"
         >
           Avbryt

@@ -62,7 +62,12 @@ type NameRow = {
   father_last_name: string | null;
 };
 
-function describe(rows: NameRow[], yearLabel: string | null, amount: number) {
+function describe(
+  rows: NameRow[],
+  yearLabel: string | null,
+  amount: number,
+  amounts?: number[],
+) {
   const childNames = rows.map((row) => studentDisplayName(row)).filter(Boolean);
   const guardian = rows.length > 0 ? guardianName(rows[0]) : null;
   const familyName =
@@ -74,11 +79,18 @@ function describe(rows: NameRow[], yearLabel: string | null, amount: number) {
 
   const share =
     childNames.length > 0 ? Math.floor(amount / childNames.length) : amount;
+  const exact =
+    amounts != null &&
+    amounts.length === childNames.length &&
+    amounts.reduce((sum, value) => sum + value, 0) === amount;
   const orderLines: VippsOrderLine[] = childNames.map((name, index) => ({
     name: `${name}${yearPart}`,
     id: `barn-${index + 1}`,
-    totalAmount:
-      index === 0 ? amount - share * (childNames.length - 1) : share,
+    totalAmount: exact
+      ? amounts[index]
+      : index === 0
+        ? amount - share * (childNames.length - 1)
+        : share,
   }));
 
   const metadata: Record<string, string> = {};
@@ -93,22 +105,56 @@ export async function buildPaymentDescriptor(
   client: Client,
   paymentId: string,
 ): Promise<PaymentDescriptor> {
-  const { data } = await client
+  const names =
+    "child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name";
+  const { data: raw } = await client
     .from("payments")
     .select(
-      "amount, school_years(label), students(child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name), student_applications(child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name)",
+      `amount, school_years(label), students!payments_student_id_fkey(${names}), student_applications(${names}), payment_targets(amount, created_at, students(${names})), installments(amount, student_id, students(${names}))`,
     )
     .eq("id", paymentId)
     .maybeSingle();
+  const data = raw as unknown as {
+    amount: number;
+    school_years: { label: string } | null;
+    students: NameRow | null;
+    student_applications: NameRow[] | null;
+    payment_targets: { amount: number; created_at: string; students: NameRow | null }[] | null;
+    installments: { amount: number; student_id: string; students: NameRow | null }[] | null;
+  } | null;
 
   const amount = data?.amount ?? 0;
   const yearLabel = data?.school_years?.label ?? null;
 
-  const rows: NameRow[] = data?.students
-    ? [data.students]
-    : (data?.student_applications ?? []);
+  const targets = [...(data?.payment_targets ?? [])]
+    .filter((target) => target.students)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const installmentsByStudent = new Map<string, { row: NameRow; amount: number }>();
+  for (const installment of data?.installments ?? []) {
+    if (!installment.students) continue;
+    const current = installmentsByStudent.get(installment.student_id);
+    installmentsByStudent.set(installment.student_id, {
+      row: installment.students,
+      amount: (current?.amount ?? 0) + installment.amount,
+    });
+  }
+  const installmentRows = [...installmentsByStudent.values()];
 
-  const built = describe(rows, yearLabel, amount);
+  let rows: NameRow[];
+  let amounts: number[] | undefined;
+  if (targets.length > 0) {
+    rows = targets.map((target) => target.students as NameRow);
+    amounts = targets.map((target) => target.amount);
+  } else if (installmentRows.length > 0) {
+    rows = installmentRows.map((entry) => entry.row);
+    amounts = installmentRows.map((entry) => entry.amount);
+  } else if (data?.students) {
+    rows = [data.students];
+  } else {
+    rows = data?.student_applications ?? [];
+  }
+
+  const built = describe(rows, yearLabel, amount, amounts);
 
   return {
     reference: buildReference(

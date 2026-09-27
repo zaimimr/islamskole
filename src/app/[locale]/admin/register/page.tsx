@@ -1,21 +1,20 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   CalendarClock,
   ChevronDown,
+  CircleAlert,
   CircleCheck,
   CreditCard,
-  Download,
+  Phone,
   Users,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { studentDisplayName } from "@/lib/student-name";
-import { formatAge, schoolYearStart } from "@/lib/age";
-import { deleteStudentApplication } from "@/app/[locale]/admin/actions";
+import { ageInYear, schoolYearStart } from "@/lib/age";
+import { formatOsloDateTime } from "@/lib/dates";
 import { adminBasePath } from "@/components/admin/paths";
-import { DeleteButton } from "@/components/admin/delete-button";
-import { RegisterStudentButton } from "@/components/admin/register-student-button";
-import { StudentStatusSelect } from "@/components/admin/student-status-select";
-import { StudentFilters } from "@/components/admin/student-filters";
+import { StudentStatusMenu } from "@/components/admin/student-status-select";
 import { Pagination } from "@/components/admin/pagination";
 import { ExportButton } from "@/components/admin/export-button";
 import {
@@ -23,6 +22,11 @@ import {
   BulkSelectAll,
   BulkRowCheckbox,
 } from "@/components/admin/bulk-actions";
+import { AdmitDialog } from "./admit-dialog";
+import { ApplicationFilters } from "./application-filters";
+import { suggestPlacements, type PlacementClass } from "./placement";
+
+export const metadata: Metadata = { title: "Opptak" };
 
 type StudentApplicationRow = {
   id: string;
@@ -109,10 +113,12 @@ function levelLabel(value: string | null) {
   return levelLabels[value] ?? value;
 }
 
+const OPEN_STATUSES = ["ny", "kontaktet", "akseptert"];
+
 async function getApplications(
   q: string,
   status: string,
-): Promise<StudentApplicationRow[]> {
+): Promise<StudentApplicationRow[] | null> {
   try {
     const supabase = await createClient();
     let query = supabase
@@ -122,7 +128,9 @@ async function getApplications(
       )
       .order("created_at", { ascending: false });
 
-    if (status) {
+    if (!status) {
+      query = query.in("status", OPEN_STATUSES);
+    } else if (status !== "alle") {
       query = query.eq("status", status);
     }
     const term = q.replace(/[%,()]/g, " ").trim();
@@ -132,20 +140,22 @@ async function getApplications(
       );
     }
 
-    const { data } = await query;
+    const { data, error } = await query;
+    if (error) return null;
     return (data as StudentApplicationRow[] | null) ?? [];
   } catch {
-    return [];
+    return null;
   }
 }
 
-async function getRegisteredMap(): Promise<Map<string, string>> {
+async function getRegisteredMap(): Promise<Map<string, string> | null> {
   try {
     const supabase = await createClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("students")
       .select("id, application_id")
       .not("application_id", "is", null);
+    if (error) return null;
     const rows =
       (data as { id: string; application_id: string | null }[] | null) ?? [];
     return new Map(
@@ -154,61 +164,113 @@ async function getRegisteredMap(): Promise<Map<string, string>> {
         .map((r) => [r.application_id as string, r.id]),
     );
   } catch {
-    return new Map();
+    return null;
   }
 }
 
-async function getPlacementOptions() {
+async function getPlacementOptions(): Promise<{
+  classes: PlacementClass[];
+  activeYear: { id: string; label: string } | null;
+}> {
   try {
     const supabase = await createClient();
-    const [{ data: classes }, { data: years }] = await Promise.all([
+    const [{ data: classes }, { data: year }] = await Promise.all([
       supabase
         .from("classes")
-        .select("id, name_no")
+        .select("id, name_no, age_min, age_max, capacity")
         .order("sort_order", { ascending: true }),
       supabase
         .from("school_years")
-        .select("id, label, is_active")
-        .order("label", { ascending: false }),
+        .select("id, label")
+        .eq("is_active", true)
+        .maybeSingle(),
     ]);
+    const activeYear = year as { id: string; label: string } | null;
+    const { data: enrollments } = activeYear
+      ? await supabase
+          .from("enrollments")
+          .select("class_id")
+          .eq("school_year_id", activeYear.id)
+          .eq("status", "aktiv")
+      : { data: [] };
+    const counts = new Map<string, number>();
+    for (const row of (enrollments as { class_id: string }[] | null) ?? []) {
+      counts.set(row.class_id, (counts.get(row.class_id) ?? 0) + 1);
+    }
     return {
+      activeYear,
       classes: (
-        (classes as { id: string; name_no: string | null }[] | null) ?? []
-      ).map((c) => ({ id: c.id, name: c.name_no ?? "(uten navn)" })),
-      schoolYears: (
-        (years as { id: string; label: string; is_active: boolean }[] | null) ??
-        []
-      ).map((y) => ({ id: y.id, label: y.label, is_active: y.is_active })),
+        (classes as
+          | {
+              id: string;
+              name_no: string | null;
+              age_min: number | null;
+              age_max: number | null;
+              capacity: number | null;
+            }[]
+          | null) ?? []
+      ).map((c) => ({
+        id: c.id,
+        name: c.name_no ?? "(uten navn)",
+        ageMin: c.age_min,
+        ageMax: c.age_max,
+        capacity: c.capacity,
+        enrolled: counts.get(c.id) ?? 0,
+      })),
     };
   } catch {
-    return { classes: [], schoolYears: [] };
+    return { classes: [], activeYear: null };
   }
 }
 
-function formatDate(value: string | null) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleString("nb-NO", {
-    timeZone: "Europe/Oslo",
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+const statusLabels: Record<string, { label: string; className: string }> = {
+  ny: { label: "Ny", className: "bg-[#FEEDCA] text-[#775108]" },
+  kontaktet: { label: "Kontaktet", className: "bg-[#DDEEF9] text-[#245D84]" },
+  akseptert: { label: "Tatt opp", className: "bg-[#DCEDDD] text-[#216A2B]" },
+  avslatt: { label: "Avslått", className: "bg-[#F9DEDB] text-[#8B2F2B]" },
+  arkivert: { label: "Arkivert", className: "bg-[#F0F0ED] text-[#4D554F]" },
+};
+
+function telHref(phone: string) {
+  return `tel:${phone.replace(/\s+/g, "")}`;
 }
 
-function Field({ label, value }: { label: string; value: string | null }) {
+function formatDate(value: string | null) {
+  return formatOsloDateTime(value) || "-";
+}
+
+function Field({
+  label,
+  value,
+  href,
+}: {
+  label: string;
+  value: string | null;
+  href?: string;
+}) {
   if (!value || value === "-") return null;
   return (
     <div className="min-w-0">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="break-words">{value}</dd>
+      <dd className="break-words">
+        {href ? (
+          <a
+            href={href}
+            className="inline-flex min-h-11 items-center font-bold text-[#277A31] underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-0"
+          >
+            {value}
+          </a>
+        ) : (
+          value
+        )}
+      </dd>
     </div>
   );
 }
 
 const PAGE_SIZE = 25;
 
-export default async function PameldingerPage({
+export default async function OpptakPage({
   params,
   searchParams,
 }: PageProps<"/[locale]/admin/register">) {
@@ -223,12 +285,28 @@ export default async function PameldingerPage({
     getRegisteredMap(),
     getPlacementOptions(),
   ]);
+
+  if (!allApplications || !registered) {
+    return (
+      <section className="mx-auto max-w-2xl rounded-2xl bg-white p-6 ring-1 ring-[#E3DED3]">
+        <span className="mb-4 flex size-11 items-center justify-center rounded-full bg-[#F9DEDB] text-[#8B2F2B]">
+          <CircleAlert aria-hidden="true" className="size-5" />
+        </span>
+        <h1 className="font-heading text-2xl font-bold">
+          Opptak kunne ikke lastes
+        </h1>
+        <p className="mt-2 text-admin-muted">
+          Ingen innmeldinger er skjult med vilje. Last siden på nytt om litt.
+        </p>
+      </section>
+    );
+  }
+
   const unregistered = allApplications.filter((a) => !registered.has(a.id));
   const total = unregistered.length;
   const from = (page - 1) * PAGE_SIZE;
   const applications = unregistered.slice(from, from + PAGE_SIZE);
-  const activeYear = placement.schoolYears.find((y) => y.is_active);
-  const defaultSchoolYearId = activeYear?.id ?? null;
+  const activeYear = placement.activeYear;
   const ageYear =
     schoolYearStart(activeYear?.label) ?? new Date().getFullYear();
   const filtered = Boolean(q || status);
@@ -239,83 +317,98 @@ export default async function PameldingerPage({
   const paidCount = unregistered.filter(
     (application) => paymentLabel(application).paid,
   ).length;
+  const candidates = applications.map((application) => ({
+    id: application.id,
+    name: studentDisplayName(application) || "Navn mangler",
+    age: ageInYear(application.child_birth_date, ageYear),
+    desiredClass: application.desired_class,
+  }));
+  const suggestions = suggestPlacements(candidates, placement.classes);
+  const candidateById = new Map(candidates.map((c) => [c.id, c]));
 
   return (
-    <div className="grid gap-5 sm:gap-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="grid gap-4 sm:gap-6">
+      <header className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-balance font-heading text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
-            Innmeldinger
+            Opptak
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-admin-muted sm:text-base">
-            Behandle nye innmeldinger, kontroller betalingen og registrer barnet
-            når opptaket er avklart.
+          <p className="mt-1 max-w-2xl text-sm text-admin-muted sm:mt-2 sm:text-base">
+            Gå gjennom innmeldinger, ta opp barnet og plasser det i klasse.
           </p>
         </div>
-        <ExportButton entity="applications" />
+        <div className="hidden sm:block">
+          <ExportButton entity="applications" />
+        </div>
       </header>
 
       <section
         aria-label="Status for innmeldinger"
-        className="grid overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3] sm:grid-cols-3"
+        className="grid grid-cols-3 divide-x divide-[#ECE8DF] overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]"
       >
-        <div className="flex min-h-24 items-center gap-3 px-4 py-4 sm:px-5">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#FEEDCA] text-[#775108]">
-            <CalendarClock aria-hidden="true" className="size-5" />
-          </span>
-          <div>
-            <p className="font-heading text-2xl font-bold tabular-nums">
-              {newCount}
-            </p>
-            <p className="text-sm text-admin-muted">Nye til behandling</p>
-          </div>
-        </div>
-        <div className="flex min-h-24 items-center gap-3 border-t border-[#ECE8DF] px-4 py-4 sm:border-t-0 sm:border-l sm:px-5">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B]">
-            <CreditCard aria-hidden="true" className="size-5" />
-          </span>
-          <div>
-            <p className="font-heading text-2xl font-bold tabular-nums">
-              {paidCount}
-            </p>
-            <p className="text-sm text-admin-muted">Betaling mottatt</p>
-          </div>
-        </div>
-        <div className="flex min-h-24 items-center gap-3 border-t border-[#ECE8DF] px-4 py-4 sm:border-t-0 sm:border-l sm:px-5">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#EFF8FD] text-[#245D7C]">
-            <Users aria-hidden="true" className="size-5" />
-          </span>
-          <div>
-            <p className="font-heading text-2xl font-bold tabular-nums">
-              {total}
-            </p>
-            <p className="text-sm text-admin-muted">I gjeldende utvalg</p>
-          </div>
-        </div>
+        {[
+          {
+            value: newCount,
+            label: "Nye",
+            icon: CalendarClock,
+            tone: "bg-[#FEEDCA] text-[#775108]",
+          },
+          {
+            value: paidCount,
+            label: "Har betalt",
+            icon: CreditCard,
+            tone: "bg-[#DCEDDD] text-[#216A2B]",
+          },
+          {
+            value: total,
+            label: filtered ? "I utvalget" : "Til behandling",
+            icon: Users,
+            tone: "bg-[#EFF8FD] text-[#245D7C]",
+          },
+        ].map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <div
+              key={stat.label}
+              className="flex items-center gap-3 px-3 py-3 sm:min-h-24 sm:px-5 sm:py-4"
+            >
+              <span
+                className={`hidden size-10 shrink-0 items-center justify-center rounded-full sm:flex ${stat.tone}`}
+              >
+                <Icon aria-hidden="true" className="size-5" />
+              </span>
+              <div>
+                <p className="font-heading text-xl font-bold tabular-nums sm:text-2xl">
+                  {stat.value}
+                </p>
+                <p className="text-xs text-admin-muted sm:text-sm">
+                  {stat.label}
+                </p>
+              </div>
+            </div>
+          );
+        })}
       </section>
 
-      <section className="rounded-2xl bg-white p-4 ring-1 ring-[#E3DED3] sm:p-5">
-        <StudentFilters />
+      <section className="rounded-2xl bg-white px-4 py-2 ring-1 ring-[#E3DED3] sm:p-5">
+        <ApplicationFilters />
       </section>
 
       <section
         aria-labelledby="applications-list-title"
         className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]"
       >
-        <div className="flex items-center justify-between gap-4 border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
-          <div>
-            <h2
-              id="applications-list-title"
-              className="font-heading text-xl font-bold"
-            >
-              Søknader til behandling
-            </h2>
-            <p className="mt-0.5 text-sm text-admin-muted" aria-live="polite">
-              {total} {total === 1 ? "innmelding" : "innmeldinger"}
-              {filtered ? " passer valgte filtre" : " venter i innboksen"}
-            </p>
-          </div>
-          <Download aria-hidden="true" className="size-5 text-admin-muted" />
+        <div className="border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
+          <h2
+            id="applications-list-title"
+            className="font-heading text-xl font-bold"
+          >
+            Innmeldinger
+          </h2>
+          <p className="mt-0.5 text-sm text-admin-muted" aria-live="polite">
+            {total} {total === 1 ? "innmelding" : "innmeldinger"}
+            {filtered ? " passer valgte filtre" : " venter på opptak"}
+          </p>
         </div>
         {applications.length === 0 ? (
           <div className="flex min-h-56 flex-col items-center justify-center px-6 py-10 text-center">
@@ -323,67 +416,112 @@ export default async function PameldingerPage({
               <CircleCheck aria-hidden="true" className="size-6" />
             </span>
             <p className="mt-4 font-heading text-xl font-bold">
-              {filtered ? "Ingen treff i innboksen" : "Innboksen er tom"}
+              {filtered ? "Ingen innmeldinger passer" : "Ingen venter på opptak"}
             </p>
             <p className="mt-1 max-w-md text-sm text-admin-muted">
               {filtered
-                ? "Prøv et annet søk eller velg en annen status."
+                ? "Prøv et annet søk eller velg en annen visning."
                 : "Nye innmeldinger vises her når foresatte har sendt dem inn."}
             </p>
           </div>
         ) : (
-          <BulkActions entity="applications" ids={pageIds}>
-            <div className="flex min-h-12 items-center gap-3 border-b border-[#ECE8DF] bg-[#FBFAF6] px-4 text-sm text-admin-muted sm:px-5">
+          <BulkActions
+            entity="applications"
+            ids={pageIds}
+            admit={{
+              classes: placement.classes,
+              schoolYear: activeYear,
+              candidates,
+            }}
+          >
+            <label className="flex min-h-12 cursor-pointer items-center gap-3 border-b border-[#ECE8DF] bg-[#FBFAF6] px-4 text-sm text-admin-muted sm:px-5">
               <BulkSelectAll />
               <span>Velg alle på denne siden</span>
-            </div>
+            </label>
             <ul className="divide-y divide-[#ECE8DF]">
               {applications.map((application) => {
                 const payment = paymentLabel(application);
-                const mother = fullName(
-                  application.mother_first_name,
-                  application.mother_last_name,
-                );
-                const father = fullName(
-                  application.father_first_name,
-                  application.father_last_name,
-                );
+                const candidate = candidateById.get(application.id);
+                const name = candidate?.name ?? "Navn mangler";
+                const appStatus = application.status ?? "ny";
+                const statusChip = statusLabels[appStatus] ?? statusLabels.arkivert;
+                const guardians = [
+                  {
+                    name: fullName(
+                      application.mother_first_name,
+                      application.mother_last_name,
+                    ),
+                    phone: application.mother_phone,
+                  },
+                  {
+                    name: fullName(
+                      application.father_first_name,
+                      application.father_last_name,
+                    ),
+                    phone: application.father_phone,
+                  },
+                ].filter((guardian) => guardian.name || guardian.phone);
+                const canAdmit = !["avslatt", "arkivert"].includes(appStatus);
                 return (
                   <li key={application.id} className="p-4 sm:p-5">
                     <div className="grid gap-4 lg:grid-cols-[minmax(14rem,1fr)_minmax(22rem,1.45fr)] lg:items-start">
                       <div className="flex min-w-0 items-start gap-3">
-                        <div className="pt-1">
+                        <label className="-m-2.5 flex size-11 shrink-0 cursor-pointer items-center justify-center">
                           <BulkRowCheckbox id={application.id} />
-                        </div>
+                          <span className="sr-only">Velg {name}</span>
+                        </label>
                         <div className="min-w-0 flex-1">
-                          <p className="font-heading text-lg font-bold">
-                            {studentDisplayName(application) || "-"}
+                          <p className="flex flex-wrap items-center gap-2">
+                            <span className="font-heading text-lg font-bold">
+                              {name}
+                            </span>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-xs font-bold ${statusChip.className}`}
+                            >
+                              {statusChip.label}
+                            </span>
                           </p>
                           <p className="mt-0.5 text-sm text-admin-muted">
-                            {formatAge(application.child_birth_date, ageYear)}{" "}
-                            år, {genderLabel(application.child_gender)}
-                            {application.desired_class
-                              ? `, ønsker ${application.desired_class}`
-                              : ""}
+                            {candidate?.age != null ? `${candidate.age} år` : "Alder mangler"}
+                            , {genderLabel(application.child_gender)}
                           </p>
-                          <p className="mt-2 line-clamp-2 text-sm text-admin-muted">
-                            {mother || father
-                              ? [
-                                  mother
-                                    ? `${mother}${application.mother_phone ? ` · ${application.mother_phone}` : ""}`
-                                    : null,
-                                  father
-                                    ? `${father}${application.father_phone ? ` · ${application.father_phone}` : ""}`
-                                    : null,
-                                ]
-                                  .filter(Boolean)
-                                  .join(", ")
-                              : "Ingen foresatt registrert"}
-                          </p>
+                          {appStatus === "akseptert" ? (
+                            <p className="mt-2 flex items-start gap-1.5 text-sm font-bold text-[#775108]">
+                              <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                              Merket som tatt opp, men ikke registrert som elev.
+                            </p>
+                          ) : null}
+                          {guardians.length > 0 ? (
+                            <ul className="mt-2 grid gap-1 text-sm">
+                              {guardians.map((guardian, index) => (
+                                <li
+                                  key={index}
+                                  className="flex flex-wrap items-center gap-x-2"
+                                >
+                                  <span className="text-admin-muted">
+                                    {guardian.name || "Foresatt"}
+                                  </span>
+                                  {guardian.phone ? (
+                                    <a
+                                      href={telHref(guardian.phone)}
+                                      className="inline-flex min-h-11 items-center gap-1.5 rounded font-bold text-[#277A31] underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-8"
+                                    >
+                                      <Phone aria-hidden="true" className="size-3.5" />
+                                      {guardian.phone}
+                                    </a>
+                                  ) : null}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="mt-2 text-sm text-admin-muted">
+                              Ingen foresatt registrert
+                            </p>
+                          )}
                           {application.family_id ? (
                             <Link
                               href={`${basePath}/familier/${application.family_id}`}
-                              className="mt-2 inline-flex min-h-10 items-center text-sm font-bold text-[#277A31] underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+                              className="mt-1 inline-flex min-h-11 items-center text-sm font-bold text-[#277A31] underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
                             >
                               Åpne familie
                             </Link>
@@ -392,7 +530,7 @@ export default async function PameldingerPage({
                       </div>
 
                       <div className="grid gap-3">
-                        <dl className="grid gap-2 rounded-xl bg-[#F8F6F0] p-3 sm:grid-cols-3">
+                        <dl className="grid grid-cols-3 gap-2 rounded-xl bg-[#F8F6F0] p-3">
                           <div>
                             <dt className="text-xs font-bold text-admin-muted">
                               Betaling
@@ -426,30 +564,32 @@ export default async function PameldingerPage({
                             </dd>
                           </div>
                         </dl>
-                        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                          <StudentStatusSelect
+                        <div className="flex items-center gap-2 sm:justify-end">
+                          {canAdmit ? (
+                            <AdmitDialog
+                              applicationId={application.id}
+                              childName={name}
+                              childAge={candidate?.age ?? null}
+                              desiredClass={application.desired_class}
+                              classes={placement.classes}
+                              suggestedClassId={suggestions.get(application.id) ?? null}
+                              schoolYear={activeYear}
+                              basePath={basePath}
+                            />
+                          ) : null}
+                          <StudentStatusMenu
                             id={application.id}
-                            status={application.status ?? "ny"}
-                          />
-                          <RegisterStudentButton
-                            applicationId={application.id}
-                            basePath={basePath}
-                            classes={placement.classes}
-                            schoolYears={placement.schoolYears}
-                            defaultSchoolYearId={defaultSchoolYearId}
-                          />
-                          <DeleteButton
-                            id={application.id}
-                            label="påmelding"
-                            action={deleteStudentApplication}
+                            name={name}
+                            status={appStatus}
+                            paid={payment.paid}
                           />
                         </div>
                       </div>
                     </div>
 
-                    <details className="group mt-4 border-t border-[#ECE8DF] pt-2">
-                      <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-lg px-2 text-sm font-bold text-admin-muted outline-none hover:bg-[#F2F1EB] hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
-                        Se alle opplysninger
+                    <details className="group mt-3 border-t border-[#ECE8DF] pt-2">
+                      <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-2 text-sm font-bold text-admin-muted outline-none hover:bg-[#F2F1EB] hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+                        Detaljer
                         <ChevronDown
                           aria-hidden="true"
                           className="size-4 transition-transform group-open:rotate-180"
@@ -463,28 +603,28 @@ export default async function PameldingerPage({
                         <Field
                           label="E-post barn"
                           value={application.child_email}
+                          href={application.child_email ? `mailto:${application.child_email}` : undefined}
                         />
                         <Field
                           label="Telefon barn"
                           value={application.child_phone}
+                          href={application.child_phone ? telHref(application.child_phone) : undefined}
                         />
                         <Field
                           label="E-post foresatt 1"
                           value={application.mother_email}
+                          href={application.mother_email ? `mailto:${application.mother_email}` : undefined}
                         />
                         <Field
                           label="E-post foresatt 2"
                           value={application.father_email}
+                          href={application.father_email ? `mailto:${application.father_email}` : undefined}
                         />
                         <Field
                           label="Nivå (Koran / Arabisk / Islam)"
                           value={`${levelLabel(application.child_level_quran)} / ${levelLabel(application.child_level_arabic)} / ${levelLabel(application.child_level_islam)}`}
                         />
                         <Field label="Melding" value={application.message} />
-                        <Field
-                          label="Mottatt"
-                          value={formatDate(application.created_at)}
-                        />
                       </dl>
                     </details>
                   </li>

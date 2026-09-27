@@ -1,10 +1,16 @@
 import "server-only";
+import { toUserError } from "@/lib/action-errors";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
 import type { InstallmentBatch } from "@/lib/payment-plans";
 import { buildReference } from "@/lib/payment-descriptor";
-import { sendInstallmentEmail } from "@/lib/email";
-import { studentDisplayName } from "@/lib/student-name";
+import { sendInstallmentEmail, type EmailLang } from "@/lib/email";
+import {
+  guardianEmails,
+  studentDisplayName,
+  type NamedRecord,
+} from "@/lib/student-name";
+import { osloToday } from "@/lib/dates";
 import { emailNotifications } from "@/flags";
 
 type Client = SupabaseClient<Database>;
@@ -24,6 +30,144 @@ export async function familyRecipients(
     .filter((email): email is string => Boolean(email && email.includes("@")));
 
   return [...new Set(emails)];
+}
+
+export async function paymentFamilyId(
+  admin: Client,
+  payment: { id: string; student_id: string | null },
+): Promise<string | null> {
+  if (payment.student_id) {
+    const { data } = await admin
+      .from("students")
+      .select("family_id")
+      .eq("id", payment.student_id)
+      .maybeSingle();
+    if (data?.family_id) return data.family_id;
+  }
+  const { data: target } = await admin
+    .from("payment_targets")
+    .select("students(family_id)")
+    .eq("payment_id", payment.id)
+    .limit(1)
+    .maybeSingle();
+  const targetFamily = (target?.students as unknown as { family_id: string | null } | null)
+    ?.family_id;
+  if (targetFamily) return targetFamily;
+  const { data: application } = await admin
+    .from("student_applications")
+    .select("family_id")
+    .eq("payment_id", payment.id)
+    .not("family_id", "is", null)
+    .limit(1)
+    .maybeSingle();
+  if (application?.family_id) return application.family_id;
+  const { data: installment } = await admin
+    .from("installments")
+    .select("payment_plans(family_id)")
+    .eq("payment_id", payment.id)
+    .limit(1)
+    .maybeSingle();
+  return (
+    (installment?.payment_plans as unknown as { family_id: string } | null)
+      ?.family_id ?? null
+  );
+}
+
+export async function familyLanguage(
+  client: Client,
+  familyId: string | null,
+): Promise<EmailLang> {
+  if (!familyId) return "no";
+  const { data, error } = await client
+    .from("families")
+    .select("*")
+    .eq("id", familyId)
+    .maybeSingle();
+  if (error || !data) return "no";
+  const row = data as unknown as { preferred_language: string | null };
+  return row.preferred_language === "en" ? "en" : "no";
+}
+
+export type MoneyRecipients = {
+  to: string[];
+  lang: EmailLang;
+  familyId: string | null;
+};
+
+function isRealEmail(email: string) {
+  return !/^mangler@/i.test(email.trim());
+}
+
+export async function recipientsFor(
+  client: Client,
+  record: NamedRecord & { family_id?: string | null },
+): Promise<MoneyRecipients> {
+  const familyId = record.family_id ?? null;
+  if (familyId) {
+    const [to, lang] = await Promise.all([
+      familyRecipients(client, familyId),
+      familyLanguage(client, familyId),
+    ]);
+    return { to: to.filter(isRealEmail), lang, familyId };
+  }
+  return {
+    to: guardianEmails(record).filter(isRealEmail),
+    lang: "no",
+    familyId: null,
+  };
+}
+
+export async function yearDueDates(
+  client: Client,
+  schoolYearId: string | null,
+): Promise<string[]> {
+  if (!schoolYearId) return [];
+  const { data } = await client
+    .from("school_years")
+    .select("sem1_due_on, sem2_due_on")
+    .eq("id", schoolYearId)
+    .maybeSingle();
+  const today = osloToday();
+  return [data?.sem1_due_on, data?.sem2_due_on]
+    .filter((date): date is string => Boolean(date && date >= today))
+    .sort();
+}
+
+export async function nextDueDate(
+  client: Client,
+  studentIds: string[],
+  schoolYearId: string | null,
+): Promise<string | null> {
+  if (!schoolYearId) return null;
+  if (studentIds.length > 0) {
+    const { data } = await client
+      .from("installments")
+      .select("due_date")
+      .eq("school_year_id", schoolYearId)
+      .in("student_id", studentIds)
+      .in("status", ["planlagt", "sendt"])
+      .gte("due_date", osloToday())
+      .order("due_date")
+      .limit(1);
+    if (data && data.length > 0) return data[0].due_date;
+  }
+  const dates = await yearDueDates(client, schoolYearId);
+  return dates[0] ?? null;
+}
+
+export async function remainingFor(
+  client: Client,
+  studentIds: string[],
+  schoolYearId: string | null,
+): Promise<number | null> {
+  if (!schoolYearId || studentIds.length === 0) return null;
+  const { data, error } = await client
+    .from("student_balances")
+    .select("remaining")
+    .eq("school_year_id", schoolYearId)
+    .in("student_id", studentIds);
+  if (error || !data || data.length === 0) return null;
+  return data.reduce((sum, row) => sum + Math.max(row.remaining ?? 0, 0), 0);
 }
 
 export async function studentNames(
@@ -66,9 +210,23 @@ export async function sendInstallmentBatch(
     (balances ?? []).map((row) => [row.student_id, row.remaining ?? 0]),
   );
 
-  const collectible = batch.installments.filter(
-    (row) => (remainingByStudent.get(row.studentId) ?? 0) > 0,
-  );
+  const collectible = batch.installments
+    .filter((row) => (remainingByStudent.get(row.studentId) ?? 0) > 0)
+    .map((row) => ({
+      ...row,
+      amount: Math.min(row.amount, remainingByStudent.get(row.studentId) ?? 0),
+    }));
+
+  for (const row of collectible) {
+    const original = batch.installments.find((item) => item.id === row.id);
+    if (original && original.amount !== row.amount) {
+      const { error: capError } = await client
+        .from("installments")
+        .update({ amount: row.amount })
+        .eq("id", row.id);
+      if (capError) throw new Error(toUserError(capError), { cause: capError });
+    }
+  }
 
   const settledIds = batch.installments
     .filter((row) => (remainingByStudent.get(row.studentId) ?? 0) <= 0)
@@ -121,7 +279,7 @@ export async function sendInstallmentBatch(
     })
     .select("id")
     .single();
-  if (paymentError) throw new Error(paymentError.message);
+  if (paymentError) throw new Error(toUserError(paymentError), { cause: paymentError });
 
   const { error: linkError } = await client
     .from("installments")
@@ -134,12 +292,21 @@ export async function sendInstallmentBatch(
       "id",
       collectible.map((row) => row.id),
     );
-  if (linkError) throw new Error(linkError.message);
+  if (linkError) throw new Error(toUserError(linkError), { cause: linkError });
 
   if (await emailNotifications()) {
-    const recipients = await familyRecipients(client, batch.familyId);
+    const [recipients, lang] = await Promise.all([
+      familyRecipients(client, batch.familyId),
+      familyLanguage(client, batch.familyId),
+    ]);
     if (recipients.length > 0) {
+      const remaining = collectible.reduce(
+        (sum, row) => sum + (remainingByStudent.get(row.studentId) ?? 0),
+        0,
+      );
       await sendInstallmentEmail({
+        lang,
+        remaining,
         to: recipients,
         children: collectible.map((row) => ({
           name: names.get(row.studentId) ?? "Elev",

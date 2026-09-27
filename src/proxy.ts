@@ -5,7 +5,19 @@ import { updateSession } from "@/lib/supabase/middleware";
 
 const handleI18n = createMiddleware(routing);
 
+const ADMIN_PATH = /^\/(?:no\/)?admin(?:\/|$)/;
+const ENGLISH_ADMIN_PATH = /^\/en\/(admin|login)(\/.*)?$/;
+
 export default async function proxy(request: NextRequest) {
+  const { pathname, search } = request.nextUrl;
+
+  const english = ENGLISH_ADMIN_PATH.exec(pathname);
+  if (english) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/${english[1]}${english[2] ?? ""}`;
+    return NextResponse.redirect(url);
+  }
+
   const response = handleI18n(request) ?? NextResponse.next();
 
   const isPrefetch =
@@ -14,7 +26,22 @@ export default async function proxy(request: NextRequest) {
     (request.headers.get("sec-purpose") ?? "").includes("prefetch");
   if (isPrefetch) return response;
 
-  return updateSession(request, response);
+  const session = await updateSession(request, response);
+
+  if (
+    ADMIN_PATH.test(pathname) &&
+    !session.user &&
+    request.method === "GET" &&
+    !request.headers.has("next-action")
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "";
+    url.searchParams.set("next", `${pathname}${search}`);
+    return NextResponse.redirect(url);
+  }
+
+  return session.response;
 }
 
 export const config = {

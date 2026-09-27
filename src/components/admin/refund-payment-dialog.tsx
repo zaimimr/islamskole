@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AlertTriangle, Loader2, Undo2 } from "lucide-react";
 import { refundPaymentAction } from "@/app/[locale]/admin/students-actions";
 import { formatNok } from "@/lib/money";
+import { osloToday } from "@/lib/dates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,10 +59,10 @@ export function RefundPaymentDialog({
     vippsRefundAvailable ? "vipps" : "manual",
   );
   const [manualMethod, setManualMethod] = useState<RefundMethod>("bank");
-  const [refundedOn, setRefundedOn] = useState(
-    new Date().toISOString().slice(0, 10),
-  );
+  const [refundedOn, setRefundedOn] = useState(() => osloToday());
+  const [notify, setNotify] = useState(true);
   const [reason, setReason] = useState("");
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [pending, startTransition] = useTransition();
 
   const refundable = capturedAmount - refundedAmount;
@@ -103,9 +104,11 @@ export function RefundPaymentDialog({
     total <= 0 || total > refundable || Boolean(overLine) || !reason.trim();
 
   function reset() {
+    setRequestId(crypto.randomUUID());
     setStep("form");
     setAmounts({});
     setReason("");
+    setNotify(true);
     setMode(vippsRefundAvailable ? "vipps" : "manual");
   }
 
@@ -136,9 +139,13 @@ export function RefundPaymentDialog({
         method: mode === "vipps" ? "vipps" : manualMethod,
         reason,
         refundedOn: mode === "manual" ? refundedOn : null,
+        notify,
+        requestId,
       });
       if (result.ok) {
-        toast.success(`${formatNok(total)} refundert`);
+        toast.success(`${formatNok(total)} refundert`, {
+          description: result.note,
+        });
         setOpen(false);
         reset();
         router.refresh();
@@ -356,6 +363,20 @@ export function RefundPaymentDialog({
                   className="h-11 rounded-xl"
                 />
               </div>
+
+              <label
+                htmlFor={`refund-notify-${paymentId}`}
+                className="flex min-h-11 cursor-pointer items-center gap-3 font-semibold"
+              >
+                <input
+                  id={`refund-notify-${paymentId}`}
+                  type="checkbox"
+                  checked={notify}
+                  onChange={(event) => setNotify(event.target.checked)}
+                  className="size-4 accent-[#3C8F44]"
+                />
+                Send e-post om tilbakebetalingen til foresatte
+              </label>
 
               <div className="rounded-xl bg-[#FFF8E9] px-4 py-4 text-[#6B5524] ring-1 ring-[#E8D6AA]">
                 <p className="text-xs font-bold tracking-[0.04em] uppercase">

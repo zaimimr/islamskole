@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
+  CircleAlert,
   CircleCheck,
   CircleDollarSign,
   CircleUserRound,
@@ -10,9 +12,9 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { guardianName, studentDisplayName } from "@/lib/student-name";
 import { formatAge, schoolYearStart } from "@/lib/age";
+import { formatNok } from "@/lib/money";
 import { adminBasePath } from "@/components/admin/paths";
 import { EleverFilters } from "@/components/admin/elever-filters";
-import { ClickableRow } from "@/components/admin/clickable-row";
 import { Pagination } from "@/components/admin/pagination";
 import { ExportButton } from "@/components/admin/export-button";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +27,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+export const metadata: Metadata = { title: "Elever" };
+
 type StudentRow = {
   id: string;
   child_first_name: string | null;
@@ -36,35 +40,12 @@ type StudentRow = {
   child_birth_date: string | null;
   enrollments: {
     school_year_id: string;
+    status: string;
     school_years: { label: string } | null;
     classes: { id: string; name_no: string | null } | null;
   }[];
   payments: { status: string; amount: number; school_year_id: string | null }[];
 };
-
-async function getStudents(q: string): Promise<StudentRow[]> {
-  try {
-    const supabase = await createClient();
-    let query = supabase
-      .from("students")
-      .select(
-        "id, child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name, child_birth_date, enrollments(school_year_id, school_years(label), classes(id, name_no)), payments(status, amount, school_year_id)",
-      )
-      .order("created_at", { ascending: false });
-
-    const term = q.replace(/[%,()]/g, " ").trim();
-    if (term) {
-      query = query.or(
-        `child_first_name.ilike.%${term}%,child_last_name.ilike.%${term}%,mother_first_name.ilike.%${term}%,mother_last_name.ilike.%${term}%,father_first_name.ilike.%${term}%,father_last_name.ilike.%${term}%,child_email.ilike.%${term}%`,
-      );
-    }
-
-    const { data } = await query;
-    return (data as StudentRow[] | null) ?? [];
-  } catch {
-    return [];
-  }
-}
 
 type BalanceRow = {
   student_id: string | null;
@@ -74,75 +55,54 @@ type BalanceRow = {
   remaining: number | null;
 };
 
-async function getBalances(): Promise<BalanceRow[]> {
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("student_balances")
-      .select("student_id, school_year_id, owed, paid, remaining");
-    return (data as BalanceRow[] | null) ?? [];
-  } catch {
-    return [];
-  }
-}
+async function getRegister(q: string) {
+  const supabase = await createClient();
+  let studentQuery = supabase
+    .from("students")
+    .select(
+      "id, child_first_name, child_last_name, mother_first_name, mother_last_name, father_first_name, father_last_name, child_birth_date, enrollments(school_year_id, status, school_years(label), classes(id, name_no)), payments!payments_student_id_fkey(status, amount, school_year_id)",
+    )
+    .order("created_at", { ascending: false });
 
-async function getClasses() {
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase
+  const term = q.replace(/[%,()]/g, " ").trim();
+  if (term) {
+    studentQuery = studentQuery.or(
+      `child_first_name.ilike.%${term}%,child_last_name.ilike.%${term}%,mother_first_name.ilike.%${term}%,mother_last_name.ilike.%${term}%,father_first_name.ilike.%${term}%,father_last_name.ilike.%${term}%,child_email.ilike.%${term}%`,
+    );
+  }
+
+  const [students, classes, years, balances] = await Promise.all([
+    studentQuery,
+    supabase
       .from("classes")
       .select("id, name_no")
-      .order("sort_order", { ascending: true });
-    return (
-      (data as { id: string; name_no: string | null }[] | null) ?? []
-    ).map((c) => ({ id: c.id, name: c.name_no ?? "(uten navn)" }));
-  } catch {
-    return [];
-  }
-}
-
-async function getSchoolYears() {
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase
+      .order("sort_order", { ascending: true }),
+    supabase
       .from("school_years")
       .select("id, label, is_active")
-      .order("label", { ascending: false });
-    return (
-      (data as { id: string; label: string; is_active: boolean }[] | null) ?? []
-    ).map((y) => ({ id: y.id, label: y.label, is_active: y.is_active }));
-  } catch {
-    return [];
-  }
+      .order("label", { ascending: false }),
+    supabase
+      .from("student_balances")
+      .select("student_id, school_year_id, owed, paid, remaining"),
+  ]);
+
+  return {
+    ok: !students.error && !classes.error && !years.error && !balances.error,
+    students: (students.data as StudentRow[] | null) ?? [],
+    classes: (
+      (classes.data as { id: string; name_no: string | null }[] | null) ?? []
+    ).map((c) => ({ id: c.id, name: c.name_no ?? "(uten navn)" })),
+    schoolYears:
+      (years.data as { id: string; label: string; is_active: boolean }[] | null) ??
+      [],
+    balances: (balances.data as BalanceRow[] | null) ?? [],
+  };
 }
 
-function classLabel(enrollments: StudentRow["enrollments"]) {
-  if (!enrollments || enrollments.length === 0) return "-";
-  return (
-    enrollments
-      .map((e) => e.classes?.name_no)
-      .filter(Boolean)
-      .join(", ") || "-"
-  );
-}
-
-function yearLabels(enrollments: StudentRow["enrollments"]) {
-  if (!enrollments || enrollments.length === 0) return [];
-  return [
-    ...new Set(
-      enrollments
-        .map((e) => e.school_years?.label)
-        .filter((l): l is string => Boolean(l)),
-    ),
-  ]
-    .sort()
-    .reverse();
-}
-
-type Ledger = { owed: number; paid: number; remaining: number };
+type Ledger = { owed: number; paid: number; remaining: number; hasFee: boolean };
 
 function emptyLedger(): Ledger {
-  return { owed: 0, paid: 0, remaining: 0 };
+  return { owed: 0, paid: 0, remaining: 0, hasFee: false };
 }
 
 function sumLedger(rows: Ledger[]): Ledger {
@@ -151,6 +111,7 @@ function sumLedger(rows: Ledger[]): Ledger {
       owed: acc.owed + row.owed,
       paid: acc.paid + row.paid,
       remaining: acc.remaining + row.remaining,
+      hasFee: acc.hasFee || row.hasFee,
     }),
     emptyLedger(),
   );
@@ -162,23 +123,61 @@ function hasPendingLink(payments: StudentRow["payments"]) {
   );
 }
 
-type PayState = "betalt" | "delvis" | "venter" | "ubetalt";
+type PayState =
+  | "betalt"
+  | "fritatt"
+  | "delvis"
+  | "venter"
+  | "ubetalt"
+  | "ingen_krav";
 
 function payState(ledger: Ledger, payments: StudentRow["payments"]): PayState {
+  if (ledger.hasFee && ledger.owed === 0) return "fritatt";
   if (ledger.owed > 0 && ledger.remaining <= 0) return "betalt";
   if (ledger.paid > 0) return "delvis";
-  if (
-    ledger.owed === 0 &&
-    (payments ?? []).some((p) => p.status === "fanget")
-  ) {
-    return "betalt";
-  }
   if (hasPendingLink(payments)) return "venter";
+  if (!ledger.hasFee) return "ingen_krav";
   return "ubetalt";
 }
 
-function formatNok(ore: number) {
-  return `${(ore / 100).toLocaleString("nb-NO")} kr`;
+const payStateLabel: Record<PayState, string> = {
+  betalt: "Betalt",
+  fritatt: "Fritatt",
+  delvis: "Delvis betalt",
+  venter: "Lenke sendt",
+  ubetalt: "Ikke betalt",
+  ingen_krav: "Ingen krav",
+};
+
+const PAY_FILTERS = new Set([
+  "ikke_betalt",
+  "betalt",
+  "fritatt",
+  "delvis",
+  "venter",
+  "ubetalt",
+  "ingen_krav",
+]);
+
+function PayBadge({ state, ledger }: { state: PayState; ledger: Ledger }) {
+  if (state === "betalt") return <Badge>Betalt</Badge>;
+  if (state === "fritatt") return <Badge variant="outline">Fritatt</Badge>;
+  if (state === "delvis") {
+    return (
+      <Badge variant="secondary">
+        Delvis · {formatNok(ledger.remaining)} igjen
+      </Badge>
+    );
+  }
+  if (state === "venter") return <Badge variant="secondary">Lenke sendt</Badge>;
+  if (state === "ingen_krav") {
+    return (
+      <Badge variant="outline" className="border-[#E7B8B4] text-[#8B2F2B]">
+        Ingen krav
+      </Badge>
+    );
+  }
+  return <Badge variant="outline">Ikke betalt</Badge>;
 }
 
 const PAGE_SIZE = 25;
@@ -194,40 +193,70 @@ export default async function RegistrertePage({
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q : "";
   const classFilter = typeof sp.class === "string" ? sp.class : "";
-  const payFilter = typeof sp.pay === "string" ? sp.pay : "";
-  const yearFilter = typeof sp.year === "string" ? sp.year : "";
+  const rawPay =
+    typeof sp.betaling === "string"
+      ? sp.betaling
+      : typeof sp.pay === "string"
+        ? sp.pay
+        : "";
+  const payFilter = PAY_FILTERS.has(rawPay) ? rawPay : "";
+  const yearParam = typeof sp.year === "string" ? sp.year : "";
   const page = Math.max(1, Number(sp.page) || 1);
   const basePath = adminBasePath(locale);
 
-  const [allStudents, classes, schoolYears, balanceRows] = await Promise.all([
-    getStudents(q),
-    getClasses(),
-    getSchoolYears(),
-    getBalances(),
-  ]);
+  const data = await getRegister(q);
+  const { students: allStudents, classes, schoolYears } = data;
+
+  if (!data.ok) {
+    return (
+      <section className="mx-auto max-w-2xl rounded-2xl bg-white p-6 ring-1 ring-[#E3DED3]">
+        <span className="mb-4 flex size-11 items-center justify-center rounded-full bg-[#F9DEDB] text-[#8B2F2B]">
+          <CircleAlert aria-hidden="true" className="size-5" />
+        </span>
+        <h1 className="font-heading text-2xl font-bold">
+          Elevregisteret kunne ikke lastes
+        </h1>
+        <p className="mt-2 text-admin-muted">
+          Ingen tall er erstattet med null. Last siden på nytt om litt.
+        </p>
+      </section>
+    );
+  }
 
   const balancesByStudent = new Map<string, Map<string, Ledger>>();
-  for (const row of balanceRows) {
+  for (const row of data.balances) {
     if (!row.student_id || !row.school_year_id) continue;
     const byYear = balancesByStudent.get(row.student_id) ?? new Map();
     byYear.set(row.school_year_id, {
       owed: row.owed ?? 0,
       paid: row.paid ?? 0,
       remaining: row.remaining ?? 0,
+      hasFee: true,
     });
     balancesByStudent.set(row.student_id, byYear);
   }
 
-  const activeYear = schoolYears.find((y) => y.is_active);
+  const activeYear = schoolYears.find((y) => y.is_active) ?? null;
   const activeYearId = activeYear?.id ?? null;
   const activeYearLabel = activeYear?.label ?? null;
+  const yearLabelOrder = new Map(
+    schoolYears.map((year, index) => [year.id, index]),
+  );
 
-  const filterYearLabel =
-    schoolYears.find((y) => y.id === yearFilter)?.label ?? activeYearLabel;
-  const ageYear = schoolYearStart(filterYearLabel) ?? new Date().getFullYear();
-
+  const yearFilter = yearParam || activeYearId || "alle";
   const realYear =
-    yearFilter && yearFilter !== "needs_rollover" ? yearFilter : null;
+    yearFilter !== "alle" &&
+    yearFilter !== "needs_rollover" &&
+    yearFilter !== "avsluttet"
+      ? yearFilter
+      : null;
+  const filterYearLabel = realYear
+    ? (schoolYears.find((y) => y.id === realYear)?.label ?? null)
+    : null;
+  const ageYear =
+    schoolYearStart(filterYearLabel ?? activeYearLabel) ??
+    new Date().getFullYear();
+
   const scoped = (payments: StudentRow["payments"]) =>
     realYear ? payments.filter((p) => p.school_year_id === realYear) : payments;
 
@@ -238,31 +267,59 @@ export default async function RegistrertePage({
     return sumLedger([...byYear.values()]);
   };
 
+  const scopedEnrollments = (student: StudentRow) =>
+    realYear
+      ? (student.enrollments ?? []).filter((e) => e.school_year_id === realYear)
+      : (student.enrollments ?? []);
+
+  const needsRollover = (student: StudentRow) => {
+    if (activeYearId == null) return false;
+    const enrollments = student.enrollments ?? [];
+    if (
+      enrollments.some(
+        (e) => e.school_year_id === activeYearId && e.status === "aktiv",
+      )
+    ) {
+      return false;
+    }
+    if (enrollments.length === 0) return true;
+    if ((balancesByStudent.get(student.id)?.get(activeYearId)?.remaining ?? 0) > 0) {
+      return true;
+    }
+    const latest = [...enrollments].sort(
+      (left, right) =>
+        (yearLabelOrder.get(left.school_year_id) ?? 999) -
+        (yearLabelOrder.get(right.school_year_id) ?? 999),
+    )[0];
+    return latest?.status === "aktiv";
+  };
+
+  const hasLeft = (student: StudentRow) => {
+    const enrollments = student.enrollments ?? [];
+    return (
+      enrollments.length > 0 &&
+      enrollments.every((e) => e.status === "avsluttet")
+    );
+  };
+
   const students = allStudents.filter((student) => {
     if (yearFilter === "needs_rollover") {
-      const hasEnrollments = (student.enrollments ?? []).length > 0;
-      const inActive =
-        activeYearId != null &&
-        (student.enrollments ?? []).some(
-          (e) => e.school_year_id === activeYearId,
-        );
-      if (!hasEnrollments || inActive) return false;
+      if (!needsRollover(student)) return false;
+    } else if (yearFilter === "avsluttet") {
+      if (!hasLeft(student)) return false;
     } else if (realYear) {
-      const inYear = (student.enrollments ?? []).some(
-        (e) => e.school_year_id === realYear,
-      );
-      if (!inYear) return false;
+      if (scopedEnrollments(student).length === 0) return false;
     }
     if (classFilter) {
-      const inClass = (student.enrollments ?? []).some(
+      const inClass = scopedEnrollments(student).some(
         (e) => e.classes?.id === classFilter,
       );
       if (!inClass) return false;
     }
-    if (payFilter && payFilter !== "alle") {
+    if (payFilter) {
       const state = payState(ledgerFor(student.id), scoped(student.payments));
       if (payFilter === "ikke_betalt") {
-        if (state === "betalt") return false;
+        if (["betalt", "fritatt"].includes(state)) return false;
       } else if (state !== payFilter) {
         return false;
       }
@@ -271,25 +328,53 @@ export default async function RegistrertePage({
   });
 
   const ledgerTotals = sumLedger(students.map((st) => ledgerFor(st.id)));
-  const totalPaid = ledgerTotals.paid;
-  const totalRemaining = ledgerTotals.remaining;
 
   const total = students.length;
   const from = (page - 1) * PAGE_SIZE;
   const pageStudents = students.slice(from, from + PAGE_SIZE);
 
-  const filtered = Boolean(q || classFilter || payFilter || yearFilter);
+  const filtered = Boolean(q || classFilter || payFilter || yearParam);
+  const scopeLabel =
+    yearFilter === "needs_rollover"
+      ? `mangler plass i ${activeYearLabel ?? "aktivt skoleår"}`
+      : yearFilter === "avsluttet"
+        ? "elever som har sluttet"
+        : filterYearLabel
+        ? `skoleår ${filterYearLabel}`
+        : "alle skoleår";
+
+  const classLabel = (student: StudentRow) => {
+    const rows = scopedEnrollments(student);
+    if (rows.length === 0) return "Ikke plassert";
+    return rows
+      .map((e) =>
+        e.status === "aktiv"
+          ? (e.classes?.name_no ?? "Klasse uten navn")
+          : `${e.classes?.name_no ?? "Klasse"} (avsluttet)`,
+      )
+      .join(", ");
+  };
+
+  const yearLabels = (student: StudentRow) =>
+    [
+      ...new Set(
+        (student.enrollments ?? [])
+          .map((e) => e.school_years?.label)
+          .filter((l): l is string => Boolean(l)),
+      ),
+    ]
+      .sort()
+      .reverse();
 
   return (
-    <div className="grid gap-5 sm:gap-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="grid gap-4 sm:gap-6">
+      <header className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-balance font-heading text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
             Elever
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-admin-muted sm:text-base">
-            Finn elevens familie, klasseplassering og betalingsstatus i ett
-            samlet register.
+          <p className="mt-1 max-w-2xl text-sm text-admin-muted sm:mt-2 sm:text-base">
+            Klasseplassering og betaling for hver elev, samlet i ett register.
           </p>
         </div>
         <Link
@@ -303,49 +388,64 @@ export default async function RegistrertePage({
 
       <section
         aria-label="Status for elevregisteret"
-        className="grid overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3] sm:grid-cols-3"
+        className="grid grid-cols-3 divide-x divide-[#ECE8DF] overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]"
       >
-        <div className="flex min-h-24 items-center gap-3 px-4 py-4 sm:px-5">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#EFF8FD] text-[#245D7C]">
-            <Users aria-hidden="true" className="size-5" />
-          </span>
-          <div>
-            <p className="font-heading text-2xl font-bold tabular-nums">
-              {students.length}
-            </p>
-            <p className="text-sm text-admin-muted">Elever i utvalget</p>
-          </div>
-        </div>
-        <div className="flex min-h-24 items-center gap-3 border-t border-[#ECE8DF] px-4 py-4 sm:border-t-0 sm:border-l sm:px-5">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B]">
-            <CircleCheck aria-hidden="true" className="size-5" />
-          </span>
-          <div>
-            <p className="font-heading text-2xl font-bold tabular-nums">
-              {formatNok(totalPaid)}
-            </p>
-            <p className="text-sm text-admin-muted">Registrert betalt</p>
-          </div>
-        </div>
-        <div className="flex min-h-24 items-center gap-3 border-t border-[#ECE8DF] px-4 py-4 sm:border-t-0 sm:border-l sm:px-5">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#FEEDCA] text-[#775108]">
-            <CircleDollarSign aria-hidden="true" className="size-5" />
-          </span>
-          <div>
-            <p className="font-heading text-2xl font-bold tabular-nums">
-              {formatNok(totalRemaining)}
-            </p>
-            <p className="text-sm text-admin-muted">Gjenstår å betale</p>
-          </div>
-        </div>
+        {[
+          {
+            value: String(students.length),
+            label: "Elever i utvalget",
+            icon: Users,
+            tone: "bg-[#EFF8FD] text-[#245D7C]",
+          },
+          {
+            value: formatNok(ledgerTotals.paid),
+            label: "Innbetalt",
+            icon: CircleCheck,
+            tone: "bg-[#DCEDDD] text-[#216A2B]",
+          },
+          {
+            value: formatNok(ledgerTotals.remaining),
+            label: "Gjenstår",
+            icon: CircleDollarSign,
+            tone: "bg-[#FEEDCA] text-[#775108]",
+          },
+        ].map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <div
+              key={stat.label}
+              className="flex items-center gap-3 px-3 py-3 sm:min-h-24 sm:px-5 sm:py-4"
+            >
+              <span
+                className={`hidden size-10 shrink-0 items-center justify-center rounded-full sm:flex ${stat.tone}`}
+              >
+                <Icon aria-hidden="true" className="size-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="font-heading text-lg font-bold tabular-nums sm:text-2xl">
+                  {stat.value}
+                </p>
+                <p className="text-xs text-admin-muted sm:text-sm">
+                  {stat.label}
+                </p>
+              </div>
+            </div>
+          );
+        })}
       </section>
 
-      <section className="rounded-2xl bg-white p-4 ring-1 ring-[#E3DED3] sm:p-5">
+      <section className="rounded-2xl bg-white px-4 py-2 ring-1 ring-[#E3DED3] sm:p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end">
           <div className="min-w-0 flex-1">
-            <EleverFilters classes={classes} schoolYears={schoolYears} />
+            <EleverFilters
+              classes={classes}
+              schoolYears={schoolYears}
+              activeYearId={activeYearId}
+            />
           </div>
-          <ExportButton entity="students" />
+          <div className="hidden sm:block">
+            <ExportButton entity="students" />
+          </div>
         </div>
       </section>
 
@@ -362,8 +462,7 @@ export default async function RegistrertePage({
               Elevregister
             </h2>
             <p className="mt-0.5 text-sm text-admin-muted" aria-live="polite">
-              {total} {total === 1 ? "elev" : "elever"}
-              {filterYearLabel ? `, skoleår ${filterYearLabel}` : ""}
+              {total} {total === 1 ? "elev" : "elever"}, {scopeLabel}
             </p>
           </div>
           <CircleUserRound
@@ -398,7 +497,9 @@ export default async function RegistrertePage({
                     <TableHead>Skoleår</TableHead>
                     <TableHead>Betalt</TableHead>
                     <TableHead>Betaling</TableHead>
-                    <TableHead className="w-8" />
+                    <TableHead className="w-8">
+                      <span className="sr-only">Åpne</span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -406,49 +507,53 @@ export default async function RegistrertePage({
                     const studentPayments = scoped(student.payments);
                     const ledger = ledgerFor(student.id);
                     const state = payState(ledger, studentPayments);
+                    const years = yearLabels(student);
+                    const left = hasLeft(student);
+                    const missingActive =
+                      !left &&
+                      activeYearLabel != null &&
+                      years.length > 0 &&
+                      !years.includes(activeYearLabel);
                     return (
-                      <ClickableRow
+                      <TableRow
                         key={student.id}
-                        href={`${basePath}/elever/${student.id}`}
+                        className="relative focus-within:bg-[#FBFAF6] hover:bg-[#FBFAF6]"
                       >
                         <TableCell className="font-medium">
-                          {studentDisplayName(student) || "-"}
+                          <Link
+                            href={`${basePath}/elever/${student.id}`}
+                            className="rounded outline-none after:absolute after:inset-0 focus-visible:ring-3 focus-visible:ring-ring/50"
+                          >
+                            {studentDisplayName(student) || "Navn mangler"}
+                          </Link>
                         </TableCell>
                         <TableCell>
                           {formatAge(student.child_birth_date, ageYear)}
                         </TableCell>
                         <TableCell>{guardianName(student) ?? "-"}</TableCell>
-                        <TableCell>{classLabel(student.enrollments)}</TableCell>
+                        <TableCell>{classLabel(student)}</TableCell>
                         <TableCell>
-                          {(() => {
-                            const years = yearLabels(student.enrollments);
-                            if (years.length === 0)
-                              return (
-                                <span className="text-muted-foreground">-</span>
-                              );
-                            const missingActive =
-                              activeYearLabel != null &&
-                              !years.includes(activeYearLabel);
-                            return (
-                              <div className="flex flex-wrap items-center gap-1">
-                                {years.map((y) => (
-                                  <Badge key={y} variant="outline">
-                                    {y}
-                                  </Badge>
-                                ))}
-                                {missingActive ? (
-                                  <Badge
-                                    variant="secondary"
-                                    title={`Ikke i ${activeYearLabel}`}
-                                  >
-                                    Ny termin?
-                                  </Badge>
-                                ) : null}
-                              </div>
-                            );
-                          })()}
+                          {years.length === 0 ? (
+                            <span className="text-muted-foreground">-</span>
+                          ) : (
+                            <div className="flex flex-wrap items-center gap-1">
+                              {years.map((y) => (
+                                <Badge key={y} variant="outline">
+                                  {y}
+                                </Badge>
+                              ))}
+                              {left ? (
+                                <Badge variant="outline">Har sluttet</Badge>
+                              ) : null}
+                              {missingActive ? (
+                                <Badge variant="secondary">
+                                  Ikke plassert i {activeYearLabel}
+                                </Badge>
+                              ) : null}
+                            </div>
+                          )}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap">
+                        <TableCell className="whitespace-nowrap tabular-nums">
                           {formatNok(ledger.paid)}
                           {ledger.owed > 0 ? (
                             <span className="text-muted-foreground">
@@ -459,20 +564,7 @@ export default async function RegistrertePage({
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap items-center gap-1">
-                            {state === "betalt" ? (
-                              <Badge>Betalt</Badge>
-                            ) : state === "delvis" ? (
-                              <Badge
-                                variant="secondary"
-                                title={`Gjenstår ${formatNok(ledger.remaining)}`}
-                              >
-                                Delvis · {formatNok(ledger.remaining)} igjen
-                              </Badge>
-                            ) : state === "venter" ? (
-                              <Badge variant="secondary">Lenke sendt</Badge>
-                            ) : (
-                              <Badge variant="outline">Ikke sendt</Badge>
-                            )}
+                            <PayBadge state={state} ledger={ledger} />
                             {state === "delvis" &&
                             hasPendingLink(studentPayments) ? (
                               <Badge variant="outline">Lenke ute</Badge>
@@ -480,9 +572,9 @@ export default async function RegistrertePage({
                           </div>
                         </TableCell>
                         <TableCell className="text-admin-muted">
-                          <ArrowRight className="size-4" />
+                          <ArrowRight aria-hidden="true" className="size-4" />
                         </TableCell>
-                      </ClickableRow>
+                      </TableRow>
                     );
                   })}
                 </TableBody>
@@ -493,68 +585,32 @@ export default async function RegistrertePage({
                 const studentPayments = scoped(student.payments);
                 const ledger = ledgerFor(student.id);
                 const state = payState(ledger, studentPayments);
-                const years = yearLabels(student.enrollments);
                 return (
                   <li key={student.id}>
                     <Link
                       href={`${basePath}/elever/${student.id}`}
-                      className="group block px-4 py-4 outline-none transition-colors hover:bg-[#FBFAF6] focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50 sm:px-5"
+                      className="group flex items-center justify-between gap-3 px-4 py-3 outline-none transition-colors hover:bg-[#FBFAF6] focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50 sm:px-5"
                     >
-                      <span className="flex items-start justify-between gap-4">
-                        <span className="min-w-0">
-                          <span className="block font-heading text-lg font-bold">
-                            {studentDisplayName(student) || "-"}
-                          </span>
-                          <span className="mt-0.5 block text-sm text-admin-muted">
-                            {formatAge(student.child_birth_date, ageYear)} år,{" "}
-                            {guardianName(student) ?? "foresatt mangler"}
-                          </span>
+                      <span className="min-w-0">
+                        <span className="block truncate font-heading text-lg font-bold">
+                          {studentDisplayName(student) || "Navn mangler"}
+                        </span>
+                        <span className="block truncate text-sm text-admin-muted">
+                          {formatAge(student.child_birth_date, ageYear)} år ·{" "}
+                          {classLabel(student)}
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 items-center gap-2">
+                        <span className="text-right text-xs font-bold">
+                          {state === "delvis"
+                            ? `${formatNok(ledger.remaining)} igjen`
+                            : payStateLabel[state]}
                         </span>
                         <ArrowRight
                           aria-hidden="true"
-                          className="mt-1 size-5 shrink-0 text-admin-muted transition-transform group-hover:translate-x-0.5"
+                          className="size-5 text-admin-muted transition-transform group-hover:translate-x-0.5"
                         />
                       </span>
-                      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-[#F8F6F0] p-3 text-sm">
-                        <div>
-                          <dt className="text-xs font-bold text-admin-muted">
-                            Klasse
-                          </dt>
-                          <dd className="mt-1 font-bold">
-                            {classLabel(student.enrollments)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs font-bold text-admin-muted">
-                            Skoleår
-                          </dt>
-                          <dd className="mt-1 font-bold">
-                            {years.join(", ") || "Ikke plassert"}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs font-bold text-admin-muted">
-                            Betalt
-                          </dt>
-                          <dd className="mt-1 font-bold tabular-nums">
-                            {formatNok(ledger.paid)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs font-bold text-admin-muted">
-                            Status
-                          </dt>
-                          <dd className="mt-1 font-bold">
-                            {state === "betalt"
-                              ? "Betalt"
-                              : state === "delvis"
-                                ? `${formatNok(ledger.remaining)} igjen`
-                                : state === "venter"
-                                  ? "Lenke sendt"
-                                  : "Ikke sendt"}
-                          </dd>
-                        </div>
-                      </dl>
                     </Link>
                   </li>
                 );

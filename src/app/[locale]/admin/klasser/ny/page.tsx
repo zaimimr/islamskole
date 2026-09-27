@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { adminBasePath } from "@/components/admin/paths";
 import { ClassForm } from "@/components/admin/class-form";
+
+export const metadata: Metadata = { title: "Ny klasse" };
 
 export default async function NyKlassePage({
   params,

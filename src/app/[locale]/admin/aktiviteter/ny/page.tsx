@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { adminBasePath } from "@/components/admin/paths";
 import { EventForm } from "@/components/admin/event-form";
+
+export const metadata: Metadata = { title: "Ny aktivitet" };
 
 export default async function NyAktivitetPage({
   params,

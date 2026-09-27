@@ -1,3 +1,18 @@
 {
-  "buildPath": "comp"
+  "buildPath": "comp",
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "src/app/[locale]/admin/betaling/finance-tabs.tsx"
+        ],
+        "createdAt": "2026-09-27T10:20:33.974Z",
+        "reason": "agent triage: standard tab underline (border-b-2); rounded-t-lg applies only to the focus-visible ring, not a rounded card"
+      }
+    ]
+  }
 }

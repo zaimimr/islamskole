@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { adminBasePath } from "@/components/admin/paths";
 import { SchoolYearForm } from "@/components/admin/school-year-form";
+
+export const metadata: Metadata = { title: "Nytt skoleår" };
 
 export default async function NyttSkolearPage({
   params,
@@ -25,7 +28,7 @@ export default async function NyttSkolearPage({
           Nytt skoleår
         </h1>
         <p className="mt-1 max-w-2xl text-admin-muted">
-          Angi perioden og standardavgiften før skoleåret tas i bruk.
+          Angi perioden og årsavgiften før skoleåret tas i bruk.
         </p>
       </header>
       <SchoolYearForm listHref={listHref} />

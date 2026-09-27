@@ -1,8 +1,10 @@
 import type { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getIsAdmin } from "@/lib/auth";
+import { osloLocalToIso, osloToday } from "@/lib/dates";
+import { studentDisplayName } from "@/lib/student-name";
 
-type ExportEntity = "students" | "applications" | "payments" | "teachers";
+type ExportEntity = "students" | "applications" | "teachers";
 
 type Column = { key: string; header: string };
 
@@ -14,13 +16,10 @@ type ExportResult = {
 type ExportQuery = PromiseLike<ExportResult> & {
   eq: (column: string, value: string) => ExportQuery;
   or: (filters: string) => ExportQuery;
+  range: (from: number, to: number) => ExportQuery;
 };
 
-type ExportTable =
-  | "students"
-  | "student_applications"
-  | "payments"
-  | "teacher_applications";
+type ExportTable = "students" | "student_applications" | "teacher_applications";
 
 type EntityConfig = {
   table: ExportTable;
@@ -89,19 +88,6 @@ const entityConfigs: Record<ExportEntity, EntityConfig> = {
       { key: "created_at", header: "Dato" },
     ],
   },
-  payments: {
-    table: "payments",
-    select:
-      "id, student_id, school_year_id, status, amount, currency, created_at",
-    columns: [
-      { key: "student_id", header: "Elev-ID" },
-      { key: "school_year_id", header: "Skoleår-ID" },
-      { key: "status", header: "Status" },
-      { key: "amount", header: "Beløp (øre)" },
-      { key: "currency", header: "Valuta" },
-      { key: "created_at", header: "Dato" },
-    ],
-  },
   teachers: {
     table: "teacher_applications",
     select: "id, full_name, email, phone, subjects, message, status, created_at",
@@ -117,21 +103,196 @@ const entityConfigs: Record<ExportEntity, EntityConfig> = {
   },
 };
 
+const PAGE_SIZE = 1000;
+
 function escapeCsvField(value: unknown): string {
   if (value == null) return "";
-  const text = String(value);
-  if (/[",\n\r]/.test(text)) {
+  let text = String(value);
+  if (/^[=+\-@\t\r]/.test(text) && !/^\+?[\d\s]+$/.test(text)) text = `'${text}`;
+  if (/[";\n\r]/.test(text)) {
     return `"${text.replace(/"/g, '""')}"`;
   }
   return text;
 }
 
 function buildCsv(columns: Column[], rows: Record<string, unknown>[]): string {
-  const lines = [columns.map((c) => escapeCsvField(c.header)).join(",")];
+  const lines = [columns.map((c) => escapeCsvField(c.header)).join(";")];
   for (const row of rows) {
-    lines.push(columns.map((c) => escapeCsvField(row[c.key])).join(","));
+    lines.push(columns.map((c) => escapeCsvField(row[c.key])).join(";"));
   }
   return lines.join("\r\n");
+}
+
+function csvResponse(csv: string, filename: string) {
+  return new Response(`\uFEFF${csv}`, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+    },
+  });
+}
+
+async function fetchAll<T>(
+  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<T[] | null> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await page(from, from + PAGE_SIZE - 1);
+    if (error) return null;
+    rows.push(...(data ?? []));
+    if (!data || data.length < PAGE_SIZE) return rows;
+  }
+}
+
+const methodLabels: Record<string, string> = {
+  vipps: "Vipps",
+  kontant: "Kontant",
+  bank: "Bankoverføring",
+  annet: "Annet",
+  sadaqa: "Sadaqa",
+};
+
+const statusLabels: Record<string, string> = {
+  opprettet: "Venter",
+  autorisert: "Autorisert",
+  fanget: "Betalt",
+  avbrutt: "Avbrutt",
+  refundert: "Refundert",
+  feilet: "Feilet",
+};
+
+const accountingColumns: Column[] = [
+  { key: "date", header: "Dato" },
+  { key: "reference", header: "Referanse" },
+  { key: "year", header: "Skoleår" },
+  { key: "payer", header: "Betaler" },
+  { key: "children", header: "Barn" },
+  { key: "method", header: "Betalingsmåte" },
+  { key: "gross", header: "Brutto (kr)" },
+  { key: "refunded", header: "Refundert (kr)" },
+  { key: "net", header: "Netto (kr)" },
+  { key: "voided", header: "Annullert" },
+  { key: "status", header: "Status" },
+  { key: "psp", header: "PSP-referanse" },
+  { key: "description", header: "Beskrivelse" },
+];
+
+type AccountingPayment = {
+  id: string;
+  reference: string;
+  status: string;
+  method: string;
+  captured_amount: number;
+  refunded_amount: number;
+  paid_at: string | null;
+  payer_name: string | null;
+  psp_reference: string | null;
+  description: string | null;
+  voided_at: string | null;
+  school_years: { label: string } | null;
+};
+
+function kroner(ore: number) {
+  return (ore / 100).toFixed(2).replace(".", ",");
+}
+
+function isDate(value: string | null): value is string {
+  return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
+}
+
+function nextDay(date: string) {
+  const next = new Date(`${date}T12:00:00Z`);
+  next.setUTCDate(next.getUTCDate() + 1);
+  return next.toISOString().slice(0, 10);
+}
+
+async function exportAccounting(searchParams: URLSearchParams) {
+  const from = searchParams.get("fra");
+  const to = searchParams.get("til");
+  const yearId = searchParams.get("year");
+  if ((from && !isDate(from)) || (to && !isDate(to))) {
+    return new Response("Ugyldig dato", { status: 400 });
+  }
+
+  const supabase = await createClient();
+  const payments = await fetchAll<AccountingPayment>((start, end) => {
+    let query = supabase
+      .from("payments")
+      .select(
+        "id, reference, status, method, captured_amount, refunded_amount, paid_at, payer_name, psp_reference, description, voided_at, school_years(label)",
+      )
+      .gt("captured_amount", 0)
+      .order("paid_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(start, end);
+    if (isDate(from)) query = query.gte("paid_at", osloLocalToIso(`${from}T00:00`));
+    if (isDate(to)) query = query.lt("paid_at", osloLocalToIso(`${nextDay(to)}T00:00`));
+    if (yearId) query = query.eq("school_year_id", yearId);
+    return query as unknown as PromiseLike<{ data: AccountingPayment[] | null; error: unknown }>;
+  });
+  if (!payments) return new Response("Eksporten feilet", { status: 500 });
+
+  const ids = payments.map((payment) => payment.id);
+  const childrenByPayment = new Map<string, string[]>();
+  for (let index = 0; index < ids.length; index += 200) {
+    const chunk = ids.slice(index, index + 200);
+    const [allocations, applications] = await Promise.all([
+      supabase
+        .from("payment_allocations")
+        .select("payment_id, students(child_first_name, child_last_name)")
+        .in("payment_id", chunk),
+      supabase
+        .from("student_applications")
+        .select("payment_id, child_first_name, child_last_name")
+        .in("payment_id", chunk),
+    ]);
+    if (allocations.error || applications.error) {
+      return new Response("Eksporten feilet", { status: 500 });
+    }
+    for (const row of (allocations.data as unknown as {
+      payment_id: string;
+      students: { child_first_name: string | null; child_last_name: string | null } | null;
+    }[]) ?? []) {
+      const name = row.students ? studentDisplayName(row.students) : "";
+      if (!name) continue;
+      childrenByPayment.set(row.payment_id, [...(childrenByPayment.get(row.payment_id) ?? []), name]);
+    }
+    for (const row of (applications.data as {
+      payment_id: string | null;
+      child_first_name: string | null;
+      child_last_name: string | null;
+    }[]) ?? []) {
+      if (!row.payment_id || childrenByPayment.has(row.payment_id)) continue;
+      const name = studentDisplayName(row);
+      if (name) childrenByPayment.set(row.payment_id, [name]);
+    }
+  }
+
+  const rows = payments.map((payment) => {
+    const voided = Boolean(payment.voided_at);
+    return {
+      date: payment.paid_at ? osloToday(new Date(payment.paid_at)) : "",
+      reference: payment.reference,
+      year: payment.school_years?.label ?? "",
+      payer: payment.payer_name ?? "",
+      children: (childrenByPayment.get(payment.id) ?? []).join(", "),
+      method: methodLabels[payment.method] ?? payment.method,
+      gross: kroner(payment.captured_amount),
+      refunded: kroner(payment.refunded_amount),
+      net: kroner(voided ? 0 : payment.captured_amount - payment.refunded_amount),
+      voided: voided ? "Ja" : "Nei",
+      status: statusLabels[payment.status] ?? payment.status,
+      psp: payment.psp_reference ?? "",
+      description: payment.description ?? "",
+    };
+  });
+
+  const period = [from, to].filter(Boolean).join("_til_");
+  return csvResponse(
+    buildCsv(accountingColumns, rows),
+    `regnskapsrapport${period ? `_${period}` : ""}.csv`,
+  );
 }
 
 export async function GET(
@@ -139,8 +300,8 @@ export async function GET(
   ctx: RouteContext<"/api/export/[entity]">,
 ) {
   const { entity } = await ctx.params;
-  const config = entityConfigs[entity as ExportEntity];
-  if (!config) {
+  const config = entityConfigs[entity as ExportEntity] as EntityConfig | undefined;
+  if (!config && entity !== "payments") {
     return new Response("Ukjent eksport", { status: 404 });
   }
 
@@ -149,44 +310,46 @@ export async function GET(
     return new Response("Ikke autorisert", { status: 403 });
   }
 
-  const supabase = await createClient();
-  let query = supabase
-    .from(config.table)
-    .select(config.select)
-    .order("created_at", { ascending: false }) as unknown as ExportQuery;
-
   const searchParams = request.nextUrl.searchParams;
+  if (entity === "payments") return exportAccounting(searchParams);
+  if (!config) return new Response("Ukjent eksport", { status: 404 });
+
+  const supabase = await createClient();
   const status = searchParams.get("status");
-  if (status && status !== "alle" && entity !== "students") {
-    query = query.eq("status", status);
-  }
-
   const term = (searchParams.get("q") ?? "").replace(/[%,()]/g, " ").trim();
-  if (term) {
-    if (entity === "applications" || entity === "students") {
-      query = query.or(
-        `child_first_name.ilike.%${term}%,child_last_name.ilike.%${term}%,mother_first_name.ilike.%${term}%,mother_last_name.ilike.%${term}%,father_first_name.ilike.%${term}%,father_last_name.ilike.%${term}%,child_email.ilike.%${term}%`,
-      );
-    } else if (entity === "teachers") {
-      query = query.or(
-        `full_name.ilike.%${term}%,email.ilike.%${term}%,subjects.ilike.%${term}%`,
-      );
+
+  const data = await fetchAll<Record<string, unknown>>((from, to) => {
+    let query = supabase
+      .from(config.table)
+      .select(config.select)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: true })
+      .range(from, to) as unknown as ExportQuery;
+
+    if (status && status !== "alle" && entity !== "students") {
+      query = query.eq("status", status);
     }
-  }
-
-  const { data, error } = await query;
-  if (error) {
-    return new Response(error.message, { status: 500 });
-  }
-
-  const rows = (data as Record<string, unknown>[] | null) ?? [];
-  const csv = `﻿${buildCsv(config.columns, rows)}`;
-
-  return new Response(csv, {
-    status: 200,
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${entity}.csv"`,
-    },
+    if (term) {
+      if (entity === "applications" || entity === "students") {
+        query = query.or(
+          `child_first_name.ilike.%${term}%,child_last_name.ilike.%${term}%,mother_first_name.ilike.%${term}%,mother_last_name.ilike.%${term}%,father_first_name.ilike.%${term}%,father_last_name.ilike.%${term}%,child_email.ilike.%${term}%`,
+        );
+      } else if (entity === "teachers") {
+        query = query.or(
+          `full_name.ilike.%${term}%,email.ilike.%${term}%,subjects.ilike.%${term}%`,
+        );
+      }
+    }
+    return query;
   });
+  if (!data) {
+    return new Response("Eksporten feilet", { status: 500 });
+  }
+
+  const rows = data.map((row) => ({
+    ...row,
+    created_at:
+      typeof row.created_at === "string" ? osloToday(new Date(row.created_at)) : "",
+  }));
+  return csvResponse(buildCsv(config.columns, rows), `${entity}.csv`);
 }

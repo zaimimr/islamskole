@@ -1,19 +1,27 @@
-import Link from "next/link";
 import { setRequestLocale } from "next-intl/server";
 import {
   Check,
   CheckCircle2,
   Clock3,
+  Ban,
   HelpCircle,
   Mail,
+  RotateCcw,
   XCircle,
 } from "lucide-react";
 import { PageHeader } from "@/components/site/PageHeader";
 import { Section } from "@/components/site/Section";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Link } from "@/i18n/navigation";
 
-type State = "fanget" | "autorisert" | "avbrutt" | "ukjent";
+type State =
+  | "fanget"
+  | "autorisert"
+  | "avbrutt"
+  | "ukjent"
+  | "oppgjort"
+  | "annullert";
 
 type Copy = {
   title: string;
@@ -24,6 +32,7 @@ type Copy = {
   support: string;
   home: string;
   contact: string;
+  retry: string;
 };
 
 const messages: Record<State, Record<"no" | "en", Copy>> = {
@@ -42,6 +51,7 @@ const messages: Record<State, Record<"no" | "en", Copy>> = {
         "Betalingen bekrefter innmeldingen, men ikke en bestemt klasseplass.",
       home: "Til forsiden",
       contact: "Kontakt skolen",
+      retry: "Prøv å betale igjen",
     },
     en: {
       title: "Payment completed",
@@ -57,6 +67,7 @@ const messages: Record<State, Record<"no" | "en", Copy>> = {
         "Payment confirms the enrollment, but not a specific class placement.",
       home: "Back to home",
       contact: "Contact the school",
+      retry: "Try paying again",
     },
   },
   autorisert: {
@@ -73,6 +84,7 @@ const messages: Record<State, Record<"no" | "en", Copy>> = {
       support: "Du trenger ikke betale på nytt mens statusen behandles.",
       home: "Til forsiden",
       contact: "Kontakt skolen",
+      retry: "Prøv å betale igjen",
     },
     en: {
       title: "Payment approved",
@@ -88,6 +100,7 @@ const messages: Record<State, Record<"no" | "en", Copy>> = {
         "You do not need to pay again while the status is being processed.",
       home: "Back to home",
       contact: "Contact the school",
+      retry: "Try paying again",
     },
   },
   avbrutt: {
@@ -98,12 +111,13 @@ const messages: Record<State, Record<"no" | "en", Copy>> = {
       nextTitle: "Slik går du videre",
       steps: [
         "Kontroller Vipps for å se at beløpet ikke er trukket.",
-        "Start innmeldingen på nytt når du er klar.",
+        "Trykk «Prøv å betale igjen» når du er klar. Opplysningene er lagret.",
         "Kontakt skolen hvis du er usikker på betalingsstatusen.",
       ],
       support: "Skolen har ikke registrert en fullført betaling.",
       home: "Til forsiden",
       contact: "Kontakt skolen",
+      retry: "Prøv å betale igjen",
     },
     en: {
       title: "Payment cancelled",
@@ -112,12 +126,13 @@ const messages: Record<State, Record<"no" | "en", Copy>> = {
       nextTitle: "How to continue",
       steps: [
         "Check Vipps to confirm that the amount was not charged.",
-        "Start the enrollment again when you are ready.",
+        "Tap “Try paying again” when you are ready. Your details are saved.",
         "Contact the school if you are unsure about the payment status.",
       ],
       support: "The school has not registered a completed payment.",
       home: "Back to home",
       contact: "Contact the school",
+      retry: "Try paying again",
     },
   },
   ukjent: {
@@ -135,6 +150,7 @@ const messages: Record<State, Record<"no" | "en", Copy>> = {
         "Skolen kan kontrollere betalingen mot Vipps før du eventuelt prøver igjen.",
       home: "Til forsiden",
       contact: "Kontakt skolen",
+      retry: "Prøv å betale igjen",
     },
     en: {
       title: "We are checking the payment",
@@ -150,6 +166,71 @@ const messages: Record<State, Record<"no" | "en", Copy>> = {
         "The school can check the payment against Vipps before you try again.",
       home: "Back to home",
       contact: "Contact the school",
+      retry: "Try paying again",
+    },
+  },
+  oppgjort: {
+    no: {
+      title: "Det er ingenting å betale",
+      body: "Beløpet på denne lenken er allerede dekket.",
+      status: "Ingenting å betale",
+      nextTitle: "Dette betyr det",
+      steps: [
+        "Skolen har registrert betaling, fritak eller dekning for dette.",
+        "Du trenger ikke gjøre noe mer nå.",
+        "Kontakt skolen hvis du mener dette er feil.",
+      ],
+      support: "Ingen penger er trukket fra denne lenken.",
+      home: "Til forsiden",
+      contact: "Kontakt skolen",
+      retry: "Prøv å betale igjen",
+    },
+    en: {
+      title: "There is nothing to pay",
+      body: "The amount on this link is already covered.",
+      status: "Nothing to pay",
+      nextTitle: "What this means",
+      steps: [
+        "The school has registered a payment, exemption or coverage for this.",
+        "You do not need to do anything more now.",
+        "Contact the school if you think this is wrong.",
+      ],
+      support: "No money has been charged from this link.",
+      home: "Back to home",
+      contact: "Contact the school",
+      retry: "Try paying again",
+    },
+  },
+  annullert: {
+    no: {
+      title: "Betalingslenken er ikke lenger gyldig",
+      body: "Skolen har annullert denne betalingslenken.",
+      status: "Annullert",
+      nextTitle: "Slik går du videre",
+      steps: [
+        "Ikke betal med denne lenken.",
+        "Bruk den nyeste lenken du har fått på e-post.",
+        "Kontakt skolen hvis du er usikker på hva som gjenstår.",
+      ],
+      support: "Ingen penger er trukket fra denne lenken.",
+      home: "Til forsiden",
+      contact: "Kontakt skolen",
+      retry: "Prøv å betale igjen",
+    },
+    en: {
+      title: "This payment link is no longer valid",
+      body: "The school has cancelled this payment link.",
+      status: "Cancelled",
+      nextTitle: "How to continue",
+      steps: [
+        "Do not pay with this link.",
+        "Use the newest link you received by email.",
+        "Contact the school if you are unsure what remains.",
+      ],
+      support: "No money has been charged from this link.",
+      home: "Back to home",
+      contact: "Contact the school",
+      retry: "Try paying again",
     },
   },
 };
@@ -178,6 +259,16 @@ const stateStyles: Record<
     tone: "bg-secondary text-secondary-foreground",
     badge: "bg-secondary text-secondary-foreground",
   },
+  oppgjort: {
+    icon: CheckCircle2,
+    tone: "bg-primary/10 text-brand-green-dark",
+    badge: "bg-primary/12 text-brand-green-dark",
+  },
+  annullert: {
+    icon: Ban,
+    tone: "bg-secondary text-secondary-foreground",
+    badge: "bg-secondary text-secondary-foreground",
+  },
 };
 
 export default async function PaymentDonePage({
@@ -198,6 +289,31 @@ export default async function PaymentDonePage({
   const copy = messages[state][language];
   const style = stateStyles[state];
   const StatusIcon = style.icon;
+  const paymentId =
+    typeof search.payment === "string" &&
+    /^[0-9a-f-]{36}$/i.test(search.payment)
+      ? search.payment
+      : null;
+  const canRetry = state === "avbrutt" || state === "ukjent";
+  const retryClass = cn(
+    buttonVariants({ variant: state === "avbrutt" ? "default" : "outline" }),
+    "min-h-12 px-6",
+  );
+  const retryContent = (
+    <>
+      <RotateCcw className="size-4" aria-hidden="true" />
+      {copy.retry}
+    </>
+  );
+  const retryButton = !canRetry ? null : paymentId ? (
+    <a href={`/api/vipps/pay/${paymentId}?locale=${language}`} className={retryClass}>
+      {retryContent}
+    </a>
+  ) : (
+    <Link href="/pamelding" className={retryClass}>
+      {retryContent}
+    </Link>
+  );
 
   return (
     <>
@@ -267,9 +383,19 @@ export default async function PaymentDonePage({
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
-            <Link href="/" className={cn(buttonVariants(), "min-h-12 px-6")}>
+            {state === "avbrutt" ? retryButton : null}
+            <Link
+              href="/"
+              className={cn(
+                buttonVariants({
+                  variant: state === "avbrutt" ? "outline" : "default",
+                }),
+                "min-h-12 px-6",
+              )}
+            >
               {copy.home}
             </Link>
+            {state === "ukjent" ? retryButton : null}
             <Link
               href="/kontakt"
               className={cn(

@@ -1,14 +1,18 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
+  ChevronDown,
   CircleDollarSign,
   GraduationCap,
+  Mail,
+  Pencil,
+  Phone,
   UsersRound,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { adminBasePath } from "@/components/admin/paths";
-import { DeleteButton } from "@/components/admin/delete-button";
 import { StudentForm } from "@/components/admin/student-form";
 import {
   EnrollmentManager,
@@ -19,13 +23,20 @@ import {
   type PaymentRow,
   type YearFee,
 } from "@/components/admin/payment-manager";
-import { deleteStudent } from "@/app/[locale]/admin/students-actions";
+import { getStudentDeleteBlockers } from "@/app/[locale]/admin/students-actions";
+import { suggestPlacements } from "@/app/[locale]/admin/register/placement";
 import { studentDisplayName } from "@/lib/student-name";
-import { formatAge, schoolYearStart } from "@/lib/age";
+import { ageInYear, formatAge, schoolYearStart } from "@/lib/age";
+import { formatOsloDate } from "@/lib/dates";
+import { formatNok } from "@/lib/money";
+import { StudentExitPanel } from "./student-exit-panel";
+
+export const metadata: Metadata = { title: "Elev" };
 
 type StudentData = {
   id: string;
   family_id: string | null;
+  application_id: string | null;
   child_first_name: string | null;
   child_last_name: string | null;
   child_birth_date: string | null;
@@ -49,12 +60,73 @@ type StudentData = {
   notes: string | null;
 };
 
+type GuardianLink = {
+  relationship_label: string;
+  receives_communication: boolean;
+  guardians: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    phone: string | null;
+    email: string | null;
+  } | null;
+};
+
+const levelLabels: Record<string, string> = {
+  nybegynner: "Nybegynner",
+  litt: "Litt erfaring",
+  middels: "Middels",
+  god: "God",
+};
+
+const genderLabels: Record<string, string> = { gutt: "Gutt", jente: "Jente" };
+
+function roleLabel(role: string) {
+  const roles: Record<string, string> = {
+    foresatt: "Foresatt",
+    guardian: "Foresatt",
+    mor: "Mor",
+    mother: "Mor",
+    far: "Far",
+    father: "Far",
+    steforelder: "Steforelder",
+    verge: "Verge",
+    annet: "Annen relasjon",
+  };
+  return roles[role] ?? role;
+}
+
+function telHref(phone: string) {
+  return `tel:${phone.replace(/\s+/g, "")}`;
+}
+
+const linkClass =
+  "inline-flex min-h-11 items-center gap-1.5 rounded font-bold text-[#277A31] underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-8";
+
+function Fact({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <dt className="text-xs font-bold text-admin-muted">{label}</dt>
+      <dd className="mt-1 text-sm font-bold">{children}</dd>
+    </div>
+  );
+}
+
 export default async function ElevDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale, id } = await params;
+  const editing = (await searchParams).rediger === "1";
   const basePath = adminBasePath(locale);
   const listHref = `${basePath}/elever`;
   const supabase = await createClient();
@@ -73,13 +145,13 @@ export default async function ElevDetailPage({
     supabase
       .from("students")
       .select(
-        "id, family_id, child_first_name, child_last_name, child_birth_date, child_gender, child_address, child_postal_code, child_city, child_email, child_phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, child_level_quran, child_level_arabic, child_level_islam, notes",
+        "id, family_id, application_id, child_first_name, child_last_name, child_birth_date, child_gender, child_address, child_postal_code, child_city, child_email, child_phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, child_level_quran, child_level_arabic, child_level_islam, notes",
       )
       .eq("id", id)
       .maybeSingle(),
     supabase
       .from("classes")
-      .select("id, name_no, price")
+      .select("id, name_no, price, age_min, age_max, capacity")
       .order("sort_order", { ascending: true }),
     supabase
       .from("school_years")
@@ -88,7 +160,7 @@ export default async function ElevDetailPage({
     supabase
       .from("enrollments")
       .select(
-        "id, school_year_id, status, classes(name_no, price), school_years(label)",
+        "id, class_id, school_year_id, status, price_snapshot, classes(name_no, price), school_years(label)",
       )
       .eq("student_id", id)
       .order("created_at", { ascending: false }),
@@ -122,11 +194,18 @@ export default async function ElevDetailPage({
   const student = studentData as StudentData | null;
   if (!student) notFound();
 
-  const classes = (
+  const classRows =
     (classData as
-      | { id: string; name_no: string | null; price: number | null }[]
-      | null) ?? []
-  ).map((c) => ({
+      | {
+          id: string;
+          name_no: string | null;
+          price: number | null;
+          age_min: number | null;
+          age_max: number | null;
+          capacity: number | null;
+        }[]
+      | null) ?? [];
+  const classes = classRows.map((c) => ({
     id: c.id,
     name: c.name_no ?? "(uten navn)",
     price: c.price,
@@ -137,15 +216,90 @@ export default async function ElevDetailPage({
       | { id: string; label: string; is_active: boolean; fee: number | null }[]
       | null) ?? [];
   const schoolYears = yearsRaw.map((y) => ({ id: y.id, label: y.label }));
-  const activeYear = yearsRaw.find((y) => y.is_active) ?? yearsRaw[0];
+  const enrollmentYears = yearsRaw.map((y) => ({
+    id: y.id,
+    label: y.label,
+    fee: y.fee,
+  }));
+  const trulyActiveYear = yearsRaw.find((y) => y.is_active) ?? null;
+  const activeYear = trulyActiveYear ?? yearsRaw[0];
   const defaultSchoolYearId = activeYear?.id ?? null;
+
+  const [
+    { data: guardianData },
+    { data: applicationData },
+    { data: yearEnrollmentData },
+    { data: targetData },
+    deleteBlockers,
+  ] = await Promise.all([
+    student.family_id
+      ? supabase
+          .from("family_guardians")
+          .select(
+            "relationship_label, receives_communication, guardians(id, first_name, last_name, phone, email)",
+          )
+          .eq("family_id", student.family_id)
+          .order("sort_order", { ascending: true })
+      : Promise.resolve({ data: [] }),
+    student.application_id
+      ? supabase
+          .from("student_applications")
+          .select("desired_class")
+          .eq("id", student.application_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    defaultSchoolYearId
+      ? supabase
+          .from("enrollments")
+          .select("class_id")
+          .eq("school_year_id", defaultSchoolYearId)
+          .eq("status", "aktiv")
+      : Promise.resolve({ data: [] }),
+    supabase.from("payment_targets").select("payment_id").eq("student_id", id),
+    getStudentDeleteBlockers(id),
+  ]);
+
+  const guardians = ((guardianData as GuardianLink[] | null) ?? []).filter(
+    (link) => link.guardians,
+  );
+
+  const classCounts = new Map<string, number>();
+  for (const row of (yearEnrollmentData as { class_id: string }[] | null) ??
+    []) {
+    classCounts.set(row.class_id, (classCounts.get(row.class_id) ?? 0) + 1);
+  }
+  const ageYear =
+    schoolYearStart(activeYear?.label) ?? new Date().getFullYear();
+  const childAge = ageInYear(student.child_birth_date, ageYear);
+  const suggestedClassId =
+    suggestPlacements(
+      [
+        {
+          id: student.id,
+          age: childAge,
+          desiredClass:
+            (applicationData as { desired_class: string | null } | null)
+              ?.desired_class ?? null,
+        },
+      ],
+      classRows.map((c) => ({
+        id: c.id,
+        name: c.name_no ?? "",
+        ageMin: c.age_min,
+        ageMax: c.age_max,
+        capacity: c.capacity,
+        enrolled: classCounts.get(c.id) ?? 0,
+      })),
+    ).get(student.id) ?? null;
 
   const enrollmentRaw =
     (enrollmentData as
       | {
           id: string;
+          class_id: string;
           school_year_id: string;
           status: string;
+          price_snapshot: number | null;
           classes: { name_no: string | null; price: number | null } | null;
           school_years: { label: string } | null;
         }[]
@@ -153,10 +307,12 @@ export default async function ElevDetailPage({
 
   const enrollments: EnrollmentRow[] = enrollmentRaw.map((e) => ({
     id: e.id,
+    classId: e.class_id,
+    schoolYearId: e.school_year_id,
     schoolYear: e.school_years?.label ?? "-",
     status: e.status,
     className: e.classes?.name_no ?? "(uten navn)",
-    price: e.classes?.price ?? null,
+    price: e.price_snapshot,
   }));
 
   const activeEnrollment =
@@ -208,7 +364,10 @@ export default async function ElevDetailPage({
           amount: number;
           note: string;
           created_at: string | null;
-          guardians: { first_name: string | null; last_name: string | null } | null;
+          guardians: {
+            first_name: string | null;
+            last_name: string | null;
+          } | null;
         }[]
       | null) ?? []
   ).map((adjustment) => ({
@@ -237,7 +396,7 @@ export default async function ElevDetailPage({
   }));
 
   const fallbackAmount =
-    activeEnrollment?.classes?.price ?? activeYear?.fee ?? null;
+    activeEnrollment?.price_snapshot ?? activeYear?.fee ?? null;
   const defaultAmount = fallbackAmount;
 
   const allocations =
@@ -249,7 +408,14 @@ export default async function ElevDetailPage({
     allocations.map((a) => [a.payment_id, a.amount]),
   );
 
-  const paymentIds = [...new Set(allocations.map((a) => a.payment_id))];
+  const paymentIds = [
+    ...new Set([
+      ...allocations.map((a) => a.payment_id),
+      ...((targetData as { payment_id: string }[] | null) ?? []).map(
+        (t) => t.payment_id,
+      ),
+    ]),
+  ];
 
   const paymentFilter = paymentIds.length
     ? `id.in.(${paymentIds.join(",")}),student_id.eq.${id}`
@@ -267,6 +433,18 @@ export default async function ElevDetailPage({
     amount: number;
   }[];
 
+  const { data: lockData } = paymentIds.length
+    ? await supabase
+        .from("payment_allocation_locks")
+        .select("payment_id")
+        .in("payment_id", paymentIds)
+    : { data: [] };
+  const lockedPaymentIds = new Set(
+    ((lockData as { payment_id: string }[] | null) ?? []).map(
+      (row) => row.payment_id,
+    ),
+  );
+
   const { data: paymentData } = await supabase
     .from("payments")
     .select(
@@ -279,7 +457,11 @@ export default async function ElevDetailPage({
     (paymentData as
       | (Omit<
           PaymentRow,
-          "schoolYear" | "allocatedAmount" | "sharedWith" | "schoolYearId"
+          | "schoolYear"
+          | "allocatedAmount"
+          | "sharedWith"
+          | "schoolYearId"
+          | "manuallyAllocated"
         > & {
           school_year_id: string | null;
           school_years: { label: string } | null;
@@ -325,6 +507,7 @@ export default async function ElevDetailPage({
       schoolYearId: p.school_year_id,
       allocatedAmount: allocationByPayment.get(p.id) ?? null,
       sharedWith: covers > 1 ? covers : null,
+      manuallyAllocated: lockedPaymentIds.has(p.id),
       capturedAmount: p.captured_amount ?? 0,
       refundedAmount: p.refunded_amount ?? 0,
       refundAllocations: (p.payment_allocations ?? []).map((allocation) => ({
@@ -356,53 +539,92 @@ export default async function ElevDetailPage({
     : null;
   const activeClass = activeEnrollment?.classes?.name_no ?? "Ikke plassert";
 
-  const formatNok = (amount: number) =>
-    `${(amount / 100).toLocaleString("nb-NO")} kr`;
+  const name = studentDisplayName(student) || "Elev";
+  const studentHref = `${listHref}/${student.id}`;
+  const familyHref = student.family_id
+    ? `${basePath}/familier/${student.family_id}`
+    : null;
+  const hasActivePlacement = enrollmentRaw.some((e) => e.status === "aktiv");
+  const address = [
+    student.child_address,
+    [student.child_postal_code, student.child_city].filter(Boolean).join(" "),
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const header = (
+    <header>
+      <Link
+        href={editing ? studentHref : listHref}
+        className="inline-flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm font-bold text-[#277A31] outline-none hover:bg-[#F2F7F2] focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        <ArrowLeft aria-hidden="true" className="size-4" />
+        {editing ? "Tilbake til eleven" : "Tilbake til elever"}
+      </Link>
+      <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h1 className="text-balance font-heading text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
+            {editing ? `Rediger ${name}` : name}
+          </h1>
+          {!editing && childAge != null ? (
+            <span className="text-base font-bold text-admin-muted">
+              {formatAge(student.child_birth_date, ageYear)} år
+            </span>
+          ) : null}
+        </div>
+        {!editing ? (
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={`${studentHref}?rediger=1`}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#CFC9BD] bg-white px-4 text-sm font-bold outline-none transition-colors hover:bg-[#F2F1EB] focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <Pencil aria-hidden="true" className="size-4 text-[#2F7938]" />
+              Rediger
+            </Link>
+            {familyHref ? (
+              <Link
+                href={familyHref}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#CFC9BD] bg-white px-4 text-sm font-bold outline-none transition-colors hover:bg-[#F2F1EB] focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <UsersRound
+                  aria-hidden="true"
+                  className="size-4 text-[#2F7938]"
+                />
+                Åpne familie
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </header>
+  );
+
+  if (editing) {
+    return (
+      <div className="grid gap-5 sm:gap-6">
+        {header}
+        <p className="rounded-xl bg-[#EFF8FD] p-3 text-sm text-[#245D7C]">
+          Foresatte endres i familien, så opplysningene er like overalt.
+          {familyHref ? (
+            <>
+              {" "}
+              <Link
+                href={familyHref}
+                className="font-bold underline underline-offset-4"
+              >
+                Endre i familien
+              </Link>
+            </>
+          ) : null}
+        </p>
+        <StudentForm student={student} listHref={listHref} />
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-5 sm:gap-6">
-      <header>
-        <Link
-          href={listHref}
-          className="inline-flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm font-bold text-[#277A31] outline-none hover:bg-[#F2F7F2] focus-visible:ring-3 focus-visible:ring-ring/50"
-        >
-          <ArrowLeft aria-hidden="true" className="size-4" />
-          Tilbake til elever
-        </Link>
-        <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="text-balance font-heading text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
-              {studentDisplayName(student) || "Elev"}
-              {student.child_birth_date ? (
-                <span className="ml-3 align-middle font-sans text-base font-bold text-admin-muted">
-                  {formatAge(
-                    student.child_birth_date,
-                    schoolYearStart(activeYear?.label) ??
-                      new Date().getFullYear(),
-                  )}{" "}
-                  år
-                </span>
-              ) : null}
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm text-admin-muted sm:text-base">
-              Følg opp skoleplass, betaling og elevopplysninger uten å miste
-              familiekonteksten.
-            </p>
-          </div>
-          {student.family_id ? (
-            <Link
-              href={`${basePath}/familier/${student.family_id}`}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#CFC9BD] bg-white px-4 text-sm font-bold outline-none transition-colors hover:bg-[#F2F1EB] focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              <UsersRound
-                aria-hidden="true"
-                className="size-4 text-[#2F7938]"
-              />
-              Åpne familie
-            </Link>
-          ) : null}
-        </div>
-      </header>
+      {header}
 
       <section
         aria-label="Aktiv elevstatus"
@@ -443,6 +665,143 @@ export default async function ElevDetailPage({
         </div>
       </section>
 
+      <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
+          <h2 className="font-heading text-xl font-bold">Elev og foresatte</h2>
+          {familyHref ? (
+            <Link href={familyHref} className={linkClass}>
+              Endre i familien
+            </Link>
+          ) : null}
+        </div>
+        <div className="grid gap-5 p-4 sm:p-5">
+          <dl className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-4">
+            <Fact label="Fødselsdato">
+              {student.child_birth_date
+                ? `${formatOsloDate(student.child_birth_date, { day: "numeric", month: "long", year: "numeric" })}${childAge != null ? `, ${childAge} år` : ""}`
+                : "Ikke oppgitt"}
+            </Fact>
+            <Fact label="Kjønn">
+              {student.child_gender
+                ? (genderLabels[student.child_gender] ?? student.child_gender)
+                : "Ikke oppgitt"}
+            </Fact>
+          </dl>
+
+          <div>
+            <h3 className="text-sm font-bold">Foresatte</h3>
+            {guardians.length > 0 ? (
+              <ul className="mt-2 grid gap-2">
+                {guardians.map((link) => {
+                  const guardian = link.guardians!;
+                  const guardianFullName =
+                    [guardian.first_name, guardian.last_name]
+                      .filter(Boolean)
+                      .join(" ") || "Uten navn";
+                  return (
+                    <li
+                      key={guardian.id}
+                      className="grid gap-1 rounded-xl border border-[#ECE8DF] px-3 py-2 text-sm sm:flex sm:flex-wrap sm:items-center sm:gap-x-4"
+                    >
+                      <span className="font-bold">
+                        {guardianFullName}
+                        <span className="font-normal text-admin-muted">
+                          {" "}
+                          · {roleLabel(link.relationship_label)}
+                        </span>
+                      </span>
+                      {guardian.phone ? (
+                        <a href={telHref(guardian.phone)} className={linkClass}>
+                          <Phone aria-hidden="true" className="size-3.5" />
+                          {guardian.phone}
+                        </a>
+                      ) : null}
+                      {guardian.email ? (
+                        <a
+                          href={`mailto:${guardian.email}`}
+                          className={`${linkClass} break-all`}
+                        >
+                          <Mail aria-hidden="true" className="size-3.5" />
+                          {guardian.email}
+                        </a>
+                      ) : null}
+                      {!link.receives_communication ? (
+                        <span className="text-xs font-bold text-admin-muted">
+                          Mottar ikke e-post fra skolen
+                        </span>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="mt-2 text-sm text-admin-muted">
+                Ingen foresatte er koblet til familien.
+              </p>
+            )}
+          </div>
+
+          <details className="group border-t border-[#ECE8DF] pt-2">
+            <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-2 text-sm font-bold text-admin-muted outline-none hover:bg-[#F2F1EB] hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+              Detaljer
+              <ChevronDown
+                aria-hidden="true"
+                className="size-4 transition-transform group-open:rotate-180"
+              />
+            </summary>
+            <dl className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-4">
+              <Fact label="Adresse">{address || "Ikke oppgitt"}</Fact>
+              <Fact label="Telefon (kontakt)">
+                {student.child_phone ? (
+                  <a href={telHref(student.child_phone)} className={linkClass}>
+                    {student.child_phone}
+                  </a>
+                ) : (
+                  "Ikke oppgitt"
+                )}
+              </Fact>
+              <Fact label="E-post (kontakt)">
+                {student.child_email ? (
+                  <a
+                    href={`mailto:${student.child_email}`}
+                    className={`${linkClass} break-all`}
+                  >
+                    {student.child_email}
+                  </a>
+                ) : (
+                  "Ikke oppgitt"
+                )}
+              </Fact>
+              <Fact label="Koran">
+                {levelLabels[student.child_level_quran ?? ""] ?? "Ikke satt"}
+              </Fact>
+              <Fact label="Arabisk">
+                {levelLabels[student.child_level_arabic ?? ""] ?? "Ikke satt"}
+              </Fact>
+              <Fact label="Islam">
+                {levelLabels[student.child_level_islam ?? ""] ?? "Ikke satt"}
+              </Fact>
+            </dl>
+            <div className="mt-4">
+              <p className="text-xs font-bold text-admin-muted">Notater</p>
+              <p className="mt-1 max-w-prose whitespace-pre-line text-sm">
+                {student.notes || "Ingen notater"}
+              </p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <EnrollmentManager
+        studentId={student.id}
+        classes={classes}
+        schoolYears={enrollmentYears}
+        enrollments={enrollments}
+        defaultSchoolYearId={defaultSchoolYearId}
+        activeSchoolYearId={trulyActiveYear?.id ?? null}
+        suggestedClassId={suggestedClassId}
+      />
+
       <PaymentManager
         studentId={student.id}
         classByYear={classByYear}
@@ -456,37 +815,13 @@ export default async function ElevDetailPage({
         teachers={teachers}
       />
 
-      <EnrollmentManager
+      <StudentExitPanel
         studentId={student.id}
-        classes={classes}
-        schoolYears={schoolYears}
-        enrollments={enrollments}
-        defaultSchoolYearId={defaultSchoolYearId}
+        studentName={name}
+        hasActivePlacement={hasActivePlacement}
+        deleteBlockers={deleteBlockers}
+        listHref={listHref}
       />
-
-      <StudentForm student={student} listHref={listHref} />
-
-      <section className="flex flex-col gap-3 rounded-2xl bg-[#FFF2F1] p-4 ring-1 ring-[#E7B8B4] sm:flex-row sm:items-center sm:justify-between sm:p-5">
-        <div>
-          <h2 className="font-heading text-lg font-bold text-[#7F2923]">
-            Slett elevoppføringen
-          </h2>
-          <p className="mt-1 text-sm text-[#7F2923]">
-            Dette fjerner elevoppføringen permanent og kan ikke angres.
-          </p>
-        </div>
-        <div className="flex min-h-11 items-center justify-end rounded-xl bg-white px-2 ring-1 ring-[#E7B8B4]">
-          <span className="pl-2 text-sm font-bold text-[#9A3028]">
-            Slett elev
-          </span>
-          <DeleteButton
-            id={student.id}
-            label="elev"
-            action={deleteStudent}
-            redirectTo={listHref}
-          />
-        </div>
-      </section>
     </div>
   );
 }

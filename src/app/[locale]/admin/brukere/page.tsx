@@ -1,303 +1,167 @@
-import {
-  Clock3,
-  KeyRound,
-  ShieldCheck,
-  UserRoundCheck,
-  Users,
-} from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { UserRoundCheck, Users } from "lucide-react";
+import { getIsAdmin, getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { deleteUser } from "@/app/[locale]/admin/actions";
+import { formatOsloDate } from "@/lib/dates";
+import { adminBasePath } from "@/components/admin/paths";
 import { CreateUserDialog } from "@/components/admin/create-user-dialog";
-import { ResetPasswordButton } from "@/components/admin/reset-password-button";
-import { DeleteButton } from "@/components/admin/delete-button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { EmptyState } from "@/components/admin/empty-state";
+import { LoadError } from "@/components/admin/load-error";
+import { StatusPill } from "@/components/admin/status-pill";
+import { UserRowActions } from "./user-row-actions";
+
+export const metadata: Metadata = { title: "Brukere" };
 
 type AdminUser = {
   id: string;
   email: string;
-  fullName: string;
+  fullName: string | null;
   role: string;
   createdAt: string | null;
   lastSignInAt: string | null;
 };
 
-async function getUsers(): Promise<AdminUser[]> {
+async function getUsers(): Promise<
+  { ok: true; users: AdminUser[] } | { ok: false }
+> {
   try {
     const admin = createAdminClient();
-    const [{ data: list }, { data: profiles }] = await Promise.all([
+    const [list, profiles] = await Promise.all([
       admin.auth.admin.listUsers({ perPage: 200 }),
       admin.from("profiles").select("id, full_name, role"),
     ]);
+    if (list.error || profiles.error) return { ok: false };
 
     const profileMap = new Map(
       (
-        (profiles as
-          | { id: string; full_name: string | null; role: string }[]
-          | null) ?? []
+        (profiles.data as
+          { id: string; full_name: string | null; role: string }[] | null) ?? []
       ).map((p) => [p.id, p]),
     );
 
-    return (list?.users ?? []).map((user) => {
-      const profile = profileMap.get(user.id);
-      return {
-        id: user.id,
-        email: user.email ?? "-",
-        fullName:
-          profile?.full_name ||
-          (user.user_metadata?.full_name as string | undefined) ||
-          "-",
-        role: profile?.role ?? "member",
-        createdAt: user.created_at ?? null,
-        lastSignInAt: user.last_sign_in_at ?? null,
-      };
-    });
+    return {
+      ok: true,
+      users: list.data.users.map((user) => {
+        const profile = profileMap.get(user.id);
+        return {
+          id: user.id,
+          email: user.email ?? "-",
+          fullName:
+            profile?.full_name ||
+            (user.user_metadata?.full_name as string | undefined) ||
+            null,
+          role: profile?.role ?? "member",
+          createdAt: user.created_at ?? null,
+          lastSignInAt: user.last_sign_in_at ?? null,
+        };
+      }),
+    };
   } catch {
-    return [];
+    return { ok: false };
   }
 }
 
-async function getCurrentUserId() {
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    return user?.id ?? null;
-  } catch {
-    return null;
+export default async function BrukerePage({
+  params,
+}: PageProps<"/[locale]/admin/brukere">) {
+  const { locale } = await params;
+  if (!(await getIsAdmin())) notFound();
+
+  const [result, currentUser] = await Promise.all([getUsers(), getUser()]);
+  if (!result.ok) {
+    return (
+      <LoadError
+        title="Brukerne kunne ikke lastes"
+        retryHref={`${adminBasePath(locale)}/brukere`}
+      />
+    );
   }
-}
-
-function formatDate(value: string | null) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString("nb-NO", {
-    dateStyle: "medium",
-    timeZone: "Europe/Oslo",
-  });
-}
-
-export default async function BrukerePage() {
-  const [users, currentId] = await Promise.all([
-    getUsers(),
-    getCurrentUserId(),
-  ]);
+  const users = result.users;
+  const currentId = currentUser?.id ?? null;
   const adminCount = users.filter((user) => user.role === "admin").length;
-  const signedInCount = users.filter((user) => user.lastSignInAt).length;
 
   return (
     <div className="grid gap-5 sm:gap-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-balance font-heading text-3xl font-bold tracking-[-0.02em] sm:text-4xl">
+          <h1 className="text-balance font-heading text-[2rem] leading-tight font-bold tracking-[-0.02em] sm:text-4xl">
             Brukere
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-admin-muted sm:text-base">
-            Administrer hvem som har tilgang til skolens følsomme opplysninger
-            og administrative verktøy.
+          <p className="mt-1 max-w-2xl text-admin-muted">
+            Hvem som kan logge inn og se skolens opplysninger om barn, familier
+            og betalinger.
           </p>
         </div>
         <CreateUserDialog />
       </header>
 
       <section
-        aria-label="Status for brukertilgang"
-        className="grid overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3] sm:grid-cols-3"
-      >
-        <div className="flex min-h-24 items-center gap-3 px-4 py-4 sm:px-5">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#EFF8FD] text-[#245D7C]">
-            <Users aria-hidden="true" className="size-5" />
-          </span>
-          <div>
-            <p className="font-heading text-2xl font-bold tabular-nums">
-              {users.length}
-            </p>
-            <p className="text-sm text-admin-muted">Brukerkontoer</p>
-          </div>
-        </div>
-        <div className="flex min-h-24 items-center gap-3 border-t border-[#ECE8DF] px-4 py-4 sm:border-t-0 sm:border-l sm:px-5">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B]">
-            <ShieldCheck aria-hidden="true" className="size-5" />
-          </span>
-          <div>
-            <p className="font-heading text-2xl font-bold tabular-nums">
-              {adminCount}
-            </p>
-            <p className="text-sm text-admin-muted">Administratorer</p>
-          </div>
-        </div>
-        <div className="flex min-h-24 items-center gap-3 border-t border-[#ECE8DF] px-4 py-4 sm:border-t-0 sm:border-l sm:px-5">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#FEEDCA] text-[#775108]">
-            <Clock3 aria-hidden="true" className="size-5" />
-          </span>
-          <div>
-            <p className="font-heading text-2xl font-bold tabular-nums">
-              {signedInCount}
-            </p>
-            <p className="text-sm text-admin-muted">Har logget inn</p>
-          </div>
-        </div>
-      </section>
-
-      <section
         aria-labelledby="user-access-title"
         className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]"
       >
-        <div className="flex items-center justify-between gap-4 border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
-          <div>
-            <h2
-              id="user-access-title"
-              className="font-heading text-xl font-bold"
-            >
-              Tilgang til administrasjonen
-            </h2>
-            <p className="mt-0.5 text-sm text-admin-muted">
-              Kontroller rolle, siste innlogging og passordtilgang.
-            </p>
-          </div>
-          <KeyRound aria-hidden="true" className="size-5 text-admin-muted" />
+        <div className="border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
+          <h2 id="user-access-title" className="font-heading text-xl font-bold">
+            Tilgang til administrasjonen
+          </h2>
+          <p className="mt-0.5 text-sm text-admin-muted">
+            {users.length} {users.length === 1 ? "bruker" : "brukere"},{" "}
+            {adminCount === users.length
+              ? "alle er administratorer"
+              : `${adminCount} administratorer`}
+          </p>
         </div>
         {users.length === 0 ? (
-          <div className="flex min-h-56 flex-col items-center justify-center px-6 py-10 text-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B]">
-              <Users aria-hidden="true" className="size-6" />
-            </span>
-            <p className="mt-4 font-heading text-xl font-bold">
-              Ingen brukere funnet
-            </p>
-            <p className="mt-1 max-w-md text-sm text-admin-muted">
-              Opprett en administrator for å gi tilgang til systemet.
-            </p>
-          </div>
+          <EmptyState
+            icon={<Users aria-hidden="true" />}
+            title="Ingen brukere funnet"
+            description="Opprett en administrator for å gi tilgang til systemet."
+          />
         ) : (
-          <>
-            <div className="hidden lg:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Navn</TableHead>
-                    <TableHead>Brukernavn</TableHead>
-                    <TableHead>Rolle</TableHead>
-                    <TableHead>Opprettet</TableHead>
-                    <TableHead>Sist innlogget</TableHead>
-                    <TableHead className="text-right">Handlinger</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">
-                        {user.fullName}
-                        {user.id === currentId ? (
-                          <span className="ml-2 rounded-full bg-[#DCEDDD] px-2 py-0.5 text-xs font-bold text-[#216A2B]">
-                            Din konto
-                          </span>
-                        ) : null}
-                      </TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            user.role === "admin" ? "default" : "secondary"
-                          }
-                        >
-                          {user.role === "admin"
-                            ? "Administrator"
-                            : "Begrenset tilgang"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{formatDate(user.createdAt)}</TableCell>
-                      <TableCell>{formatDate(user.lastSignInAt)}</TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-2">
-                          <ResetPasswordButton
-                            userId={user.id}
-                            email={user.email}
-                          />
-                          {user.id !== currentId ? (
-                            <DeleteButton
-                              id={user.id}
-                              label="bruker"
-                              action={deleteUser}
-                            />
-                          ) : null}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            <ul className="divide-y divide-[#ECE8DF] lg:hidden">
-              {users.map((user) => (
-                <li key={user.id} className="p-4 sm:p-5">
-                  <div className="flex items-start gap-3">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B]">
-                      <UserRoundCheck aria-hidden="true" className="size-5" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-heading text-lg font-bold">
-                          {user.fullName}
-                        </p>
-                        {user.id === currentId ? (
-                          <span className="rounded-full bg-[#DCEDDD] px-2 py-0.5 text-xs font-bold text-[#216A2B]">
-                            Din konto
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="mt-0.5 break-all text-sm text-admin-muted">
+          <ul className="divide-y divide-[#ECE8DF]">
+            {users.map((user) => (
+              <li
+                key={user.id}
+                className="flex items-start gap-3 px-4 py-4 sm:items-center sm:px-5"
+              >
+                <span className="hidden size-10 shrink-0 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B] sm:flex">
+                  <UserRoundCheck aria-hidden="true" className="size-5" />
+                </span>
+                <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] sm:items-center sm:gap-4">
+                  <div className="min-w-0">
+                    <p className="flex flex-wrap items-center gap-2 font-bold">
+                      {user.fullName ?? user.email}
+                      {user.id === currentId ? (
+                        <StatusPill tone="info">Din konto</StatusPill>
+                      ) : null}
+                    </p>
+                    {user.fullName ? (
+                      <p className="mt-0.5 text-sm break-all text-admin-muted">
                         {user.email}
                       </p>
-                      <dl className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-[#F8F6F0] p-3 text-sm">
-                        <div>
-                          <dt className="text-xs font-bold text-admin-muted">
-                            Rolle
-                          </dt>
-                          <dd className="mt-1 font-bold">
-                            {user.role === "admin"
-                              ? "Administrator"
-                              : "Begrenset tilgang"}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs font-bold text-admin-muted">
-                            Sist innlogget
-                          </dt>
-                          <dd className="mt-1 font-bold">
-                            {formatDate(user.lastSignInAt)}
-                          </dd>
-                        </div>
-                      </dl>
-                      <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-[#ECE8DF] pt-3">
-                        <ResetPasswordButton
-                          userId={user.id}
-                          email={user.email}
-                        />
-                        {user.id !== currentId ? (
-                          <DeleteButton
-                            id={user.id}
-                            label="bruker"
-                            action={deleteUser}
-                          />
-                        ) : null}
-                      </div>
-                    </div>
+                    ) : null}
                   </div>
-                </li>
-              ))}
-            </ul>
-          </>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-admin-muted">
+                    <StatusPill tone={user.role === "admin" ? "ok" : "neutral"}>
+                      {user.role === "admin"
+                        ? "Administrator"
+                        : "Ingen administratortilgang"}
+                    </StatusPill>
+                    <span>
+                      {user.lastSignInAt
+                        ? `Sist innlogget ${formatOsloDate(user.lastSignInAt)}`
+                        : "Har ikke logget inn ennå"}
+                    </span>
+                  </div>
+                </div>
+                <UserRowActions
+                  userId={user.id}
+                  email={user.email}
+                  canDelete={user.id !== currentId}
+                />
+              </li>
+            ))}
+          </ul>
         )}
       </section>
     </div>

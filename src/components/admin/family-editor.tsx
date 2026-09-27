@@ -110,7 +110,13 @@ export function FamilyEditor({
   }
 
   return (
-    <form action={submit} className="grid gap-5">
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit(new FormData(event.currentTarget));
+      }}
+      className="grid gap-5"
+    >
       <input
         type="hidden"
         name="guardian_keys"

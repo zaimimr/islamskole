@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -20,6 +20,7 @@ import {
   ChevronDown,
   Pencil,
   AlertTriangle,
+  Shuffle,
 } from "lucide-react";
 import {
   createVippsPayment,
@@ -35,11 +36,13 @@ import {
   cancelVippsPayment,
   sendPaymentLink,
   deletePayment,
+  reallocatePayment,
 } from "@/app/[locale]/admin/students-actions";
 import {
   RefundPaymentDialog,
   type RefundAllocation,
 } from "@/components/admin/refund-payment-dialog";
+import { formatNok } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -90,6 +93,7 @@ export type PaymentRow = {
   captured_at: string | null;
   allocatedAmount: number | null;
   sharedWith: number | null;
+  manuallyAllocated: boolean;
   capturedAmount: number;
   refundedAmount: number;
   refundAllocations: RefundAllocation[];
@@ -119,8 +123,10 @@ type Confirmation = {
   description: string;
   confirmLabel: string;
   success: string;
-  action: () => Promise<{ ok: boolean; error?: string }>;
+  action: () => Promise<ActionOutcome>;
 };
+
+type ActionOutcome = { ok: boolean; error?: string; note?: string };
 
 const statusLabels: Record<string, string> = {
   opprettet: "Venter",
@@ -148,10 +154,6 @@ function formatLongDate(value: string | null) {
     year: "numeric",
     timeZone: "Europe/Oslo",
   });
-}
-
-function formatNok(ore: number) {
-  return `${(ore / 100).toLocaleString("nb-NO")} kr`;
 }
 
 function formatDate(value: string | null) {
@@ -197,6 +199,34 @@ function Detail({
   );
 }
 
+function ReceiptToggle({
+  id,
+  checked,
+  onChange,
+  className,
+}: {
+  id: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  className?: string;
+}) {
+  return (
+    <label
+      htmlFor={id}
+      className={`flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold ${className ?? ""}`}
+    >
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="size-4 accent-[#3C8F44]"
+      />
+      Send kvittering på e-post til foresatte
+    </label>
+  );
+}
+
 export function PaymentManager({
   studentId,
   classByYear,
@@ -232,6 +262,9 @@ export function PaymentManager({
   const [manualMethod, setManualMethod] = useState("kontant");
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [refundFor, setRefundFor] = useState<PaymentRow | null>(null);
+  const [sendReceipt, setSendReceipt] = useState(true);
+  const [adjustmentType, setAdjustmentType] = useState("annet");
+  const adjustmentFormRef = useRef<HTMLFormElement>(null);
 
   const currentClass = classByYear[year] ?? null;
   const balance = balancesByYear[year] ?? null;
@@ -285,7 +318,7 @@ export function PaymentManager({
             ? `Vipps-lenke sendt til ${result.emailedTo} foresatt${
                 result.emailedTo === 1 ? "" : "e"
               }`
-            : "Vipps-lenke opprettet (ingen foresatt har e-post - bruk Kopier)",
+            : "Vipps-lenke opprettet, men ikke sendt på e-post. Bruk «Kopier betalingslenke».",
         );
         setFormOpen(false);
         router.refresh();
@@ -298,10 +331,11 @@ export function PaymentManager({
   function handleManual(formData: FormData) {
     formData.set("student_id", studentId);
     formData.set("school_year_id", year);
+    formData.set("send_receipt", sendReceipt ? "true" : "false");
     startTransition(async () => {
       const result = await registerManualPayment(formData);
       if (result.ok) {
-        toast.success("Betaling registrert");
+        toast.success("Betaling registrert", { description: result.note });
         setFormOpen(false);
         router.refresh();
       } else {
@@ -350,42 +384,65 @@ export function PaymentManager({
   }
 
   function handleAdjustment(formData: FormData) {
-    formData.set("student_id", studentId);
-    formData.set("school_year_id", year);
     const type = String(formData.get("type") ?? "");
-    startTransition(async () => {
-      const result =
-        type === "sadaqa"
-          ? await recordSadaqaCoverage(
-              (() => {
-                const sadaqa = new FormData();
-                sadaqa.set("student_id", studentId);
-                sadaqa.set("school_year_id", year);
-                sadaqa.set("amount_nok", String(formData.get("amount_nok") ?? ""));
-                sadaqa.set("reason", String(formData.get("note") ?? ""));
-                return sadaqa;
-              })(),
-            )
-          : await grantFeeAdjustment(formData);
-      if (result.ok) {
-        toast.success(
-          type === "sadaqa" ? "Sadaqa-dekning registrert" : "Fradrag lagt til",
-        );
-        router.refresh();
-      } else {
-        toast.error(result.error);
+    const amount = Math.round(Number(formData.get("amount_nok") ?? 0) * 100);
+    const reason = String(formData.get("note") ?? "").trim();
+    const isSadaqa = type === "sadaqa";
+    const limit = balance ? (isSadaqa ? balance.remaining : balance.owed) : null;
+    if (!(amount > 0) || !reason) {
+      toast.error("Fyll inn beløp og begrunnelse");
+      return;
+    }
+    if (limit != null && amount - limit >= 100) {
+      toast.error(
+        limit <= 0
+          ? isSadaqa
+            ? "Eleven har ingenting utestående å dekke"
+            : "Eleven skal ikke betale noe dette skoleåret"
+          : `Beløpet er større enn ${isSadaqa ? "det som gjenstår" : "det eleven skal betale"} (${formatNok(limit)})`,
+      );
+      return;
+    }
+    const payload = new FormData();
+    payload.set("student_id", studentId);
+    payload.set("school_year_id", year);
+    payload.set("amount_nok", String(amount / 100));
+    if (isSadaqa) {
+      payload.set("reason", reason);
+      payload.set("send_receipt", sendReceipt ? "true" : "false");
+    } else {
+      payload.set("type", type);
+      payload.set("note", reason);
+      const teacher = formData.get("teacher_guardian_id");
+      if (typeof teacher === "string" && teacher) {
+        payload.set("teacher_guardian_id", teacher);
       }
+    }
+    const typeLabel = adjustmentTypeLabels[type] ?? "Fradrag";
+    setConfirmation({
+      title: isSadaqa
+        ? `Dekke ${formatNok(amount)} med sadaqa?`
+        : `Gi ${typeLabel.toLowerCase()} på ${formatNok(amount)}?`,
+      description: isSadaqa
+        ? `Føres som en innbetaling fra sadaqa-kontoen. Etterpå gjenstår ${formatNok(Math.max((limit ?? 0) - amount, 0))}.`
+        : `Kravet reduseres med ${formatNok(amount)}. Fradraget logges med begrunnelsen og kan oppheves.`,
+      confirmLabel: isSadaqa ? "Registrer sadaqa" : "Gi fradrag",
+      success: isSadaqa ? "Sadaqa-dekning registrert" : "Fradrag lagt til",
+      action: async () => {
+        const result = isSadaqa
+          ? await recordSadaqaCoverage(payload)
+          : await grantFeeAdjustment(payload);
+        if (result.ok) adjustmentFormRef.current?.reset();
+        return result;
+      },
     });
   }
 
-  function run(
-    action: () => Promise<{ ok: boolean; error?: string }>,
-    success: string,
-  ) {
+  function run(action: () => Promise<ActionOutcome>, success: string) {
     startTransition(async () => {
       const result = await action();
       if (result.ok) {
-        toast.success(success);
+        toast.success(success, { description: result.note });
         router.refresh();
       } else {
         toast.error(result.error ?? "Noe gikk galt");
@@ -614,7 +671,11 @@ export function PaymentManager({
 
               <form
                 key={`adjustment-${year}`}
-                action={handleAdjustment}
+                ref={adjustmentFormRef}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  handleAdjustment(new FormData(event.currentTarget));
+                }}
                 className="grid gap-3 sm:grid-cols-4 sm:items-end [&_[data-slot=input]]:min-h-11"
               >
                 <div className="grid gap-2">
@@ -623,7 +684,8 @@ export function PaymentManager({
                     id="adjustment_type"
                     name="type"
                     className="h-11 rounded-md border border-input bg-white px-3 text-sm shadow-xs"
-                    defaultValue="annet"
+                    value={adjustmentType}
+                    onChange={(event) => setAdjustmentType(event.target.value)}
                   >
                     <option value="soskenrabatt">Søskenrabatt</option>
                     <option value="laererbarn">Lærerbarn</option>
@@ -661,7 +723,15 @@ export function PaymentManager({
                     min="1"
                     step="1"
                     required
+                    aria-describedby="adjustment_limit"
                   />
+                  {balance ? (
+                    <p id="adjustment_limit" className="text-xs text-[#6B5524]">
+                      {adjustmentType === "sadaqa"
+                        ? `Gjenstår: ${formatNok(balance.remaining)}`
+                        : `Skal betale: ${formatNok(balance.owed)}`}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="adjustment_note" required>
@@ -675,6 +745,14 @@ export function PaymentManager({
                     placeholder="Hvorfor gis fradraget?"
                   />
                 </div>
+                {adjustmentType === "sadaqa" ? (
+                  <ReceiptToggle
+                    id="adjustment_receipt"
+                    checked={sendReceipt}
+                    onChange={setSendReceipt}
+                    className="sm:col-span-4"
+                  />
+                ) : null}
                 <div className="sm:col-span-4">
                   <Button
                     type="submit"
@@ -819,6 +897,16 @@ export function PaymentManager({
                   </div>
                 ) : null}
                 <div className="grid gap-2">
+                  <Label htmlFor="manual_payer_name">Betalt av</Label>
+                  <Input
+                    id="manual_payer_name"
+                    name="payer_name"
+                    type="text"
+                    autoComplete="off"
+                    placeholder="Valgfritt"
+                  />
+                </div>
+                <div className="grid gap-2">
                   <Label htmlFor="manual_note">Notat</Label>
                   <Input
                     id="manual_note"
@@ -827,6 +915,12 @@ export function PaymentManager({
                     placeholder="Valgfritt"
                   />
                 </div>
+                <ReceiptToggle
+                  id="manual_receipt"
+                  checked={sendReceipt}
+                  onChange={setSendReceipt}
+                  className="sm:col-span-2 lg:col-span-4"
+                />
                 <Button
                   type="submit"
                   disabled={pending}
@@ -907,6 +1001,12 @@ export function PaymentManager({
                         </Badge>
                       ) : null}
 
+                      {payment.manuallyAllocated ? (
+                        <Badge variant="outline" className="shrink-0">
+                          Manuelt fordelt
+                        </Badge>
+                      ) : null}
+
                       {payment.due_date && payment.status !== "fanget" ? (
                         <Badge variant="outline" className="shrink-0">
                           Frist {formatDate(payment.due_date)}
@@ -967,6 +1067,23 @@ export function PaymentManager({
                           align="end"
                           className="min-w-64 [&_[role=menuitem]]:min-h-11"
                         >
+                          {payment.manuallyAllocated ? (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setConfirmation({
+                                  title: "Tilbakestille til automatisk fordeling?",
+                                  description:
+                                    "Den manuelle fordelingen mellom barna fjernes, og betalingen fordeles på nytt etter hva hvert barn har igjen å betale.",
+                                  confirmLabel: "Tilbakestill fordelingen",
+                                  success: "Betalingen er fordelt automatisk",
+                                  action: () => reallocatePayment(payment.id),
+                                })
+                              }
+                            >
+                              <Shuffle className="size-4" />
+                              Tilbakestill til automatisk fordeling
+                            </DropdownMenuItem>
+                          ) : null}
                           {vippsLink ? (
                             <>
                               <DropdownMenuItem

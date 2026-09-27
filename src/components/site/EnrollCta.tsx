@@ -1,10 +1,28 @@
 import { getTranslations } from "next-intl/server";
 import { ArrowRightIcon } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { Blob, DottedArc } from "./decor";
 
+async function isEnrollmentOpen() {
+  try {
+    const { data, error } = await createAdminClient()
+      .from("school_years")
+      .select("fee")
+      .eq("is_active", true)
+      .maybeSingle();
+    if (error) return true;
+    return Boolean((data as { fee: number | null } | null)?.fee);
+  } catch {
+    return true;
+  }
+}
+
 export async function EnrollCta() {
-  const t = await getTranslations("enroll");
+  const [t, open] = await Promise.all([
+    getTranslations("enroll"),
+    isEnrollmentOpen(),
+  ]);
 
   return (
     <section className="py-16 sm:py-24" aria-labelledby="enroll-heading">
@@ -27,7 +45,9 @@ export async function EnrollCta() {
               {t("cta")}
               <ArrowRightIcon className="size-5" aria-hidden="true" />
             </Link>
-            <p className="text-sm text-primary-foreground/75">{t("note")}</p>
+            <p className="text-sm text-primary-foreground/75">
+              {open ? t("note") : t("closedNote")}
+            </p>
           </div>
         </div>
       </div>

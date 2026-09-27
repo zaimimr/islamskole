@@ -1,0 +1,63 @@
+insert into public.students (
+  application_id,
+  full_name,
+  child_first_name,
+  child_last_name,
+  child_age,
+  birth_date,
+  gender,
+  address,
+  postal_code,
+  city,
+  guardian_name,
+  email,
+  phone,
+  mother_first_name,
+  mother_last_name,
+  mother_phone,
+  mother_email,
+  father_first_name,
+  father_last_name,
+  father_phone,
+  father_email,
+  level_quran,
+  level_arabic,
+  level_islam,
+  notes,
+  created_at
+)
+select
+  a.id,
+  coalesce(nullif(trim(concat_ws(' ', a.child_first_name, a.child_last_name)), ''), a.child_name),
+  a.child_first_name,
+  a.child_last_name,
+  a.child_age,
+  a.birth_date,
+  a.gender,
+  a.address,
+  a.postal_code,
+  a.city,
+  coalesce(
+    nullif(trim(concat_ws(' ', a.mother_first_name, a.mother_last_name)), ''),
+    nullif(trim(concat_ws(' ', a.father_first_name, a.father_last_name)), ''),
+    a.guardian_name
+  ),
+  a.email,
+  a.phone,
+  a.mother_first_name,
+  a.mother_last_name,
+  a.mother_phone,
+  a.mother_email,
+  a.father_first_name,
+  a.father_last_name,
+  a.father_phone,
+  a.father_email,
+  a.level_quran,
+  a.level_arabic,
+  a.level_islam,
+  a.message,
+  a.created_at
+from public.student_applications a
+where not exists (
+  select 1 from public.students s where s.application_id = a.id
+);

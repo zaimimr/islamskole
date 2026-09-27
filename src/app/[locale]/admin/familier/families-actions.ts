@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getIsAdmin, getUser } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { createClient } from "@/lib/supabase/server";
+import { toUserError } from "@/lib/action-errors";
 import {
   assignPaymentPlan,
   rebuildPendingInstallments,
@@ -95,11 +96,11 @@ export async function updateFamilyRelationships(
     p_resolve_reviews: formData.get("resolve_reviews") === "on",
   });
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   await writeAudit({
     action: "family.relationships_updated",
-    entityType: "family",
+    entityType: "families",
     entityId: familyId,
     metadata: { guardianCount: guardians.length },
   });
@@ -149,7 +150,7 @@ export async function assignPaymentPlanAction(
 
     await writeAudit({
       action: "payment_plan.assigned",
-      entityType: "family",
+      entityType: "families",
       entityId: familyId,
       metadata: { schoolYearId, planType, planId },
     });
@@ -184,11 +185,11 @@ export async function endPaymentPlan(
     .eq("id", planId)
     .select("family_id")
     .single();
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   await writeAudit({
     action: "payment_plan.ended",
-    entityType: "family",
+    entityType: "families",
     entityId: plan.family_id,
     metadata: { planId },
   });
@@ -210,11 +211,11 @@ export async function setPlanPaused(
     .eq("id", planId)
     .select("family_id")
     .single();
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   await writeAudit({
     action: paused ? "payment_plan.paused" : "payment_plan.resumed",
-    entityType: "family",
+    entityType: "families",
     entityId: plan.family_id,
     metadata: { planId },
   });
@@ -233,11 +234,11 @@ export async function stopInstallment(
     .update({ status: "stoppet" })
     .eq("id", installmentId)
     .eq("status", "planlagt");
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   await writeAudit({
     action: "installment.stopped",
-    entityType: "installment",
+    entityType: "installments",
     entityId: installmentId,
   });
   revalidatePath("/", "layout");
@@ -255,11 +256,11 @@ export async function reopenInstallment(
     .update({ status: "planlagt" })
     .eq("id", installmentId)
     .eq("status", "stoppet");
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   await writeAudit({
     action: "installment.reopened",
-    entityType: "installment",
+    entityType: "installments",
     entityId: installmentId,
   });
   revalidatePath("/", "layout");
@@ -282,7 +283,7 @@ export async function sendInstallmentNow(
     )
     .eq("id", installmentId)
     .maybeSingle();
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
   if (!installment) return { ok: false, error: "Fant ikke avdraget" };
   if (installment.status !== "planlagt" && installment.status !== "stoppet") {
     return { ok: false, error: "Avdraget er allerede sendt eller betalt" };
@@ -338,7 +339,7 @@ export async function sendInstallmentNow(
 
   await writeAudit({
     action: "installment.sent_manually",
-    entityType: "installment",
+    entityType: "installments",
     entityId: installmentId,
   });
   revalidatePath("/", "layout");
@@ -390,13 +391,13 @@ export async function approveSiblingDiscount(
     note: "Søskenrabatt: 3 eller flere søsken",
     granted_by: user?.email ?? "admin",
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   await rebuildPendingInstallments(supabase, familyId, schoolYearId);
 
   await writeAudit({
     action: "student_fee.sibling_discount_approved",
-    entityType: "family",
+    entityType: "families",
     entityId: familyId,
     metadata: { schoolYearId, studentId },
   });
@@ -420,7 +421,7 @@ export async function dismissSiblingSuggestion(
     school_year_id: schoolYearId,
     dismissed_by: user?.email ?? "admin",
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   revalidatePath("/", "layout");
   return { ok: true };
@@ -447,11 +448,11 @@ export async function updateGuardianRoles(
       teacher_note: teacherNote,
     })
     .eq("id", guardianId);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   await writeAudit({
     action: "guardian.roles_updated",
-    entityType: "guardian",
+    entityType: "guardians",
     entityId: guardianId,
     metadata: { isTeacher, isVolunteer },
   });
@@ -483,11 +484,11 @@ export async function registerTeacher(
         source_application_id: sourceApplicationId,
       })
       .eq("id", guardianId);
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: toUserError(error) };
 
     await writeAudit({
       action: "teacher.registered",
-      entityType: "guardian",
+      entityType: "guardians",
       entityId: guardianId,
       metadata: { fromApplication: sourceApplicationId },
     });
@@ -518,11 +519,11 @@ export async function registerTeacher(
           source_application_id: sourceApplicationId,
         })
         .eq("id", match.id);
-      if (error) return { ok: false, error: error.message };
+      if (error) return { ok: false, error: toUserError(error) };
 
       await writeAudit({
         action: "teacher.registered",
-        entityType: "guardian",
+        entityType: "guardians",
         entityId: match.id,
         metadata: { matchedByEmail: true, fromApplication: sourceApplicationId },
       });
@@ -544,11 +545,11 @@ export async function registerTeacher(
     })
     .select("id")
     .single();
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   await writeAudit({
     action: "teacher.registered",
-    entityType: "guardian",
+    entityType: "guardians",
     entityId: created.id,
     metadata: { fromApplication: sourceApplicationId },
   });
@@ -567,11 +568,11 @@ export async function removeTeacher(
     .from("guardians")
     .update({ is_teacher: false })
     .eq("id", guardianId);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: toUserError(error) };
 
   await writeAudit({
     action: "teacher.removed",
-    entityType: "guardian",
+    entityType: "guardians",
     entityId: guardianId,
   });
   revalidatePath("/", "layout");
