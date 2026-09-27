@@ -344,6 +344,8 @@
     "subtitle": "Terms for enrollment and payment at Islamskole Bærum.",
     "updatedLabel": "Last updated",
     "updated": "17 June 2026",
+    "restNote": "The remainder is due by the deadlines that apply to the school year ({sem1} and {sem2}), or monthly by agreement with the school.",
+    "restNoteNoDates": "The remainder is due by the deadlines that apply to the school year. You will receive the payment plan by email.",
     "sellerTitle": "Seller",
     "seller": [
       {
@@ -374,7 +376,7 @@
       {
         "heading": "Prices",
         "body": [
-          "The school fee is NOK 5,000 per child per school year. NOK 2,000 is paid on enrollment, and the remainder is due by 15 August and 15 December, or monthly by agreement with the school.",
+          "The school fee is NOK 5,000 per child per school year. NOK 2,000 is paid on enrollment. {restNote}",
           "All prices are in Norwegian kroner (NOK) and include all charges. Any additional costs are stated before you complete your enrollment."
         ]
       },

@@ -23,10 +23,7 @@ import { studentDisplayName } from "@/lib/student-name";
 import { cn } from "@/lib/utils";
 import { formatNok } from "@/lib/money";
 import { formatOsloDate, osloToday } from "@/lib/dates";
-import {
-  getActiveYearBalanceSummary,
-  isSadaqaFritak,
-} from "@/lib/balances";
+import { getActiveYearBalanceSummary } from "@/lib/balances";
 import { getAdminFamilies } from "@/lib/families/service";
 import {
   findDuplicateFamilies,
@@ -93,8 +90,6 @@ async function getDashboard(): Promise<DashboardResult> {
       familyReviews,
       balanceSummary,
       families,
-      sadaqaFritak,
-      feeRows,
     ] = await Promise.all([
       supabase
         .from("school_years")
@@ -145,15 +140,6 @@ async function getDashboard(): Promise<DashboardResult> {
         .eq("status", "open"),
       getActiveYearBalanceSummary(supabase),
       getAdminFamilies(),
-      supabase
-        .from("student_fee_adjustments")
-        .select("student_id, school_year_id, type, amount, note")
-        .eq("type", "annet")
-        .ilike("note", "%sadaqa%")
-        .is("revoked_at", null),
-      supabase
-        .from("student_fees")
-        .select("student_id, school_year_id, amount, discount"),
     ]);
 
     const results = [
@@ -168,8 +154,6 @@ async function getDashboard(): Promise<DashboardResult> {
       overdueInstallments,
       sadaqaPayments,
       familyReviews,
-      sadaqaFritak,
-      feeRows,
     ];
 
     if (results.some((result) => result.error)) {
@@ -181,48 +165,6 @@ async function getDashboard(): Promise<DashboardResult> {
       label: string;
     } | null;
     const enrollmentRows = (enrollments.data as EnrollmentRow[] | null) ?? [];
-    const feeCaps = new Map(
-      (
-        (feeRows.data as
-          | {
-              student_id: string;
-              school_year_id: string;
-              amount: number;
-              discount: number;
-            }[]
-          | null) ?? []
-      ).map((fee) => [
-        `${fee.student_id}:${fee.school_year_id}`,
-        Math.max(fee.amount - fee.discount, 0),
-      ]),
-    );
-    const sadaqaFritakTotal = (
-      (sadaqaFritak.data as
-        | {
-            student_id: string;
-            school_year_id: string;
-            type: string;
-            amount: number;
-            note: string | null;
-          }[]
-        | null) ?? []
-    )
-      .filter(
-        (row) =>
-          activeYearRow != null &&
-          row.school_year_id === activeYearRow.id &&
-          isSadaqaFritak(row),
-      )
-      .reduce(
-        (sum, row) =>
-          sum +
-          Math.min(
-            row.amount,
-            feeCaps.get(`${row.student_id}:${row.school_year_id}`) ??
-              row.amount,
-          ),
-        0,
-      );
     const studentRows =
       (students.data as { id: string; application_id: string | null }[] | null) ??
       [];
@@ -309,8 +251,7 @@ async function getDashboard(): Promise<DashboardResult> {
           .filter(
             (row) => activeYearRow != null && row.school_year_id === activeYearRow.id,
           )
-          .reduce((sum, row) => sum + (row.net_paid_amount ?? 0), 0) +
-          sadaqaFritakTotal,
+          .reduce((sum, row) => sum + (row.net_paid_amount ?? 0), 0),
         recentApplications: (
           (recentApplications.data as
             | {
@@ -679,7 +620,7 @@ export default async function AdminDashboardPage({
                     href={`${basePath}/betaling/sadaqa`}
                     className="rounded outline-none underline-offset-2 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
                   >
-                    Sadaqa brukt i år
+                    Sadaqa-støtte i år
                   </Link>
                 </dt>
                 <dd className="font-bold tabular-nums">

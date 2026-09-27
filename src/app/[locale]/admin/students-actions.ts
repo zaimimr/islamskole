@@ -31,7 +31,10 @@ import {
 } from "@/lib/payment-ledger";
 import { buildReference, describeForStudent } from "@/lib/payment-descriptor";
 import { rebuildPendingInstallmentsForStudent } from "@/lib/payment-plans";
-import { sendPaymentLinkEmail, sendWelcomeEmail as sendWelcome } from "@/lib/email";
+import {
+  sendPaymentLinkEmail,
+  sendWelcomeEmail as sendWelcome,
+} from "@/lib/email";
 import {
   recipientsFor,
   remainingFor,
@@ -49,13 +52,12 @@ import { guardianName, studentDisplayName } from "@/lib/student-name";
 import { familyDisplayName } from "@/lib/families/naming";
 import { getSiteSettings } from "@/lib/data";
 import { toUserError } from "@/lib/action-errors";
-import { formatNok } from "@/lib/money";
+import { capAtLimit, formatNok } from "@/lib/money";
 import { osloToday } from "@/lib/dates";
 import { emailNotifications } from "@/flags";
 
 type ActionResult =
-  | { ok: true; id?: string; note?: string }
-  | { ok: false; error: string };
+  { ok: true; id?: string; note?: string } | { ok: false; error: string };
 type PaymentResult =
   | {
       ok: true;
@@ -532,9 +534,9 @@ export async function archiveStudent(id: string): Promise<ActionResult> {
     .select("id, class_id, school_year_id");
   if (error) return { ok: false, error: toUserError(error) };
 
-  const ended = (data as unknown as
-    | { id: string; class_id: string; school_year_id: string }[]
-    | null) ?? [];
+  const ended =
+    (data as unknown as
+      { id: string; class_id: string; school_year_id: string }[] | null) ?? [];
   await writeAudit({
     action: "student.archive",
     entityType: "students",
@@ -612,7 +614,11 @@ async function capacityError(
   pricing: EnrollmentPricing,
 ): Promise<string | null> {
   if (pricing.capacity == null) return null;
-  const enrolled = await countActiveEnrollments(supabase, classId, schoolYearId);
+  const enrolled = await countActiveEnrollments(
+    supabase,
+    classId,
+    schoolYearId,
+  );
   if (enrolled < pricing.capacity) return null;
   return `${pricing.className} er full (${enrolled} av ${pricing.capacity} plasser). Velg en annen klasse, eller øk kapasiteten under Klasser.`;
 }
@@ -707,7 +713,10 @@ export async function placeStudentInClass(
   if (ended) {
     const { error } = await supabase
       .from("enrollments")
-      .update({ status: "aktiv", price_snapshot: pricing.priceSnapshot } as never)
+      .update({
+        status: "aktiv",
+        price_snapshot: pricing.priceSnapshot,
+      } as never)
       .eq("id", ended.id);
     if (error) return { ok: false, error: toUserError(error) };
     enrollmentId = ended.id;
@@ -1380,12 +1389,18 @@ export async function previewBatchSend(
         recipients: family.recipients,
       })),
       excluded: plan.excluded,
-      totalAmount: plan.families.reduce((sum, family) => sum + family.amount, 0),
+      totalAmount: plan.families.reduce(
+        (sum, family) => sum + family.amount,
+        0,
+      ),
     };
   } catch (error) {
     return {
       ok: false,
-      error: error instanceof Error ? error.message : "Kunne ikke lage forhåndsvisning",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Kunne ikke lage forhåndsvisning",
     };
   }
 }
@@ -1505,7 +1520,8 @@ export async function batchSendPaymentLinks(
   });
 
   revalidate();
-  const skipped = plan.excluded.length + (plan.families.length - selected.length);
+  const skipped =
+    plan.excluded.length + (plan.families.length - selected.length);
   const parts: string[] = [];
   if (skipped) parts.push(`${skipped} hoppet over`);
   if (failed) parts.push(`${failed} feilet`);
@@ -1518,9 +1534,7 @@ export async function batchSendPaymentLinks(
   };
 }
 
-export async function syncAllPaymentsForYear(
-  schoolYearId: string,
-): Promise<
+export async function syncAllPaymentsForYear(schoolYearId: string): Promise<
   | {
       ok: true;
       synced: number;
@@ -1548,7 +1562,10 @@ export async function syncAllPaymentsForYear(
       await syncPaymentByReference(row.reference);
       synced++;
     } catch (syncError) {
-      console.error("Year sync failed", { reference: row.reference, syncError });
+      console.error("Year sync failed", {
+        reference: row.reference,
+        syncError,
+      });
       failed.push({
         reference: row.reference,
         error: syncError instanceof Error ? syncError.message : "Ukjent feil",
@@ -1599,7 +1616,9 @@ const rolloverSchema = z.object({
   fromYearId: z.string().uuid("Velg skoleåret det flyttes fra"),
   toYearId: z.string().uuid("Velg skoleåret det flyttes til"),
   rows: z
-    .array(z.object({ studentId: z.string().uuid(), classId: z.string().uuid() }))
+    .array(
+      z.object({ studentId: z.string().uuid(), classId: z.string().uuid() }),
+    )
     .min(1, "Velg minst én elev som skal flyttes")
     .max(1000),
 });
@@ -1609,8 +1628,7 @@ export async function confirmRollover(input: {
   toYearId: string;
   rows: RolloverRow[];
 }): Promise<
-  | { ok: true; created: number; skipped: number }
-  | { ok: false; error: string }
+  { ok: true; created: number; skipped: number } | { ok: false; error: string }
 > {
   const denied = await requireAdmin();
   if (denied) return denied;
@@ -1813,7 +1831,10 @@ export async function refundPaymentAction(input: {
   }
 
   const totalAmount = lines.reduce((sum, line) => sum + line.amount, 0);
-  const refundable = row.capturedAmount - row.refundedAmount;
+  const refundable =
+    row.capturedAmount -
+    row.refundedAmount -
+    (await giftedFromPayment(supabase, paymentId));
   if (totalAmount > refundable) {
     return {
       ok: false,
@@ -1926,7 +1947,9 @@ export async function refundPaymentAction(input: {
         refunded_by: user?.email ?? "admin",
         refund_group_id: refundGroupId,
         refunded_on: input.refundedOn ?? osloToday(),
-        idempotency_key: idempotencyKey ? `${idempotencyKey}:${index + 1}` : null,
+        idempotency_key: idempotencyKey
+          ? `${idempotencyKey}:${index + 1}`
+          : null,
       };
     }),
   );
@@ -2245,16 +2268,6 @@ const adjustmentTypes = [
   "annet",
 ] as const;
 
-function capAtLimit(
-  amount: number,
-  limit: number,
-): { ok: true; amount: number } | { ok: false } {
-  if (limit <= 0) return { ok: false };
-  if (amount <= limit) return { ok: true, amount };
-  if (amount - limit < 100) return { ok: true, amount: limit };
-  return { ok: false };
-}
-
 export async function grantFeeAdjustment(
   formData: FormData,
 ): Promise<ActionResult> {
@@ -2375,76 +2388,16 @@ export async function revokeFeeAdjustment(
   return { ok: true, id: adjustment.student_id };
 }
 
-export async function recordSadaqaCoverage(
-  formData: FormData,
-): Promise<ActionResult> {
-  const denied = await requireAdmin();
-  if (denied) return denied;
-
-  const studentId = readString(formData, "student_id");
-  const schoolYearId = readString(formData, "school_year_id");
-  const amountNok = readNumber(formData, "amount_nok");
-  const reason = readString(formData, "reason");
-
-  if (!studentId || !schoolYearId) {
-    return { ok: false, error: "Mangler elev eller skoleår" };
-  }
-  if (amountNok == null || amountNok <= 0) {
-    return { ok: false, error: "Beløpet må være større enn null" };
-  }
-  if (!reason) {
-    return { ok: false, error: "Begrunnelse er påkrevd" };
-  }
-
-  const supabase = await createClient();
-  await ensureStudentFee(supabase, studentId, schoolYearId);
-
-  const balance = await fetchBalance(supabase, studentId, schoolYearId);
-  const capped = capAtLimit(Math.round(amountNok * 100), balance.remaining);
-  if (!capped.ok) {
-    return {
-      ok: false,
-      error:
-        balance.remaining <= 0
-          ? "Eleven har ingenting utestående å dekke med sadaqa."
-          : `Sadaqa kan ikke dekke mer enn det som gjenstår (${formatNok(balance.remaining)}).`,
-    };
-  }
-  const amount = capped.amount;
-  const now = new Date().toISOString();
-  const { data: payment, error } = await supabase
-    .from("payments")
-    .insert({
-      student_id: studentId,
-      school_year_id: schoolYearId,
-      reference: `sadaqa-${randomUUID()}`,
-      amount,
-      status: "fanget",
-      method: "sadaqa",
-      description: `Sadaqa - ${reason}`,
-      authorized_amount: amount,
-      captured_amount: amount,
-      paid_at: now,
-      captured_at: now,
-    })
-    .select("id")
-    .single();
-  if (error) return { ok: false, error: toUserError(error) };
-
-  await allocatePayment(supabase, payment.id);
-  await rebuildPendingInstallmentsForStudent(supabase, studentId, schoolYearId);
-
-  await writeAudit({
-    action: "payment.sadaqa_recorded",
-    entityType: "payments",
-    entityId: payment.id,
-    metadata: { studentId, schoolYearId, amount, reason },
-  });
-
-  const note = await receiptNote(supabase, payment.id, formData);
-
-  revalidate();
-  return { ok: true, id: payment.id, note };
+async function giftedFromPayment(
+  supabase: SupabaseServerClient,
+  paymentId: string,
+): Promise<number> {
+  const { data } = await supabase
+    .from("sadaqa_gifts")
+    .select("amount")
+    .eq("source_payment_id", paymentId)
+    .is("voided_at", null);
+  return (data ?? []).reduce((sum, row) => sum + row.amount, 0);
 }
 
 export async function voidPayment(
@@ -2457,7 +2410,15 @@ export async function voidPayment(
   const user = await getUser();
   const row = await getPaymentReference(paymentId);
   if (!row) return { ok: false, error: "Fant ikke betalingen" };
-  if (row.voidedAt) return { ok: false, error: "Betalingen er allerede annullert" };
+  if (row.voidedAt)
+    return { ok: false, error: "Betalingen er allerede annullert" };
+  if (await giftedFromPayment(supabase, paymentId)) {
+    return {
+      ok: false,
+      error:
+        "Deler av betalingen er gitt som sadaqa-gave. Angre gaven på sadaqa-siden før du annullerer betalingen.",
+    };
+  }
   if (
     isVippsReference(row) &&
     (row.capturedAmount > 0 ||
@@ -2601,6 +2562,13 @@ export async function reallocatePayment(
   const denied = await requireAdmin();
   if (denied) return denied;
   const supabase = await createClient();
+  if (await giftedFromPayment(supabase, paymentId)) {
+    return {
+      ok: false,
+      error:
+        "Deler av betalingen er gitt som sadaqa-gave. Angre gaven på sadaqa-siden hvis betalingen skal fordeles automatisk.",
+    };
+  }
   const { error: unlockError } = await supabase
     .from("payment_allocation_locks")
     .delete()
@@ -2711,6 +2679,13 @@ export async function updatePaymentAllocations(
     return {
       ok: false,
       error: `Fordelt beløp (${formatNok(total)}) er større enn netto innbetalt beløp (${formatNok(payment.net_paid_amount)})`,
+    };
+  }
+  const gifted = await giftedFromPayment(supabase, paymentId);
+  if (total > payment.net_paid_amount - gifted) {
+    return {
+      ok: false,
+      error: `${formatNok(gifted)} av betalingen er gitt som sadaqa-gave, så du kan fordele høyst ${formatNok(Math.max(payment.net_paid_amount - gifted, 0))} på barna.`,
     };
   }
 

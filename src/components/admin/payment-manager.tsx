@@ -27,7 +27,6 @@ import {
   updateStudentFee,
   grantFeeAdjustment,
   revokeFeeAdjustment,
-  recordSadaqaCoverage,
   voidPayment,
   restorePayment,
   registerManualPayment,
@@ -42,6 +41,10 @@ import {
   RefundPaymentDialog,
   type RefundAllocation,
 } from "@/components/admin/refund-payment-dialog";
+import {
+  OverpaymentToGiftButton,
+  SadaqaCoverDialog,
+} from "@/components/admin/sadaqa";
 import { formatNok } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -142,6 +145,7 @@ const methodLabels: Record<string, string> = {
   kontant: "Kontant",
   bank: "Bank",
   annet: "Annet",
+  sadaqa: "Sadaqa-støtte",
 };
 
 function formatLongDate(value: string | null) {
@@ -229,6 +233,7 @@ function ReceiptToggle({
 
 export function PaymentManager({
   studentId,
+  studentName,
   classByYear,
   schoolYears,
   defaultSchoolYearId,
@@ -240,6 +245,7 @@ export function PaymentManager({
   teachers = [],
 }: {
   studentId: string;
+  studentName: string;
   classByYear: Record<string, string>;
   schoolYears: SchoolYearOption[];
   defaultSchoolYearId: string | null;
@@ -387,8 +393,7 @@ export function PaymentManager({
     const type = String(formData.get("type") ?? "");
     const amount = Math.round(Number(formData.get("amount_nok") ?? 0) * 100);
     const reason = String(formData.get("note") ?? "").trim();
-    const isSadaqa = type === "sadaqa";
-    const limit = balance ? (isSadaqa ? balance.remaining : balance.owed) : null;
+    const limit = balance ? balance.owed : null;
     if (!(amount > 0) || !reason) {
       toast.error("Fyll inn beløp og begrunnelse");
       return;
@@ -396,10 +401,8 @@ export function PaymentManager({
     if (limit != null && amount - limit >= 100) {
       toast.error(
         limit <= 0
-          ? isSadaqa
-            ? "Eleven har ingenting utestående å dekke"
-            : "Eleven skal ikke betale noe dette skoleåret"
-          : `Beløpet er større enn ${isSadaqa ? "det som gjenstår" : "det eleven skal betale"} (${formatNok(limit)})`,
+          ? "Eleven skal ikke betale noe dette skoleåret"
+          : `Beløpet er større enn det eleven skal betale (${formatNok(limit)})`,
       );
       return;
     }
@@ -407,31 +410,20 @@ export function PaymentManager({
     payload.set("student_id", studentId);
     payload.set("school_year_id", year);
     payload.set("amount_nok", String(amount / 100));
-    if (isSadaqa) {
-      payload.set("reason", reason);
-      payload.set("send_receipt", sendReceipt ? "true" : "false");
-    } else {
-      payload.set("type", type);
-      payload.set("note", reason);
-      const teacher = formData.get("teacher_guardian_id");
-      if (typeof teacher === "string" && teacher) {
-        payload.set("teacher_guardian_id", teacher);
-      }
+    payload.set("type", type);
+    payload.set("note", reason);
+    const teacher = formData.get("teacher_guardian_id");
+    if (typeof teacher === "string" && teacher) {
+      payload.set("teacher_guardian_id", teacher);
     }
     const typeLabel = adjustmentTypeLabels[type] ?? "Fradrag";
     setConfirmation({
-      title: isSadaqa
-        ? `Dekke ${formatNok(amount)} med sadaqa?`
-        : `Gi ${typeLabel.toLowerCase()} på ${formatNok(amount)}?`,
-      description: isSadaqa
-        ? `Føres som en innbetaling fra sadaqa-kontoen. Etterpå gjenstår ${formatNok(Math.max((limit ?? 0) - amount, 0))}.`
-        : `Kravet reduseres med ${formatNok(amount)}. Fradraget logges med begrunnelsen og kan oppheves.`,
-      confirmLabel: isSadaqa ? "Registrer sadaqa" : "Gi fradrag",
-      success: isSadaqa ? "Sadaqa-dekning registrert" : "Fradrag lagt til",
+      title: `Gi ${typeLabel.toLowerCase()} på ${formatNok(amount)}?`,
+      description: `Kravet reduseres med ${formatNok(amount)}. Fradraget logges med begrunnelsen og kan oppheves.`,
+      confirmLabel: "Gi fradrag",
+      success: "Fradrag lagt til",
       action: async () => {
-        const result = isSadaqa
-          ? await recordSadaqaCoverage(payload)
-          : await grantFeeAdjustment(payload);
+        const result = await grantFeeAdjustment(payload);
         if (result.ok) adjustmentFormRef.current?.reset();
         return result;
       },
@@ -690,7 +682,6 @@ export function PaymentManager({
                     <option value="soskenrabatt">Søskenrabatt</option>
                     <option value="laererbarn">Lærerbarn</option>
                     <option value="frivillig">Frivillig</option>
-                    <option value="sadaqa">Sadaqa-dekning</option>
                     <option value="annet">Annet fritak</option>
                   </select>
                 </div>
@@ -727,9 +718,7 @@ export function PaymentManager({
                   />
                   {balance ? (
                     <p id="adjustment_limit" className="text-xs text-[#6B5524]">
-                      {adjustmentType === "sadaqa"
-                        ? `Gjenstår: ${formatNok(balance.remaining)}`
-                        : `Skal betale: ${formatNok(balance.owed)}`}
+                      Skal betale: {formatNok(balance.owed)}
                     </p>
                   ) : null}
                 </div>
@@ -745,14 +734,6 @@ export function PaymentManager({
                     placeholder="Hvorfor gis fradraget?"
                   />
                 </div>
-                {adjustmentType === "sadaqa" ? (
-                  <ReceiptToggle
-                    id="adjustment_receipt"
-                    checked={sendReceipt}
-                    onChange={setSendReceipt}
-                    className="sm:col-span-4"
-                  />
-                ) : null}
                 <div className="sm:col-span-4">
                   <Button
                     type="submit"
@@ -771,8 +752,6 @@ export function PaymentManager({
               </form>
               <p className="text-xs text-[#6B5524]">
                 Rabatter og fritak logges med begrunnelse og kan oppheves.
-                Sadaqa-dekning føres som en innbetaling fra sadaqa-kontoen, ikke
-                som rabatt.
               </p>
             </div>
           </div>
@@ -938,15 +917,44 @@ export function PaymentManager({
             </p>
           </div>
         ) : (
-          <Button
-            type="button"
-            variant="outline"
-            className="justify-self-start rounded-xl px-4 font-bold"
-            onClick={() => setFormOpen(true)}
-          >
-            <Plus className="size-4" />
-            Registrer betaling
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl px-4 font-bold"
+              onClick={() => setFormOpen(true)}
+            >
+              <Plus className="size-4" />
+              Registrer betaling
+            </Button>
+            {balance && balance.remaining > 0 ? (
+              <SadaqaCoverDialog
+                key={`sadaqa-${year}-${balance.remaining}`}
+                schoolYearId={year}
+                families={[
+                  {
+                    id: studentId,
+                    name: studentName,
+                    children: [
+                      {
+                        id: studentId,
+                        name: studentName,
+                        remainingOre: balance.remaining,
+                      },
+                    ],
+                  },
+                ]}
+              />
+            ) : null}
+            {balance && balance.paid > balance.owed ? (
+              <OverpaymentToGiftButton
+                studentId={studentId}
+                schoolYearId={year}
+                childName={studentName}
+                excessOre={balance.paid - balance.owed}
+              />
+            ) : null}
+          </div>
         )}
 
         {yearPayments.length === 0 ? (

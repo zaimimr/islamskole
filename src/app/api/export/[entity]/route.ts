@@ -150,7 +150,7 @@ const methodLabels: Record<string, string> = {
   kontant: "Kontant",
   bank: "Bankoverføring",
   annet: "Annet",
-  sadaqa: "Sadaqa",
+  sadaqa: "Sadaqa-støtte",
 };
 
 const statusLabels: Record<string, string> = {

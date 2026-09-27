@@ -2,6 +2,27 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { PageHeader } from "@/components/site/PageHeader";
 import { Section } from "@/components/site/Section";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+async function getDueDates() {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("school_years")
+    .select("sem1_due_on, sem2_due_on")
+    .eq("is_active", true)
+    .maybeSingle();
+  return data?.sem1_due_on && data.sem2_due_on
+    ? [data.sem1_due_on, data.sem2_due_on]
+    : null;
+}
+
+function formatDueDate(date: string, locale: string) {
+  return new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "nb-NO", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  }).format(new Date(`${date}T12:00:00Z`));
+}
 
 export async function generateMetadata({
   params,
@@ -23,6 +44,13 @@ export default async function TermsPage({
 
   const seller = t.raw("seller") as SellerRow[];
   const sections = t.raw("sections") as TermsSection[];
+  const dueDates = await getDueDates();
+  const restNote = dueDates
+    ? t("restNote", {
+        sem1: formatDueDate(dueDates[0], locale),
+        sem2: formatDueDate(dueDates[1], locale),
+      })
+    : t("restNoteNoDates");
 
   return (
     <>
@@ -65,7 +93,7 @@ export default async function TermsPage({
                     key={paragraph}
                     className="text-lg leading-relaxed text-muted-foreground"
                   >
-                    {paragraph}
+                    {paragraph.replace("{restNote}", restNote)}
                   </p>
                 ))}
               </section>

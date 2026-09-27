@@ -41,10 +41,6 @@ export function getPayState(row: PayStateInput): PayState {
   return "ubetalt";
 }
 
-export function isSadaqaFritak(adjustment: { type: string; note: string | null }) {
-  return adjustment.type === "annet" && /sadaqa/i.test(adjustment.note ?? "");
-}
-
 export type YearBalanceRow = {
   studentId: string;
   familyId: string | null;

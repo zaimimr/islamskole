@@ -10,6 +10,7 @@ import {
   DuplicateReview,
   type DuplicateCandidate,
 } from "@/components/admin/duplicate-review";
+import { OverpaymentToGiftButton } from "@/components/admin/sadaqa";
 
 export const metadata: Metadata = { title: "Til kontroll" };
 
@@ -31,6 +32,7 @@ type CandidateRow = {
 type OverpaidChild = {
   studentId: string;
   name: string;
+  schoolYearId: string | null;
   schoolYear: string | null;
   owed: number;
   paid: number;
@@ -124,6 +126,7 @@ async function getOverpaid(): Promise<OverpaidChild[] | null> {
       .map((row) => ({
         studentId: row.student_id as string,
         name: names.get(row.student_id as string) ?? "Ukjent barn",
+        schoolYearId: row.school_year_id,
         schoolYear: row.school_year_id ? (years.get(row.school_year_id) ?? null) : null,
         owed: row.owed ?? 0,
         paid: row.paid ?? 0,
@@ -365,15 +368,16 @@ export default async function DuplicatePaymentsPage({
             <p className="mt-0.5 max-w-3xl text-sm text-admin-muted">
               Innbetalt er høyere enn kravet. Det skyldes oftest en manuell
               registrering av en betaling som også kom via Vipps. Se betalingene
-              og annuller kopien, eller refunder det familien har betalt for
-              mye.
+              og annuller kopien, refunder det familien har betalt for mye,
+              eller gjør overskuddet til en sadaqa-gave hvis familien ønsker
+              det.
             </p>
           </div>
           <ul className="divide-y divide-[#ECE8DF] overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
             {overpaid.map((child) => (
               <li
                 key={`${child.studentId}-${child.schoolYear ?? ""}`}
-                className="grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:px-5"
+                className="grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-center sm:px-5"
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -403,6 +407,14 @@ export default async function DuplicatePaymentsPage({
                   Se betalingene
                   <ChevronRight aria-hidden="true" className="size-4" />
                 </Link>
+                {child.schoolYearId ? (
+                  <OverpaymentToGiftButton
+                    studentId={child.studentId}
+                    schoolYearId={child.schoolYearId}
+                    childName={child.name}
+                    excessOre={child.paid - child.owed}
+                  />
+                ) : null}
               </li>
             ))}
           </ul>

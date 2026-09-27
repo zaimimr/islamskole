@@ -63,6 +63,7 @@ const entityFilters: { key: string; label: string; types: string[] }[] = [
       "installment",
       "payment_plans",
       "payment_plan",
+      "sadaqa_gifts",
     ],
   },
   {
@@ -135,7 +136,10 @@ const actionLabels: Record<string, string> = {
   "payment.keep_separate": "Beholdt to betalinger som separate",
   "payment.reallocate_year": "Fordelte skoleårets betalinger på nytt",
   "payment.allocate": "Endret hvordan betalingen er fordelt på barna",
-  "payment.sadaqa_recorded": "Registrerte sadaqa",
+  "payment.sadaqa_recorded": "Ga sadaqa-støtte",
+  "payment.sadaqa_reclassified": "Gjorde overskudd til sadaqa-gave",
+  "sadaqa.gift_recorded": "Registrerte sadaqa-gave",
+  "sadaqa.gift_voided": "Angret sadaqa-gave",
   "student_fee.update": "Endret betalingskrav",
   "student_fee.adjustment_granted": "Ga rabatt eller fritak",
   "student_fee.adjustment_revoked": "Fjernet rabatt eller fritak",
@@ -183,7 +187,7 @@ const methodWords: Record<string, string> = {
   kontant: "kontant",
   bank: "bankoverføring",
   annet: "annen betaling",
-  sadaqa: "sadaqa",
+  sadaqa: "sadaqa-støtte",
 };
 
 function text(value: unknown) {
@@ -283,7 +287,10 @@ function describe(row: AuditRow): string {
       return reason ? `${base}: ${reason}` : base;
     }
     case "payment.refund_requested":
-    case "payment.sadaqa_recorded": {
+    case "payment.sadaqa_recorded":
+    case "payment.sadaqa_reclassified":
+    case "sadaqa.gift_recorded":
+    case "sadaqa.gift_voided": {
       const amount = ore(meta.amount);
       return amount ? `${base} på ${amount}` : base;
     }
@@ -399,6 +406,8 @@ function entityLink(
     case "site_settings":
     case "settings":
       return { href: `${basePath}/innstillinger`, label: "Til innstillinger" };
+    case "sadaqa_gifts":
+      return { href: `${basePath}/betaling/sadaqa`, label: "Til sadaqa" };
     default:
       return null;
   }

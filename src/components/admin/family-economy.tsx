@@ -24,7 +24,6 @@ import {
 } from "@/app/[locale]/admin/familier/families-actions";
 import {
   grantFeeAdjustment,
-  recordSadaqaCoverage,
   revokeFeeAdjustment,
 } from "@/app/[locale]/admin/students-actions";
 import { formatNok, kronerToOre } from "@/lib/money";
@@ -33,6 +32,7 @@ import {
   FamilyPaymentDialog,
   type FamilyPaymentChild,
 } from "@/app/[locale]/admin/betaling/family-payment-dialog";
+import { SadaqaCoverDialog } from "@/components/admin/sadaqa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -262,29 +262,9 @@ export function FamilyEconomy({
   }
 
   function saveAdjustment(formData: FormData, form: HTMLFormElement) {
-    const type = String(formData.get("type") ?? "");
     return async () => {
-      const result =
-        type === "sadaqa"
-          ? await recordSadaqaCoverage(
-              (() => {
-                const sadaqa = new FormData();
-                sadaqa.set("student_id", String(formData.get("student_id")));
-                sadaqa.set("school_year_id", schoolYearId);
-                sadaqa.set(
-                  "amount_nok",
-                  String(formData.get("amount_nok") ?? ""),
-                );
-                sadaqa.set("reason", String(formData.get("note") ?? ""));
-                return sadaqa;
-              })(),
-            )
-          : await grantFeeAdjustment(
-              (() => {
-                formData.set("school_year_id", schoolYearId);
-                return formData;
-              })(),
-            );
+      formData.set("school_year_id", schoolYearId);
+      const result = await grantFeeAdjustment(formData);
       if (result.ok) {
         setAdjustmentAmount("");
         form.reset();
@@ -300,41 +280,28 @@ export function FamilyEconomy({
     const childName =
       childrenOptions.find((child) => child.id === formData.get("student_id"))
         ?.name ?? "barnet";
-    const typeLabel =
-      type === "sadaqa"
-        ? "Sadaqa-dekning"
-        : (adjustmentTypeLabels[type] ?? type);
+    const typeLabel = adjustmentTypeLabels[type] ?? type;
     const selectedOwed = balanceById.get(
       String(formData.get("student_id") ?? ""),
     )?.owedOre;
     const overRemaining =
-      type !== "sadaqa" &&
-      selectedRemaining != null &&
-      amountOre > selectedRemaining;
-    const limit = type === "sadaqa" ? selectedRemaining : selectedOwed;
-    if (limit != null && amountOre - limit >= 100) {
+      selectedRemaining != null && amountOre > selectedRemaining;
+    if (selectedOwed != null && amountOre - selectedOwed >= 100) {
       toast.error(
-        type === "sadaqa"
-          ? `Sadaqa kan ikke dekke mer enn det som gjenstår for ${childName} (${formatNok(Math.max(limit, 0))}).`
-          : `Fradraget kan ikke være større enn det ${childName} skal betale (${formatNok(Math.max(limit, 0))}).`,
+        `Fradraget kan ikke være større enn det ${childName} skal betale (${formatNok(Math.max(selectedOwed, 0))}).`,
       );
       return;
     }
     const action = saveAdjustment(formData, form);
-    const success =
-      type === "sadaqa" ? "Sadaqa-dekning registrert" : "Fradrag lagt til";
+    const success = "Fradrag lagt til";
 
-    if (type === "sadaqa" || overRemaining) {
+    if (overRemaining) {
       setConfirmation({
-        title: overRemaining
-          ? `${formatNok(amountOre)} er mer enn ${childName} har igjen`
-          : `Registrere ${formatNok(amountOre)} fra sadaqa for ${childName}?`,
-        description: overRemaining
-          ? `${childName} har ${formatNok(selectedRemaining ?? 0)} igjen å betale. ${typeLabel} på ${formatNok(amountOre)} senker kravet under det som allerede er betalt, så ${childName} får ${formatNok(amountOre - (selectedRemaining ?? 0))} til gode. Kontroller beløpet før du fortsetter.`
-          : "Beløpet føres som betalt fra sadaqa-kontoen og vises i sadaqa-oversikten.",
-        confirmLabel: overRemaining ? "Registrer likevel" : "Registrer sadaqa",
+        title: `${formatNok(amountOre)} er mer enn ${childName} har igjen`,
+        description: `${childName} har ${formatNok(selectedRemaining ?? 0)} igjen å betale. ${typeLabel} på ${formatNok(amountOre)} senker kravet under det som allerede er betalt, så ${childName} får ${formatNok(amountOre - (selectedRemaining ?? 0))} til gode. Kontroller beløpet før du fortsetter.`,
+        confirmLabel: "Registrer likevel",
         success,
-        destructive: overRemaining,
+        destructive: true,
         action,
       });
       return;
@@ -385,11 +352,23 @@ export function FamilyEconomy({
               </div>
             </dl>
             {childrenOptions.length > 0 ? (
-              <FamilyPaymentDialog
-                familyName={familyName}
-                schoolYearId={schoolYearId}
-                familyChildren={paymentChildren}
-              />
+              <div className="flex flex-wrap gap-2">
+                <FamilyPaymentDialog
+                  familyName={familyName}
+                  schoolYearId={schoolYearId}
+                  familyChildren={paymentChildren}
+                />
+                <SadaqaCoverDialog
+                  schoolYearId={schoolYearId}
+                  families={[
+                    {
+                      id: familyId,
+                      name: familyName,
+                      children: paymentChildren,
+                    },
+                  ]}
+                />
+              </div>
             ) : null}
           </CardContent>
         </Card>
@@ -727,7 +706,7 @@ export function FamilyEconomy({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-heading text-xl">
             <HandHeart aria-hidden="true" className="size-5" />
-            Rabatter, fritak og sadaqa
+            Rabatter og fritak
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -795,17 +774,7 @@ export function FamilyEconomy({
                 name="student_id"
                 required
                 value={adjustmentChild}
-                onChange={(event) => {
-                  setAdjustmentChild(event.target.value);
-                  if (adjustmentType === "sadaqa") {
-                    const remaining = balanceById.get(
-                      event.target.value,
-                    )?.remainingOre;
-                    setAdjustmentAmount(
-                      remaining ? String(remaining / 100) : "",
-                    );
-                  }
-                }}
+                onChange={(event) => setAdjustmentChild(event.target.value)}
                 className="h-11 rounded-xl border border-input bg-white px-3 text-sm shadow-xs"
               >
                 {childrenOptions.map((child) => (
@@ -821,22 +790,12 @@ export function FamilyEconomy({
                 id="family-adjustment-type"
                 name="type"
                 value={adjustmentType}
-                onChange={(event) => {
-                  setAdjustmentType(event.target.value);
-                  if (
-                    event.target.value === "sadaqa" &&
-                    !adjustmentAmount &&
-                    selectedRemaining
-                  ) {
-                    setAdjustmentAmount(String(selectedRemaining / 100));
-                  }
-                }}
+                onChange={(event) => setAdjustmentType(event.target.value)}
                 className="h-11 rounded-xl border border-input bg-white px-3 text-sm shadow-xs"
               >
                 <option value="soskenrabatt">Søskenrabatt</option>
                 <option value="laererbarn">Lærerbarn</option>
                 <option value="frivillig">Frivillig</option>
-                <option value="sadaqa">Sadaqa-dekning</option>
                 <option value="annet">Annet fritak</option>
               </select>
             </div>
@@ -917,12 +876,6 @@ export function FamilyEconomy({
                 Legg til
               </Button>
             </div>
-            {adjustmentType === "sadaqa" ? (
-              <p className="text-xs text-[#6B5524] sm:col-span-2 lg:col-span-5">
-                Beløpet føres som betalt fra sadaqa-kontoen, ikke som rabatt.
-                Bruken vises i sadaqa-oversikten.
-              </p>
-            ) : null}
           </form>
         </CardContent>
       </Card>

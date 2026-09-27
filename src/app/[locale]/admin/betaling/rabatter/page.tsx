@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { HandHeart, Percent } from "lucide-react";
+import { Percent } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { adminBasePath } from "@/components/admin/paths";
 import { formatNok } from "@/lib/money";
 import { formatOsloDate } from "@/lib/dates";
-import { isSadaqaFritak } from "@/lib/balances";
 import { cn } from "@/lib/utils";
 import { FinanceLoadError } from "../load-error";
 
@@ -137,7 +136,6 @@ export default async function DiscountsPage({
     },
     0,
   );
-  const sadaqaFritak = activeAdjustments.filter(isSadaqaFritak);
 
   const teacherTotals = new Map<
     string,
@@ -264,23 +262,6 @@ export default async function DiscountsPage({
                 påvirker ikke saldoen.
               </p>
             ) : null}
-            {sadaqaFritak.length > 0 ? (
-              <p className="mt-3 flex items-start gap-2 text-sm text-[#6B5524]">
-                <HandHeart aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-                <span>
-                  {sadaqaFritak.length}{" "}
-                  {sadaqaFritak.length === 1 ? "fritak er" : "fritak er"} merket
-                  «Sadaqa» i begrunnelsen og regnes med i{" "}
-                  <Link
-                    href={`${basePath}/betaling/sadaqa`}
-                    className="font-bold underline underline-offset-2 outline-none focus-visible:rounded focus-visible:ring-3 focus-visible:ring-ring/50"
-                  >
-                    sadaqa-oversikten
-                  </Link>
-                  .
-                </span>
-              </p>
-            ) : null}
           </section>
 
           {teacherTotals.size > 0 ? (
@@ -345,11 +326,6 @@ export default async function DiscountsPage({
                         ? ` (${personName(adjustment.guardians?.first_name, adjustment.guardians?.last_name, "ukjent lærer")})`
                         : ""}
                     </span>
-                    {isSadaqaFritak(adjustment) && !adjustment.revoked_at ? (
-                      <span className="rounded-full bg-[#FEEDCA] px-2 py-0.5 text-xs font-bold text-[#775108]">
-                        Sadaqa ført som fritak
-                      </span>
-                    ) : null}
                     <span className="text-admin-muted">{adjustment.note}</span>
                     {adjustment.revoked_at ? (
                       <span className="rounded-full bg-[#F0F0ED] px-2 py-0.5 text-xs font-bold text-[#4E5550]">

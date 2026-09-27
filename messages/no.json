@@ -344,6 +344,8 @@
     "subtitle": "Vilkår for påmelding og betaling hos Islamskole Bærum.",
     "updatedLabel": "Sist oppdatert",
     "updated": "17. juni 2026",
+    "restNote": "Resten betales innen fristene som gjelder for skoleåret ({sem1} og {sem2}), eller månedlig etter avtale med skolen.",
+    "restNoteNoDates": "Resten betales innen fristene som gjelder for skoleåret. Du får betalingsplanen på e-post.",
     "sellerTitle": "Selger",
     "seller": [
       {
@@ -374,7 +376,7 @@
       {
         "heading": "Priser",
         "body": [
-          "Skoleavgiften er 5 000 NOK per barn per skoleår. 2 000 NOK betales ved påmelding, og resten betales innen 15. august og 15. desember, eller månedlig etter avtale med skolen.",
+          "Skoleavgiften er 5 000 NOK per barn per skoleår. 2 000 NOK betales ved påmelding. {restNote}",
           "Alle priser er i norske kroner (NOK) og inkluderer alle avgifter. Eventuelle tilleggskostnader opplyses før du fullfører påmeldingen."
         ]
       },

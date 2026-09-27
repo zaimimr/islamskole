@@ -1193,6 +1193,100 @@ export type Database = {
           },
         ]
       }
+      sadaqa_gifts: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          donor_name: string | null
+          family_id: string | null
+          id: string
+          method: string
+          note: string | null
+          received_on: string
+          school_year_id: string | null
+          source_payment_id: string | null
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          donor_name?: string | null
+          family_id?: string | null
+          id?: string
+          method: string
+          note?: string | null
+          received_on?: string
+          school_year_id?: string | null
+          source_payment_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          donor_name?: string | null
+          family_id?: string | null
+          id?: string
+          method?: string
+          note?: string | null
+          received_on?: string
+          school_year_id?: string | null
+          source_payment_id?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sadaqa_gifts_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sadaqa_gifts_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sadaqa_gifts_source_payment_id_fkey"
+            columns: ["source_payment_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_payment_candidates"
+            referencedColumns: ["matched_payment_id"]
+          },
+          {
+            foreignKeyName: "sadaqa_gifts_source_payment_id_fkey"
+            columns: ["source_payment_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_payment_candidates"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "sadaqa_gifts_source_payment_id_fkey"
+            columns: ["source_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sadaqa_gifts_source_payment_id_fkey"
+            columns: ["source_payment_id"]
+            isOneToOne: false
+            referencedRelation: "sadaqa_disbursements"
+            referencedColumns: ["payment_id"]
+          },
+        ]
+      }
       school_years: {
         Row: {
           created_at: string
@@ -2058,4 +2152,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

@@ -804,6 +804,7 @@ export default async function ElevDetailPage({
 
       <PaymentManager
         studentId={student.id}
+        studentName={name}
         classByYear={classByYear}
         schoolYears={schoolYears}
         defaultSchoolYearId={defaultSchoolYearId}

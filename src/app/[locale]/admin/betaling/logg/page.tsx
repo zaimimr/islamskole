@@ -55,7 +55,7 @@ const methodLabels: Record<string, string> = {
   kontant: "Kontant",
   bank: "Bankoverføring",
   annet: "Annet",
-  sadaqa: "Sadaqa",
+  sadaqa: "Sadaqa-støtte",
 };
 
 type PaymentRow = {
@@ -121,6 +121,7 @@ type PaymentLogData = {
   applications: ApplicationRow[];
   students: AllocationStudent[];
   refunds: RefundRow[];
+  gifts: { source_payment_id: string | null; amount: number }[];
   total: number;
   netTotal: number;
 };
@@ -363,7 +364,17 @@ async function getData(
             .in("payment_id", ids)
         : { data: [], error: null };
 
+    const giftResult =
+      ids.length > 0
+        ? await supabase
+            .from("sadaqa_gifts")
+            .select("source_payment_id, amount")
+            .in("source_payment_id", ids)
+            .is("voided_at", null)
+        : { data: [], error: null };
+
     if (
+      giftResult.error ||
       allocationResult.error ||
       eventResult.error ||
       applicationResult.error ||
@@ -383,6 +394,7 @@ async function getData(
         events: (eventResult.data as EventRow[] | null) ?? [],
         applications: (applicationResult.data as ApplicationRow[] | null) ?? [],
         refunds: (refundResult.data as RefundRow[] | null) ?? [],
+        gifts: giftResult.data ?? [],
         students: allStudents.map((student) => ({
           id: student.id,
           name: studentDisplayName(student) || "Uten navn",
@@ -462,6 +474,14 @@ export default async function PaymentLogPage({
     const list = allocationsByPayment.get(allocation.payment_id) ?? [];
     list.push(allocation);
     allocationsByPayment.set(allocation.payment_id, list);
+  }
+  const giftByPayment = new Map<string, number>();
+  for (const gift of data.gifts) {
+    if (!gift.source_payment_id) continue;
+    giftByPayment.set(
+      gift.source_payment_id,
+      (giftByPayment.get(gift.source_payment_id) ?? 0) + gift.amount,
+    );
   }
   const targetsByPayment = new Map<string, AllocationRow[]>();
   for (const target of data.targets) {
@@ -854,6 +874,19 @@ export default async function PaymentLogPage({
                               </span>
                             </li>
                           ))}
+                          {giftByPayment.get(payment.id) ? (
+                            <li className="flex flex-wrap items-baseline justify-between gap-x-2 text-sm">
+                              <Link
+                                href={`${basePath}/betaling/sadaqa`}
+                                className="font-bold outline-none underline-offset-2 hover:underline focus-visible:rounded focus-visible:ring-3 focus-visible:ring-ring/50"
+                              >
+                                Sadaqa-gave
+                              </Link>
+                              <span className="text-admin-muted tabular-nums">
+                                {formatNok(giftByPayment.get(payment.id) ?? 0)}
+                              </span>
+                            </li>
+                          ) : null}
                         </ul>
                       ) : applications.length > 0 ? (
                         <div>
