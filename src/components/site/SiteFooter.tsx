@@ -1,17 +1,11 @@
 import { getTranslations } from "next-intl/server";
-import {
-  MailIcon,
-  MapPinIcon,
-  ClockIcon,
-  LogInIcon,
-  LayoutDashboardIcon,
-} from "lucide-react";
-import NextLink from "next/link";
+import { MailIcon, MapPinIcon, ClockIcon } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { getSiteSettings } from "@/lib/data";
 import { Logo } from "./Logo";
 import { WaveDivider } from "./decor";
 import { FacebookIcon, InstagramIcon } from "./brand-icons";
+import { FooterAccountLink } from "./FooterAccountLink";
 
 const exploreLinks = [
   { href: "/klasser", key: "classes" },
@@ -21,17 +15,9 @@ const exploreLinks = [
   { href: "/kontakt", key: "contact" },
 ] as const;
 
-export async function SiteFooter({
-  isLoggedIn = false,
-}: {
-  isLoggedIn?: boolean;
-}) {
+export async function SiteFooter() {
   const t = await getTranslations();
   const settings = await getSiteSettings();
-
-  const accountHref = isLoggedIn ? "/admin" : "/login";
-  const AccountIcon = isLoggedIn ? LayoutDashboardIcon : LogInIcon;
-  const accountLabel = isLoggedIn ? t("nav.dashboard") : t("nav.admin");
 
   const email = settings?.contact_email ?? "baerum@islamskole.no";
   const enrollEmail = settings?.enroll_email ?? "opptak@islamskole.no";
@@ -84,12 +70,12 @@ export async function SiteFooter({
             <h2 className="font-heading text-lg font-semibold">
               {t("footer.explore")}
             </h2>
-            <ul className="flex flex-col gap-2.5">
+            <ul className="flex flex-col sm:gap-2.5">
               {exploreLinks.map((item) => (
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    className="text-primary-foreground/85 transition-colors hover:text-primary-foreground focus-visible:underline outline-none"
+                    className="inline-flex min-h-11 items-center text-primary-foreground/85 transition-colors hover:text-primary-foreground focus-visible:underline outline-none sm:min-h-0"
                   >
                     {t(`nav.${item.key}`)}
                   </Link>
@@ -135,25 +121,19 @@ export async function SiteFooter({
 
         <div className="border-t border-primary-foreground/15">
           <div className="section-shell flex flex-col items-center justify-between gap-2 py-5 text-sm text-primary-foreground/70 sm:flex-row">
-            <p>
+            <p className="text-center sm:text-left">
               &copy; {new Date().getFullYear()} Islamskole Bærum.{" "}
               {t("footer.rights")} Org.nr 917 342 385.
             </p>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
               <Link
                 href="/salgsbetingelser"
-                className="font-semibold transition-colors hover:text-primary-foreground focus-visible:underline outline-none"
+                className="inline-flex min-h-11 items-center font-semibold sm:min-h-0 transition-colors hover:text-primary-foreground focus-visible:underline outline-none"
               >
                 {t("footer.legal")}
               </Link>
               <span>Skuiveien 40, 1339 Vøyenenga</span>
-              <NextLink
-                href={accountHref}
-                className="inline-flex items-center gap-1.5 font-semibold transition-colors hover:text-primary-foreground focus-visible:underline outline-none"
-              >
-                <AccountIcon className="size-4" aria-hidden="true" />
-                {accountLabel}
-              </NextLink>
+              <FooterAccountLink />
             </div>
           </div>
         </div>

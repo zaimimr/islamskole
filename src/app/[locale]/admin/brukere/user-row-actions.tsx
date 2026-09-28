@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Check,
@@ -13,6 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { deleteUser, resetUserPassword } from "@/app/[locale]/admin/actions";
+import { useRemoveRow } from "@/components/admin/optimistic-removal-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,7 +52,7 @@ export function UserRowActions({
   email: string;
   canDelete: boolean;
 }) {
-  const router = useRouter();
+  const removeRow = useRemoveRow();
   const [resetOpen, setResetOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [password, setPassword] = useState<string | null>(null);
@@ -71,16 +71,8 @@ export function UserRowActions({
   }
 
   function handleDelete() {
-    startTransition(async () => {
-      const result = await deleteUser(userId);
-      if (result.ok) {
-        toast.success("Brukeren er slettet");
-        setDeleteOpen(false);
-        router.refresh();
-      } else {
-        toast.error(result.error);
-      }
-    });
+    setDeleteOpen(false);
+    removeRow(userId, () => deleteUser(userId), "Brukeren er slettet");
   }
 
   async function copyPassword() {
@@ -231,14 +223,7 @@ export function UserRowActions({
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Avbryt</AlertDialogCancel>
-              <AlertDialogAction
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={pending}
-              >
-                {pending ? (
-                  <Loader2 aria-hidden="true" className="size-4 animate-spin" />
-                ) : null}
+              <AlertDialogAction variant="destructive" onClick={handleDelete}>
                 Slett bruker
               </AlertDialogAction>
             </AlertDialogFooter>

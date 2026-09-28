@@ -9,6 +9,7 @@ import { CreateUserDialog } from "@/components/admin/create-user-dialog";
 import { EmptyState } from "@/components/admin/empty-state";
 import { LoadError } from "@/components/admin/load-error";
 import { StatusPill } from "@/components/admin/status-pill";
+import { OptimisticRemovalList } from "@/components/admin/optimistic-removal-list";
 import { UserRowActions } from "./user-row-actions";
 
 export const metadata: Metadata = { title: "Brukere" };
@@ -118,50 +119,52 @@ export default async function BrukerePage({
             description="Opprett en administrator for å gi tilgang til systemet."
           />
         ) : (
-          <ul className="divide-y divide-[#ECE8DF]">
-            {users.map((user) => (
-              <li
-                key={user.id}
-                className="flex items-start gap-3 px-4 py-4 sm:items-center sm:px-5"
-              >
-                <span className="hidden size-10 shrink-0 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B] sm:flex">
-                  <UserRoundCheck aria-hidden="true" className="size-5" />
-                </span>
-                <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] sm:items-center sm:gap-4">
-                  <div className="min-w-0">
-                    <p className="flex flex-wrap items-center gap-2 font-bold">
-                      {user.fullName ?? user.email}
-                      {user.id === currentId ? (
-                        <StatusPill tone="info">Din konto</StatusPill>
-                      ) : null}
-                    </p>
-                    {user.fullName ? (
-                      <p className="mt-0.5 text-sm break-all text-admin-muted">
-                        {user.email}
+          <OptimisticRemovalList
+            className="divide-y divide-[#ECE8DF]"
+            itemClassName="flex items-start gap-3 px-4 py-4 sm:items-center sm:px-5"
+            rows={users.map((user) => ({
+              id: user.id,
+              content: (
+                <>
+                  <span className="hidden size-10 shrink-0 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B] sm:flex">
+                    <UserRoundCheck aria-hidden="true" className="size-5" />
+                  </span>
+                  <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] sm:items-center sm:gap-4">
+                    <div className="min-w-0">
+                      <p className="flex flex-wrap items-center gap-2 font-bold">
+                        {user.fullName ?? user.email}
+                        {user.id === currentId ? (
+                          <StatusPill tone="info">Din konto</StatusPill>
+                        ) : null}
                       </p>
-                    ) : null}
+                      {user.fullName ? (
+                        <p className="mt-0.5 text-sm break-all text-admin-muted">
+                          {user.email}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-admin-muted">
+                      <StatusPill tone={user.role === "admin" ? "ok" : "neutral"}>
+                        {user.role === "admin"
+                          ? "Administrator"
+                          : "Ingen administratortilgang"}
+                      </StatusPill>
+                      <span>
+                        {user.lastSignInAt
+                          ? `Sist innlogget ${formatOsloDate(user.lastSignInAt)}`
+                          : "Har ikke logget inn ennå"}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-admin-muted">
-                    <StatusPill tone={user.role === "admin" ? "ok" : "neutral"}>
-                      {user.role === "admin"
-                        ? "Administrator"
-                        : "Ingen administratortilgang"}
-                    </StatusPill>
-                    <span>
-                      {user.lastSignInAt
-                        ? `Sist innlogget ${formatOsloDate(user.lastSignInAt)}`
-                        : "Har ikke logget inn ennå"}
-                    </span>
-                  </div>
-                </div>
-                <UserRowActions
-                  userId={user.id}
-                  email={user.email}
-                  canDelete={user.id !== currentId}
-                />
-              </li>
-            ))}
-          </ul>
+                  <UserRowActions
+                    userId={user.id}
+                    email={user.email}
+                    canDelete={user.id !== currentId}
+                  />
+                </>
+              ),
+            }))}
+          />
         )}
       </section>
     </div>

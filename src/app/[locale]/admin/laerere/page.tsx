@@ -16,12 +16,13 @@ import { adminBasePath } from "@/components/admin/paths";
 import { TeacherStatusSelect } from "@/components/admin/teacher-status-select";
 import { TeacherRegisterDialog } from "@/components/admin/teacher-register-dialog";
 import { SendLoginLinkButton } from "@/components/admin/send-login-link-button";
-import { removeTeacher } from "@/app/[locale]/admin/familier/families-actions";
 import { formatNok } from "@/lib/money";
 import { formatOsloDateTime } from "@/lib/dates";
 import { Pagination } from "@/components/admin/pagination";
 import { ExportButton } from "@/components/admin/export-button";
 import { EmptyState } from "@/components/admin/empty-state";
+import { OptimisticRemovalList } from "@/components/admin/optimistic-removal-list";
+import { TeacherRowMenu } from "./teacher-row-menu";
 import { StatusPill } from "@/components/admin/status-pill";
 import {
   BulkActions,
@@ -333,8 +334,10 @@ export default async function LaererePage({
             </p>
           </div>
           {registry.teachers.length > 0 ? (
-            <ul className="divide-y divide-[#ECE8DF]">
-              {registry.teachers.map((teacher) => {
+            <OptimisticRemovalList
+              className="divide-y divide-[#ECE8DF]"
+              itemClassName="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-5"
+              rows={registry.teachers.map((teacher) => {
                 const name =
                   [teacher.first_name, teacher.last_name]
                     .filter(Boolean)
@@ -342,108 +345,96 @@ export default async function LaererePage({
                 const familyId = registry.familyByGuardian.get(teacher.id);
                 const gift = registry.giftTotals.get(teacher.id);
                 const assigned = registry.classesByGuardian.get(teacher.id) ?? [];
-                return (
-                  <li
-                    key={teacher.id}
-                    className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-5"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="flex flex-wrap items-center gap-2 font-bold">
-                        {name}
-                        {familyId ? (
-                          <Link
-                            href={`${basePath}/familier/${familyId}`}
-                            className="rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                          >
-                            <StatusPill tone="ok" className="hover:underline">
-                              Har barn på skolen
+                return {
+                  id: teacher.id,
+                  content: (
+                    <>
+                      <div className="min-w-0 flex-1">
+                        <p className="flex flex-wrap items-center gap-2 font-bold">
+                          {name}
+                          {familyId ? (
+                            <Link
+                              href={`${basePath}/familier/${familyId}`}
+                              className="rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                            >
+                              <StatusPill tone="ok" className="hover:underline">
+                                Har barn på skolen
+                              </StatusPill>
+                            </Link>
+                          ) : (
+                            <StatusPill tone="neutral">
+                              Ikke koblet til familie
                             </StatusPill>
-                          </Link>
-                        ) : (
-                          <StatusPill tone="neutral">
-                            Ikke koblet til familie
-                          </StatusPill>
-                        )}
-                      </p>
-                      <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-admin-muted">
-                        {teacher.phone ? (
-                          <a
-                            href={`tel:${teacher.phone}`}
-                            className="inline-flex min-h-11 items-center gap-1.5 font-bold text-[#277A31] underline-offset-2 hover:underline sm:min-h-0"
-                          >
-                            <Phone aria-hidden="true" className="size-3.5" />
-                            {teacher.phone}
-                          </a>
+                          )}
+                        </p>
+                        <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-admin-muted">
+                          {teacher.phone ? (
+                            <a
+                              href={`tel:${teacher.phone}`}
+                              className="inline-flex min-h-11 items-center gap-1.5 font-bold text-[#277A31] underline-offset-2 hover:underline sm:min-h-0"
+                            >
+                              <Phone aria-hidden="true" className="size-3.5" />
+                              {teacher.phone}
+                            </a>
+                          ) : null}
+                          {teacher.email ? (
+                            <a
+                              href={`mailto:${teacher.email}`}
+                              className="inline-flex min-h-11 items-center gap-1.5 break-all text-[#277A31] underline-offset-2 hover:underline sm:min-h-0"
+                            >
+                              <Mail aria-hidden="true" className="size-3.5" />
+                              {teacher.email}
+                            </a>
+                          ) : null}
+                          {teacher.teacher_note ? (
+                            <span>{teacher.teacher_note}</span>
+                          ) : null}
+                        </p>
+                        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                          <GraduationCap
+                            aria-hidden="true"
+                            className="size-4 text-admin-muted"
+                          />
+                          {assigned.length ? (
+                            assigned.map((item) => (
+                              <Link
+                                key={item.id}
+                                href={`${basePath}/klasser/${item.id}`}
+                                className="inline-flex min-h-11 items-center rounded font-bold text-[#277A31] underline-offset-2 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-0"
+                              >
+                                {item.name}
+                              </Link>
+                            ))
+                          ) : (
+                            <span className="text-admin-muted">
+                              Ingen klasse i år
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
+                        {gift ? (
+                          <span className="text-sm text-admin-muted">
+                            Fritatt{" "}
+                            <span className="font-bold text-foreground tabular-nums">
+                              {formatNok(gift.amount)}
+                            </span>{" "}
+                            ({gift.students} barn)
+                          </span>
                         ) : null}
                         {teacher.email ? (
-                          <a
-                            href={`mailto:${teacher.email}`}
-                            className="inline-flex min-h-11 items-center gap-1.5 break-all text-[#277A31] underline-offset-2 hover:underline sm:min-h-0"
-                          >
-                            <Mail aria-hidden="true" className="size-3.5" />
-                            {teacher.email}
-                          </a>
+                          <SendLoginLinkButton
+                            guardianId={teacher.id}
+                            email={teacher.email}
+                          />
                         ) : null}
-                        {teacher.teacher_note ? (
-                          <span>{teacher.teacher_note}</span>
-                        ) : null}
-                      </p>
-                      <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                        <GraduationCap
-                          aria-hidden="true"
-                          className="size-4 text-admin-muted"
-                        />
-                        {assigned.length ? (
-                          assigned.map((item) => (
-                            <Link
-                              key={item.id}
-                              href={`${basePath}/klasser/${item.id}`}
-                              className="inline-flex min-h-11 items-center rounded font-bold text-[#277A31] underline-offset-2 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-0"
-                            >
-                              {item.name}
-                            </Link>
-                          ))
-                        ) : (
-                          <span className="text-admin-muted">
-                            Ingen klasse i år
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
-                      {gift ? (
-                        <span className="text-sm text-admin-muted">
-                          Fritatt{" "}
-                          <span className="font-bold text-foreground tabular-nums">
-                            {formatNok(gift.amount)}
-                          </span>{" "}
-                          ({gift.students} barn)
-                        </span>
-                      ) : null}
-                      {teacher.email ? (
-                        <SendLoginLinkButton
-                          guardianId={teacher.id}
-                          email={teacher.email}
-                        />
-                      ) : null}
-                      <RowActions
-                        label={`Flere valg for ${name}`}
-                        destructive={{
-                          id: teacher.id,
-                          label: "Fjern fra lærerregisteret",
-                          title: `Fjerne ${name} fra lærerregisteret?`,
-                          description:
-                            "Personen beholdes som foresatt, men vises ikke lenger som lærer. Lærerbarn-fradrag som allerede er gitt beholdes i historikken.",
-                          confirmLabel: "Fjern lærer",
-                          successMessage: "Læreren er fjernet fra registeret",
-                          action: removeTeacher,
-                        }}
-                      />
-                    </div>
-                  </li>
-                );
+                        <TeacherRowMenu guardianId={teacher.id} name={name} />
+                      </div>
+                    </>
+                  ),
+                };
               })}
-            </ul>
+            />
           ) : (
             <EmptyState
               icon={<UserCheck aria-hidden="true" />}

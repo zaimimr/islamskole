@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Phone, UserPlus, X } from "lucide-react";
+import { Phone, UserPlus, X } from "lucide-react";
 import {
   assignTeacher,
   removeTeacher,
 } from "@/app/[locale]/admin/portal-admin-actions";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -41,34 +42,46 @@ export function ClassTeachers({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [busyId, setBusyId] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const assignedIds = new Set(assigned.map((teacher) => teacher.id));
+  const [shown, updateShown] = useOptimistic<
+    (ClassTeacher & { saving?: boolean })[],
+    { type: "add"; teacher: ClassTeacher } | { type: "remove"; id: string }
+  >(
+    assigned,
+    (current, change) =>
+      change.type === "add"
+        ? [...current, { ...change.teacher, saving: true }]
+        : current.filter((teacher) => teacher.id !== change.id),
+  );
+  const assignedIds = new Set(shown.map((teacher) => teacher.id));
   const available = candidates.filter((teacher) => !assignedIds.has(teacher.id));
   const nameById = new Map(available.map((teacher) => [teacher.id, teacher.name]));
 
   function add() {
     if (!selected) return;
     const guardianId = selected;
-    setBusyId("add");
+    const name = nameById.get(guardianId) ?? "Læreren";
+    setSelected(null);
     startTransition(async () => {
+      updateShown({
+        type: "add",
+        teacher: { id: guardianId, name, phone: null, email: null },
+      });
       const result = await assignTeacher(classId, guardianId);
-      setBusyId(null);
       if (!result.ok) {
         toast.error(result.error);
+        setSelected(guardianId);
         return;
       }
-      toast.success(`${nameById.get(guardianId) ?? "Læreren"} er lagt til`);
-      setSelected(null);
+      toast.success(`${name} er lagt til`);
       router.refresh();
     });
   }
 
   function remove(teacher: ClassTeacher) {
-    setBusyId(teacher.id);
     startTransition(async () => {
+      updateShown({ type: "remove", id: teacher.id });
       const result = await removeTeacher(classId, teacher.id);
-      setBusyId(null);
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -92,9 +105,12 @@ export function ClassTeachers({
         </p>
       </div>
 
-      {assigned.length ? (
-        <ul className="divide-y divide-[#ECE8DF]">
-          {assigned.map((teacher) => (
+      {shown.length ? (
+        <ul
+          aria-busy={pending}
+          className={cn("divide-y divide-[#ECE8DF]", pending && "opacity-80")}
+        >
+          {shown.map((teacher) => (
             <li
               key={teacher.id}
               className="flex min-h-14 flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-5"
@@ -110,7 +126,7 @@ export function ClassTeachers({
                     {teacher.phone}
                   </a>
                 ) : null}
-                {!teacher.email ? (
+                {!teacher.email && !teacher.saving ? (
                   <span className="block text-xs text-[#775108]">
                     Mangler e-post, kan ikke logge inn
                   </span>
@@ -124,11 +140,7 @@ export function ClassTeachers({
                 aria-label={`Fjern ${teacher.name} fra klassen`}
                 className="min-h-11 rounded-xl bg-white px-3 font-bold"
               >
-                {busyId === teacher.id ? (
-                  <Loader2 aria-hidden="true" className="size-4 animate-spin" />
-                ) : (
-                  <X aria-hidden="true" className="size-4" />
-                )}
+                <X aria-hidden="true" className="size-4" />
                 Fjern
               </Button>
             </li>
@@ -171,11 +183,7 @@ export function ClassTeachers({
               onClick={add}
               className="min-h-11 rounded-xl bg-admin-action px-4 font-bold text-white hover:bg-[#245E2B]"
             >
-              {busyId === "add" ? (
-                <Loader2 aria-hidden="true" className="size-4 animate-spin" />
-              ) : (
-                <UserPlus aria-hidden="true" className="size-4" />
-              )}
+              <UserPlus aria-hidden="true" className="size-4" />
               Legg til
             </Button>
           </div>

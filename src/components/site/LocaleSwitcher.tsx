@@ -45,7 +45,7 @@ export function LocaleSwitcher({ tone = "default" }: LocaleSwitcherProps) {
             disabled={isPending}
             aria-current={active ? "true" : undefined}
             className={cn(
-              "rounded-full px-3 py-1 text-sm font-bold uppercase transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:opacity-60",
+              "inline-flex min-h-11 min-w-11 items-center justify-center rounded-full px-3 py-1 text-sm lg:min-h-0 lg:min-w-0 font-bold uppercase transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:opacity-60",
               active
                 ? tone === "light"
                   ? "bg-primary-foreground text-primary"

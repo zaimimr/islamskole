@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { Suspense, createContext, use, useContext } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -24,16 +24,13 @@ export type NavCounts = {
   teacherApplications: number;
 };
 
-const NavCountsContext = createContext<NavCounts>({
-  applications: 0,
-  teacherApplications: 0,
-});
+const NavCountsContext = createContext<Promise<NavCounts> | null>(null);
 
 export function NavCountsProvider({
   counts,
   children,
 }: {
-  counts: NavCounts;
+  counts: Promise<NavCounts>;
   children: React.ReactNode;
 }) {
   return (
@@ -48,7 +45,7 @@ type NavLink = {
   label: string;
   icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
   alsoMatches?: string[];
-  count?: number;
+  countKey?: keyof NavCounts;
   countLabel?: string;
 };
 
@@ -57,14 +54,14 @@ type NavGroup = {
   links: NavLink[];
 };
 
-function buildNavigation(basePath: string, counts: NavCounts) {
+function buildNavigation(basePath: string) {
   const primary: NavLink[] = [
     { href: basePath, label: "Arbeidsflate", icon: LayoutDashboard },
     {
       href: `${basePath}/register`,
       label: "Opptak",
       icon: ClipboardCheck,
-      count: counts.applications,
+      countKey: "applications",
       countLabel: "nye innmeldinger",
     },
     {
@@ -101,7 +98,7 @@ function buildNavigation(basePath: string, counts: NavCounts) {
           href: `${basePath}/laerere`,
           label: "Lærere",
           icon: UserCheck,
-          count: counts.teacherApplications,
+          countKey: "teacherApplications",
           countLabel: "nye lærersøknader",
         },
         { href: `${basePath}/brukere`, label: "Brukere", icon: ShieldCheck },
@@ -123,6 +120,24 @@ function buildNavigation(basePath: string, counts: NavCounts) {
   return { primary, groups, account };
 }
 
+function NavCountBadge({
+  countKey,
+  label,
+}: {
+  countKey: keyof NavCounts;
+  label?: string;
+}) {
+  const promise = useContext(NavCountsContext);
+  const count = promise ? use(promise)[countKey] : 0;
+  if (count <= 0) return null;
+  return (
+    <span className="ml-auto inline-flex min-w-6 items-center justify-center rounded-full bg-[#FEEDCA] px-1.5 py-0.5 text-xs font-bold text-[#6B4A06] tabular-nums">
+      {count}
+      <span className="sr-only"> {label}</span>
+    </span>
+  );
+}
+
 export function SidebarNav({
   basePath,
   onNavigate,
@@ -131,8 +146,7 @@ export function SidebarNav({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
-  const counts = useContext(NavCountsContext);
-  const navigation = buildNavigation(basePath, counts);
+  const navigation = buildNavigation(basePath);
 
   function matchesPath(href: string) {
     if (href === basePath) return pathname === basePath;
@@ -155,7 +169,6 @@ export function SidebarNav({
   }) {
     const active = isActive(link);
     const Icon = link.icon;
-    const count = link.count ?? 0;
 
     return (
       <Link
@@ -180,11 +193,10 @@ export function SidebarNav({
           )}
         />
         <span className="min-w-0 flex-1">{link.label}</span>
-        {count > 0 ? (
-          <span className="ml-auto inline-flex min-w-6 items-center justify-center rounded-full bg-[#FEEDCA] px-1.5 py-0.5 text-xs font-bold text-[#6B4A06] tabular-nums">
-            {count}
-            <span className="sr-only"> {link.countLabel}</span>
-          </span>
+        {link.countKey ? (
+          <Suspense fallback={null}>
+            <NavCountBadge countKey={link.countKey} label={link.countLabel} />
+          </Suspense>
         ) : null}
       </Link>
     );

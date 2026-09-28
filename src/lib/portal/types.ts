@@ -1,10 +1,10 @@
-import type { User } from "@supabase/supabase-js";
+import type { SessionUser } from "@/lib/auth";
 
 export const ATTENDANCE_STATUSES = ["til_stede", "fravaer", "sent", "meldt_fravaer"] as const;
 export type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number];
 
 export type PortalContext = {
-  user: User | null;
+  user: SessionUser | null;
   email: string | null;
   guardianIds: string[];
   isTeacher: boolean;

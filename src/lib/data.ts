@@ -10,7 +10,7 @@ function getReadClient() {
     {
       cookies: { getAll: () => [], setAll: () => {} },
       global: {
-        fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+        fetch: (input, init) => fetch(input, { ...init, next: { revalidate: 300 } }),
       },
     },
   );

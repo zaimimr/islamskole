@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CalendarPlus, ChevronDown, Loader2 } from "lucide-react";
@@ -33,8 +33,15 @@ export function SchoolDays({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
-  const cancelledCount = days.filter((day) => day.cancelled).length;
-  const nextDay = days.find((day) => day.date >= today && !day.cancelled);
+  const [shownDays, toggleShownDay] = useOptimistic(
+    days,
+    (current: SchoolDayRow[], id: string) =>
+      current.map((day) =>
+        day.id === id ? { ...day, cancelled: !day.cancelled } : day,
+      ),
+  );
+  const cancelledCount = shownDays.filter((day) => day.cancelled).length;
+  const nextDay = shownDays.find((day) => day.date >= today && !day.cancelled);
 
   function generate() {
     setBusyId("generate");
@@ -55,10 +62,9 @@ export function SchoolDays({
   }
 
   function toggle(day: SchoolDayRow) {
-    setBusyId(day.id);
     startTransition(async () => {
+      toggleShownDay(day.id);
       const result = await setSchoolDayCancelled(day.id, !day.cancelled);
-      setBusyId(null);
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -121,7 +127,7 @@ export function SchoolDays({
             />
           </summary>
           <ul className="divide-y divide-[#ECE8DF] border-t border-[#ECE8DF]">
-            {days.map((day) => {
+            {shownDays.map((day) => {
               const past = day.date < today;
               return (
                 <li
@@ -162,10 +168,7 @@ export function SchoolDays({
                       !day.cancelled && "text-[#8B2F2B]",
                     )}
                   >
-                    {busyId === day.id ? (
-                      <Loader2 aria-hidden="true" className="size-4 animate-spin" />
-                    ) : null}
-                    {day.cancelled ? "Åpne igjen" : "Avlys"}
+                      {day.cancelled ? "Åpne igjen" : "Avlys"}
                   </Button>
                 </li>
               );

@@ -20,7 +20,11 @@ import { cn } from "@/lib/utils";
 import { formatNok } from "@/lib/money";
 import { formatOsloDateTime } from "@/lib/dates";
 import { SendLoginLinkButton } from "@/components/admin/send-login-link-button";
-import { TeacherToggleButton } from "@/components/admin/teacher-toggle-button";
+import {
+  TeacherBadge,
+  TeacherRole,
+  TeacherToggleButton,
+} from "@/components/admin/teacher-toggle-button";
 
 export type FamilyStatusTone =
   "success" | "warning" | "danger" | "info" | "neutral";
@@ -244,11 +248,11 @@ function RelationshipMember({
               Primær foresatt
             </span>
           ) : null}
-          {isTeacher ? (
+          <TeacherBadge>
             <span className="rounded-full bg-[#E4EEF8] px-2 py-0.5 text-[0.6875rem] font-bold text-[#245D84]">
               Lærer
             </span>
-          ) : null}
+          </TeacherBadge>
         </span>
         <span className="mt-0.5 block text-xs font-semibold text-admin-muted">
           {role}
@@ -258,49 +262,51 @@ function RelationshipMember({
   );
 
   return (
-    <li className="relative grid gap-1 py-2">
-      {href ? (
-        <Link
-          href={href}
-          className="flex min-w-0 flex-1 gap-3 rounded-xl outline-none transition-colors hover:bg-[#F7F6F1] focus-visible:ring-3 focus-visible:ring-ring/50"
-        >
-          {content}
-        </Link>
-      ) : (
-        <div className="flex min-w-0 flex-1 gap-3">{content}</div>
-      )}
-      {phone || email || loginGuardianId ? (
-        <div className="grid min-w-0 pl-[3.25rem] text-xs">
-          {phone ? (
-            <a href={telHref(phone)} className={contactLinkClass}>
-              <Phone aria-hidden="true" className="size-3.5 shrink-0" />
-              {phone}
-            </a>
-          ) : null}
-          {email ? (
-            <a href={`mailto:${email}`} className={cn(contactLinkClass, "min-w-0")}>
-              <Mail aria-hidden="true" className="size-3.5 shrink-0" />
-              <span className="truncate">{email}</span>
-            </a>
-          ) : null}
-          {loginGuardianId && email ? (
-            <SendLoginLinkButton
-              guardianId={loginGuardianId}
-              email={email}
-              className="mt-1 justify-self-start"
-            />
-          ) : null}
-          {loginGuardianId ? (
-            <TeacherToggleButton
-              guardianId={loginGuardianId}
-              name={name}
-              isTeacher={isTeacher}
-              className="justify-self-start"
-            />
-          ) : null}
-        </div>
-      ) : null}
-    </li>
+    <TeacherRole isTeacher={isTeacher}>
+      <li className="relative grid gap-1 py-2">
+        {href ? (
+          <Link
+            href={href}
+            className="flex min-w-0 flex-1 gap-3 rounded-xl outline-none transition-colors hover:bg-[#F7F6F1] focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            {content}
+          </Link>
+        ) : (
+          <div className="flex min-w-0 flex-1 gap-3">{content}</div>
+        )}
+        {phone || email || loginGuardianId ? (
+          <div className="grid min-w-0 pl-[3.25rem] text-xs">
+            {phone ? (
+              <a href={telHref(phone)} className={contactLinkClass}>
+                <Phone aria-hidden="true" className="size-3.5 shrink-0" />
+                {phone}
+              </a>
+            ) : null}
+            {email ? (
+              <a href={`mailto:${email}`} className={cn(contactLinkClass, "min-w-0")}>
+                <Mail aria-hidden="true" className="size-3.5 shrink-0" />
+                <span className="truncate">{email}</span>
+              </a>
+            ) : null}
+            {loginGuardianId && email ? (
+              <SendLoginLinkButton
+                guardianId={loginGuardianId}
+                email={email}
+                className="mt-1 justify-self-start"
+              />
+            ) : null}
+            {loginGuardianId ? (
+              <TeacherToggleButton
+                guardianId={loginGuardianId}
+                name={name}
+                isTeacher={isTeacher}
+                className="justify-self-start"
+              />
+            ) : null}
+          </div>
+        ) : null}
+      </li>
+    </TeacherRole>
   );
 }
 

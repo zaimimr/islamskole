@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Image from "next/image";
@@ -63,6 +64,13 @@ async function getActiveSchoolYear() {
   };
 }
 
+async function ActiveSchoolYearLabel() {
+  const schoolYear = await getActiveSchoolYear();
+  return schoolYear.unavailable
+    ? "Skoleår utilgjengelig"
+    : (schoolYear.label ?? "Velg skoleår");
+}
+
 export default async function AdminLayout({
   children,
   params,
@@ -75,22 +83,16 @@ export default async function AdminLayout({
   if (!isAdmin) {
     redirect(`${loginPath(locale)}?ingen-tilgang=1`);
   }
-  const [schoolYear, navCounts] = await Promise.all([
-    getActiveSchoolYear(),
-    getNavCounts(),
-  ]);
+  const navCounts = getNavCounts();
 
   const basePath = adminBasePath(locale);
   const resolvedLoginPath = loginPath(locale);
-  const yearLabel = schoolYear.unavailable
-    ? "Skoleår utilgjengelig"
-    : (schoolYear.label ?? "Velg skoleår");
 
   return (
     <NavCountsProvider counts={navCounts}>
       <div
         data-admin-shell
-        className="flex min-h-dvh w-full overflow-x-hidden bg-[#FCFAF5] text-[#18201A]"
+        className="flex min-h-dvh w-full overflow-x-clip bg-[#FCFAF5] text-[#18201A]"
       >
         <a
           href="#admin-content"
@@ -152,7 +154,13 @@ export default async function AdminLayout({
                 />
                 <span className="sr-only">Aktivt skoleår: </span>
                 <span className="max-w-[6.5rem] truncate sm:max-w-none">
-                  {yearLabel}
+                  <Suspense
+                    fallback={
+                      <span className="inline-block h-4 w-[4.5rem] animate-pulse rounded-md bg-muted align-middle" />
+                    }
+                  >
+                    <ActiveSchoolYearLabel />
+                  </Suspense>
                 </span>
               </Link>
 

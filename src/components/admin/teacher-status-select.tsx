@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useOptimistic, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { updateTeacherApplicationStatus } from "@/app/[locale]/admin/actions";
@@ -33,10 +33,12 @@ export function TeacherStatusSelect({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [shownStatus, setShownStatus] = useOptimistic(status);
 
   function handleChange(next: string | null) {
-    if (!next || next === status) return;
+    if (!next || next === shownStatus) return;
     startTransition(async () => {
+      setShownStatus(next);
       const result = await updateTeacherApplicationStatus(id, next);
       if (result.ok) {
         toast.success("Status oppdatert");
@@ -48,10 +50,10 @@ export function TeacherStatusSelect({
   }
 
   return (
-    <Select value={status} onValueChange={handleChange} disabled={pending}>
+    <Select value={shownStatus} onValueChange={handleChange} disabled={pending}>
       <SelectTrigger
         size="sm"
-        className={`min-h-10 w-36 rounded-xl font-bold shadow-none ${statusClassName[status] ?? statusClassName.arkivert}`}
+        className={`min-h-10 w-36 rounded-xl font-bold shadow-none ${statusClassName[shownStatus] ?? statusClassName.arkivert}`}
         aria-label="Søknadsstatus"
       >
         <SelectValue />
