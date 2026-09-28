@@ -1,0 +1,18 @@
+create index if not exists absence_reports_reported_by_guardian_idx on public.absence_reports (reported_by_guardian_id);
+create index if not exists audit_log_actor_idx on public.audit_log (actor_id);
+create index if not exists class_notes_author_guardian_idx on public.class_notes (author_guardian_id);
+create index if not exists class_notes_school_day_idx on public.class_notes (school_day_id);
+create index if not exists class_teachers_school_year_idx on public.class_teachers (school_year_id);
+create index if not exists family_data_reviews_resolved_by_idx on public.family_data_reviews (resolved_by);
+create index if not exists installments_school_year_idx on public.installments (school_year_id);
+create index if not exists payment_allocations_school_year_idx on public.payment_allocations (school_year_id);
+create index if not exists payment_plans_school_year_idx on public.payment_plans (school_year_id);
+create index if not exists payments_duplicate_of_payment_idx on public.payments (duplicate_of_payment_id);
+create index if not exists payments_enrollment_idx on public.payments (enrollment_id);
+create index if not exists refunds_school_year_idx on public.refunds (school_year_id);
+create index if not exists sadaqa_gifts_family_idx on public.sadaqa_gifts (family_id);
+create index if not exists sadaqa_gifts_school_year_idx on public.sadaqa_gifts (school_year_id);
+create index if not exists sibling_discount_dismissals_school_year_idx on public.sibling_discount_dismissals (school_year_id);
+create index if not exists student_guardians_family_guardian_idx on public.student_guardians (family_id, guardian_id);
+create index if not exists student_guardians_student_family_idx on public.student_guardians (student_id, family_id);
+create index if not exists students_application_idx on public.students (application_id);
