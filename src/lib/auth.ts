@@ -11,11 +11,9 @@ export const getUser = cache(async () => {
 });
 
 export const getIsAdmin = cache(async () => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUser();
   if (!user) return false;
+  const supabase = await createClient();
   const { data } = await supabase
     .from("profiles")
     .select("role")
