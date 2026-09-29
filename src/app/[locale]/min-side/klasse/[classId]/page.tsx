@@ -105,101 +105,109 @@ export default async function TeacherClassPage({
         ) : null}
       </div>
 
-      {day ? (
-        <>
-          <div className="grid gap-3">
-            <DaySwitcher
-              classId={classId}
-              selectedId={day.id}
-              days={list.map((item) => ({
-                id: item.id,
-                label: capitalize(
-                  formatSchoolDay(item.date, locale, { weekday: "short", day: "numeric", month: "short" }),
-                ),
-                cancelled: item.cancelled,
-                isToday: item.date === today,
-              }))}
-            />
-            {day.cancelled ? (
-              <p role="status" className="flex gap-2 rounded-xl bg-secondary p-3 text-sm text-secondary-foreground">
-                <CalendarX aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-                <span>
-                  <span className="font-semibold">{t("day.cancelledNotice")}</span>
-                  {day.note ? ` ${day.note}` : null}
-                </span>
-              </p>
-            ) : isFuture ? (
-              <p role="status" className="flex gap-2 rounded-xl bg-muted p-3 text-sm">
-                <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                {t("day.futureNotice")}
-              </p>
-            ) : null}
-          </div>
-
-          <section aria-labelledby="attendance-title" className="grid gap-3">
-            <h2 id="attendance-title" className="text-2xl font-bold">
-              {t("roster.title")}
-            </h2>
-            <AttendanceRoster key={day.id} rows={roster} schoolDayId={day.id} markable={markable} />
-          </section>
-
-          <section aria-labelledby="note-title" className="grid gap-3">
-            <div className="grid gap-1">
-              <h2 id="note-title" className="text-2xl font-bold">
-                {t("note.title")}
-              </h2>
-              <p className="text-sm text-muted-foreground">{t("note.intro")}</p>
-            </div>
-            <ClassNoteEditor
-              key={day.id}
-              classId={classId}
-              schoolDayId={day.id}
-              initialHomework={note?.homework ?? ""}
-              initialSummary={note?.summary ?? ""}
-              savedLabel={note?.updated_at ? formatSavedAt(note.updated_at, locale) : null}
-              disabled={day.cancelled}
-            />
-          </section>
-        </>
-      ) : (
-        <p className="rounded-2xl bg-card p-5 text-muted-foreground ring-1 ring-foreground/8">{t("noDays")}</p>
-      )}
-
-      <section aria-labelledby="previous-notes-title" className="grid gap-3">
-        <h2 id="previous-notes-title" className="text-xl font-bold">
-          {t("previous.title")}
-        </h2>
-        {previousNotes.length ? (
-          <ul className="divide-y divide-foreground/8 overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/8">
-            {previousNotes.map((row) => (
-              <li key={row.id}>
-                <Link
-                  href={`/min-side/klasse/${classId}?dag=${row.school_day_id}`}
-                  className="grid gap-2 p-4 outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
-                >
-                  <p className="font-semibold">
-                    {row.date ? capitalize(formatSchoolDay(row.date, locale)) : null}
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start xl:grid-cols-[minmax(0,1fr)_26rem]">
+        <div className="grid gap-8">
+          {day ? (
+            <>
+              <div className="grid gap-3">
+                <DaySwitcher
+                  classId={classId}
+                  selectedId={day.id}
+                  days={list.map((item) => ({
+                    id: item.id,
+                    label: capitalize(
+                      formatSchoolDay(item.date, locale, { weekday: "short", day: "numeric", month: "short" }),
+                    ),
+                    cancelled: item.cancelled,
+                    isToday: item.date === today,
+                  }))}
+                />
+                {day.cancelled ? (
+                  <p role="status" className="flex gap-2 rounded-xl bg-secondary p-3 text-sm text-secondary-foreground">
+                    <CalendarX aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                    <span>
+                      <span className="font-semibold">{t("day.cancelledNotice")}</span>
+                      {day.note ? ` ${day.note}` : null}
+                    </span>
                   </p>
-                  {row.homework ? (
-                    <p className="text-sm">
-                      <span className="font-semibold">{t("note.homework")}: </span>
-                      <span className="whitespace-pre-line">{row.homework}</span>
-                    </p>
-                  ) : null}
-                  {row.summary ? (
-                    <p className="text-sm text-muted-foreground">
-                      <span className="font-semibold text-foreground">{t("note.summary")}: </span>
-                      <span className="whitespace-pre-line">{row.summary}</span>
-                    </p>
-                  ) : null}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted-foreground">{t("previous.empty")}</p>
-        )}
-      </section>
+                ) : isFuture ? (
+                  <p role="status" className="flex gap-2 rounded-xl bg-muted p-3 text-sm">
+                    <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    {t("day.futureNotice")}
+                  </p>
+                ) : null}
+              </div>
+
+              <section aria-labelledby="attendance-title" className="grid gap-3">
+                <h2 id="attendance-title" className="text-2xl font-bold">
+                  {t("roster.title")}
+                </h2>
+                <AttendanceRoster key={day.id} rows={roster} schoolDayId={day.id} markable={markable} />
+              </section>
+            </>
+          ) : (
+            <p className="rounded-2xl bg-card p-5 text-muted-foreground ring-1 ring-foreground/8">{t("noDays")}</p>
+          )}
+        </div>
+
+        <aside className="grid gap-8 lg:sticky lg:top-24">
+          {day ? (
+            <section aria-labelledby="note-title" className="grid gap-3">
+              <div className="grid gap-1">
+                <h2 id="note-title" className="text-2xl font-bold">
+                  {t("note.title")}
+                </h2>
+                <p className="text-sm text-muted-foreground">{t("note.intro")}</p>
+              </div>
+              <ClassNoteEditor
+                key={day.id}
+                classId={classId}
+                schoolDayId={day.id}
+                initialHomework={note?.homework ?? ""}
+                initialSummary={note?.summary ?? ""}
+                savedLabel={note?.updated_at ? formatSavedAt(note.updated_at, locale) : null}
+                disabled={day.cancelled}
+              />
+            </section>
+          ) : null}
+
+          <section aria-labelledby="previous-notes-title" className="grid gap-3">
+            <h2 id="previous-notes-title" className="text-xl font-bold">
+              {t("previous.title")}
+            </h2>
+            {previousNotes.length ? (
+              <ul className="divide-y divide-foreground/8 overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/8">
+                {previousNotes.map((row) => (
+                  <li key={row.id}>
+                    <Link
+                      href={`/min-side/klasse/${classId}?dag=${row.school_day_id}`}
+                      className="grid gap-2 p-4 outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
+                    >
+                      <p className="font-semibold">
+                        {row.date ? capitalize(formatSchoolDay(row.date, locale)) : null}
+                      </p>
+                      {row.homework ? (
+                        <p className="text-sm">
+                          <span className="font-semibold">{t("note.homework")}: </span>
+                          <span className="whitespace-pre-line">{row.homework}</span>
+                        </p>
+                      ) : null}
+                      {row.summary ? (
+                        <p className="text-sm text-muted-foreground">
+                          <span className="font-semibold text-foreground">{t("note.summary")}: </span>
+                          <span className="whitespace-pre-line">{row.summary}</span>
+                        </p>
+                      ) : null}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t("previous.empty")}</p>
+            )}
+          </section>
+        </aside>
+      </div>
     </div>
   );
 }

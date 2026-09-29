@@ -1,18 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ChevronDown, ClipboardCheck, Mail, Phone, UsersRound } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, Mail, Phone, UsersRound } from "lucide-react";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { adminBasePath, localePrefix } from "@/components/admin/paths";
 import { buttonVariants } from "@/components/ui/button";
 import { ClassForm, type ClassRecord } from "@/components/admin/class-form";
 import { ageInYear, schoolYearStart } from "@/lib/age";
 import { formatNok } from "@/lib/money";
-import { formatOsloDate, osloToday } from "@/lib/dates";
+import { osloToday } from "@/lib/dates";
 import { studentDisplayName } from "@/lib/student-name";
 import { cn } from "@/lib/utils";
 import { RosterTools, type RosterCsvRow } from "./roster-tools";
 import { ClassTeachers, type ClassTeacher } from "./class-teachers";
+import { ClassDayOverview, type DayOverview } from "./day-overview";
 
 export const metadata: Metadata = { title: "Klasse" };
 
@@ -76,7 +78,17 @@ type AttendanceRow = {
   student_id: string;
   school_day_id: string;
   status: string;
+  marked_by: string | null;
 };
+
+type NoteRow = {
+  school_day_id: string;
+  homework: string | null;
+  summary: string | null;
+  author_guardian_id: string | null;
+};
+
+type AbsenceRow = { student_id: string; school_day_id: string; reason: string | null };
 
 type PayChip = { label: string; tone: "ok" | "warn" | "danger" | "neutral" };
 
@@ -138,6 +150,8 @@ async function getClassPage(id: string) {
       candidates: [] as CandidateRow[],
       schoolDays: [] as SchoolDayRow[],
       attendance: [] as AttendanceRow[],
+      notes: [] as NoteRow[],
+      absences: [] as AbsenceRow[],
       error: Boolean(classResult.error || yearResult.error),
     };
   }
@@ -167,6 +181,8 @@ async function getClassPage(id: string) {
     candidateResult,
     dayResult,
     attendanceResult,
+    noteResult,
+    absenceResult,
   ] = await Promise.all([
     familyIds.length
       ? supabase
@@ -204,9 +220,21 @@ async function getClassPage(id: string) {
     studentIds.length
       ? supabase
           .from("attendance")
-          .select("student_id, school_day_id, status, school_days!inner(school_year_id)")
+          .select("student_id, school_day_id, status, marked_by, school_days!inner(school_year_id)")
           .eq("school_days.school_year_id", activeYear.id)
           .in("student_id", studentIds)
+      : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("class_notes")
+      .select("school_day_id, homework, summary, author_guardian_id, school_days!inner(school_year_id)")
+      .eq("class_id", id)
+      .eq("school_days.school_year_id", activeYear.id),
+    studentIds.length
+      ? supabase
+          .from("absence_reports")
+          .select("student_id, school_day_id, reason")
+          .in("student_id", studentIds)
+          .is("withdrawn_at", null)
       : Promise.resolve({ data: [], error: null }),
   ]);
 
@@ -220,6 +248,8 @@ async function getClassPage(id: string) {
     candidates: (candidateResult.data as CandidateRow[] | null) ?? [],
     schoolDays: (dayResult.data as SchoolDayRow[] | null) ?? [],
     attendance: (attendanceResult.data as AttendanceRow[] | null) ?? [],
+    notes: (noteResult.data as NoteRow[] | null) ?? [],
+    absences: (absenceResult.data as AbsenceRow[] | null) ?? [],
     error: Boolean(
       classResult.error ||
         yearResult.error ||
@@ -229,9 +259,46 @@ async function getClassPage(id: string) {
         teacherResult.error ||
         candidateResult.error ||
         dayResult.error ||
-        attendanceResult.error,
+        attendanceResult.error ||
+        noteResult.error ||
+        absenceResult.error,
     ),
   };
+}
+
+async function resolvePeople(markerIds: string[], authorIds: string[]) {
+  const admin = createAdminClient();
+  const [{ data: profiles }, { data: authors }] = await Promise.all([
+    markerIds.length
+      ? admin.from("profiles").select("id, full_name").in("id", markerIds)
+      : Promise.resolve({ data: [] as { id: string; full_name: string | null }[] }),
+    authorIds.length
+      ? admin.from("guardians").select("id, first_name, last_name").in("id", authorIds)
+      : Promise.resolve({ data: [] as { id: string; first_name: string | null; last_name: string | null }[] }),
+  ]);
+  const markers = new Map<string, string>();
+  for (const row of profiles ?? []) {
+    if (row.full_name?.trim()) markers.set(row.id, row.full_name.trim());
+  }
+  const missing = markerIds.filter((id) => !markers.has(id));
+  const emails = await Promise.all(
+    missing.map(async (id) => [id, (await admin.auth.admin.getUserById(id)).data.user?.email ?? null] as const),
+  );
+  const known = emails.filter((row): row is readonly [string, string] => Boolean(row[1]));
+  if (known.length) {
+    const { data: guardians } = await admin
+      .from("guardians")
+      .select("email, first_name, last_name")
+      .in("email", known.map(([, email]) => email.toLowerCase()));
+    const byEmail = new Map(
+      (guardians ?? []).map((row) => [row.email?.toLowerCase(), joinName(row.first_name, row.last_name)]),
+    );
+    for (const [id, email] of known) markers.set(id, byEmail.get(email.toLowerCase()) || email);
+  }
+  const authorNames = new Map(
+    (authors ?? []).map((row) => [row.id, joinName(row.first_name, row.last_name)]),
+  );
+  return { markers, authorNames };
 }
 
 export default async function KlassePage({
@@ -329,20 +396,65 @@ export default async function KlassePage({
   }));
   const className = classRecord.name_no ?? "Klasse";
   const rosterIds = new Set(roster.map((row) => row.id));
-  const daySummaries = data.schoolDays.slice(0, 12).map((day) => {
+  const recentDays = data.schoolDays.slice(0, 12);
+  const recentDayIds = new Set(recentDays.map((day) => day.id));
+  const notesByDay = new Map(data.notes.map((row) => [row.school_day_id, row]));
+  const reasonByKey = new Map(
+    data.absences.map((row) => [`${row.student_id}:${row.school_day_id}`, row.reason]),
+  );
+  const markerIds = [
+    ...new Set(
+      heldAttendance
+        .filter((row) => recentDayIds.has(row.school_day_id) && row.marked_by)
+        .map((row) => row.marked_by as string),
+    ),
+  ];
+  const authorIds = [
+    ...new Set(
+      data.notes
+        .filter((row) => recentDayIds.has(row.school_day_id) && row.author_guardian_id)
+        .map((row) => row.author_guardian_id as string),
+    ),
+  ];
+  const people = await resolvePeople(markerIds, authorIds);
+  const dayOverview: DayOverview[] = recentDays.map((day) => {
     const rows = (attendanceByDay.get(day.id) ?? []).filter((row) =>
       rosterIds.has(row.student_id),
     );
-    const count = (status: string) =>
-      rows.filter((row) => row.status === status).length;
+    const statusOf = new Map(rows.map((row) => [row.student_id, row.status]));
+    const namesWith = (status: string) =>
+      roster.filter((student) => statusOf.get(student.id) === status).map((student) => student.name);
+    const note = notesByDay.get(day.id);
     return {
       id: day.id,
       date: day.date,
-      present: count("til_stede"),
-      absent: count("fravaer"),
-      reported: count("meldt_fravaer"),
-      late: count("sent"),
-      unmarked: Math.max(roster.length - rows.length, 0),
+      present: namesWith("til_stede"),
+      absent: namesWith("fravaer"),
+      reported: roster
+        .filter((student) => statusOf.get(student.id) === "meldt_fravaer")
+        .map((student) => ({
+          name: student.name,
+          reason: reasonByKey.get(`${student.id}:${day.id}`) ?? null,
+        })),
+      late: namesWith("sent"),
+      unmarked: roster.filter((student) => !statusOf.has(student.id)).map((student) => student.name),
+      markedBy: [
+        ...new Set(
+          rows
+            .map((row) => (row.marked_by ? people.markers.get(row.marked_by) : null))
+            .filter((name): name is string => Boolean(name)),
+        ),
+      ],
+      note:
+        note && (note.homework || note.summary)
+          ? {
+              homework: note.homework,
+              summary: note.summary,
+              author: note.author_guardian_id
+                ? people.authorNames.get(note.author_guardian_id) || null
+                : "Admin",
+            }
+          : null,
     };
   });
   const classTeachers: ClassTeacher[] = data.teachers
@@ -590,45 +702,12 @@ export default async function KlassePage({
               </>
             )}
           </section>
-          {daySummaries.length ? (
-            <details className="group overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3] print:hidden">
-              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-4 font-heading text-lg font-bold outline-none hover:bg-[#FBFAF6] focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50 sm:px-5 [&::-webkit-details-marker]:hidden">
-                Oppmøte per skoledag
-                <ChevronDown
-                  aria-hidden="true"
-                  className="size-5 text-admin-muted transition-transform group-open:rotate-180"
-                />
-              </summary>
-              <ul className="divide-y divide-[#ECE8DF] border-t border-[#ECE8DF]">
-                {daySummaries.map((day) => (
-                  <li
-                    key={day.id}
-                    className="grid gap-1 px-4 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:items-center sm:px-5"
-                  >
-                    <span className="font-bold tabular-nums">
-                      {formatOsloDate(day.date, {
-                        weekday: "short",
-                        day: "numeric",
-                        month: "short",
-                      })}
-                    </span>
-                    <span className="text-sm text-admin-muted tabular-nums">
-                      {day.unmarked === roster.length
-                        ? "Ikke ført"
-                        : [
-                            `${day.present} til stede`,
-                            day.absent ? `${day.absent} fravær` : null,
-                            day.reported ? `${day.reported} meldt fravær` : null,
-                            day.late ? `${day.late} sent` : null,
-                            day.unmarked ? `${day.unmarked} ikke ført` : null,
-                          ]
-                            .filter(Boolean)
-                            .join(", ")}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </details>
+          {dayOverview.length ? (
+            <ClassDayOverview
+              days={dayOverview}
+              studentCount={roster.length}
+              portalHref={`${localePrefix(locale)}/min-side/klasse/${id}`}
+            />
           ) : null}
         </>
       )}

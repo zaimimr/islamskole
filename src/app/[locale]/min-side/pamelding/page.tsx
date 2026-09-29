@@ -51,7 +51,7 @@ export default async function EnrollmentPage({ params }: PageProps<"/[locale]/mi
       {families.length === 0 ? (
         <p className="soft-card p-5 text-muted-foreground sm:p-6">{t("noFamily")}</p>
       ) : (
-        <>
+        <div className="grid gap-10 lg:grid-cols-2 lg:items-start lg:gap-8">
           <section aria-labelledby="continues-title" className="grid gap-3">
             <div className="grid gap-1">
               <h2 id="continues-title" className="font-heading text-2xl font-semibold">
@@ -90,7 +90,7 @@ export default async function EnrollmentPage({ params }: PageProps<"/[locale]/mi
               )}
             </div>
           </section>
-        </>
+        </div>
       )}
     </div>
   );

@@ -58,7 +58,7 @@ export async function ParentHome({ locale }: { locale: string }) {
   ];
 
   return (
-    <div className="grid gap-10">
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start xl:grid-cols-[minmax(0,1fr)_24rem]">
       <section aria-labelledby="parent-home-title" className="grid gap-4">
         <div className="grid gap-1">
           <h2 id="parent-home-title" className="font-heading text-3xl font-semibold text-balance">
@@ -85,9 +85,11 @@ export async function ParentHome({ locale }: { locale: string }) {
           </Link>
         ) : null}
 
-        <NextDay locale={locale} today={data.today} upcoming={data.schoolDays.upcoming} rows={rows} />
+        <div className="lg:hidden">
+          <NextDay locale={locale} today={data.today} upcoming={data.schoolDays.upcoming} rows={rows} />
+        </div>
 
-        <div className="grid gap-6">
+        <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
           {data.children.map((child) => {
             const note = data.notesByClass.get(child.class_id)?.[0] ?? null;
             return (
@@ -105,49 +107,55 @@ export async function ParentHome({ locale }: { locale: string }) {
         </div>
       </section>
 
-      <nav aria-label={tHome("tiles.label")}>
-        <ul className="grid gap-3 sm:grid-cols-3">
-          {tiles.map((tile) => {
-            const Icon = tile.icon;
-            return (
-              <li key={tile.href}>
-                <Link
-                  href={tile.href}
-                  className="soft-card flex h-full items-start gap-3 p-4 outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 sm:flex-col"
-                >
-                  <Icon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-brand-green-dark" />
-                  <span className="grid gap-0.5">
-                    <span className="font-heading text-lg font-semibold">{tile.title}</span>
-                    <span className="text-sm text-pretty text-muted-foreground">{tile.text}</span>
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+      <aside className="grid gap-8 lg:sticky lg:top-36">
+        <div className="hidden lg:block">
+          <NextDay locale={locale} today={data.today} upcoming={data.schoolDays.upcoming} rows={rows} />
+        </div>
 
-      <UpcomingList
-        locale={locale}
-        days={data.schoolDays.upcoming.slice(0, 4)}
-        events={events}
-        reported={Object.fromEntries(
-          [...reportedNames].map(([dayId, names]) => [dayId, listFormat.format(names)]),
-        )}
-      />
+        <nav aria-label={tHome("tiles.label")}>
+          <ul className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+            {tiles.map((tile) => {
+              const Icon = tile.icon;
+              return (
+                <li key={tile.href}>
+                  <Link
+                    href={tile.href}
+                    className="soft-card flex h-full items-start gap-3 p-4 outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 sm:flex-col lg:flex-row"
+                  >
+                    <Icon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-brand-green-dark" />
+                    <span className="grid gap-0.5">
+                      <span className="font-heading text-lg font-semibold">{tile.title}</span>
+                      <span className="text-sm text-pretty text-muted-foreground">{tile.text}</span>
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
 
-      <p className="flex items-start gap-2 text-pretty text-muted-foreground">
-        <Mail aria-hidden="true" className="mt-1 size-4 shrink-0" />
-        <span>
-          {t("questions")}{" "}
-          <a
-            href={contactHref}
-            className="rounded-sm font-semibold text-brand-green-dark underline underline-offset-4 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
-          >
-            {data.contactEmail ?? t("contactPage")}
-          </a>
-        </span>
-      </p>
+        <UpcomingList
+          locale={locale}
+          days={data.schoolDays.upcoming.slice(0, 4)}
+          events={events}
+          reported={Object.fromEntries(
+            [...reportedNames].map(([dayId, names]) => [dayId, listFormat.format(names)]),
+          )}
+        />
+
+        <p className="flex items-start gap-2 text-pretty text-muted-foreground">
+          <Mail aria-hidden="true" className="mt-1 size-4 shrink-0" />
+          <span>
+            {t("questions")}{" "}
+            <a
+              href={contactHref}
+              className="rounded-sm font-semibold text-brand-green-dark underline underline-offset-4 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              {data.contactEmail ?? t("contactPage")}
+            </a>
+          </span>
+        </p>
+      </aside>
     </div>
   );
 }

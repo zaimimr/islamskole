@@ -69,10 +69,16 @@ export default async function FamilyPage({ params }: PageProps<"/[locale]/min-si
               {family.display_name}
             </h2>
           </header>
-          <div className="grid divide-y divide-foreground/8">
-            <AddressSection family={family} />
-            <GuardianSection family={family} />
-            <section aria-labelledby={`children-${family.id}`} className="grid gap-3 px-5 py-5 sm:px-6">
+          <div className="grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+            <div className="grid content-start divide-y divide-foreground/8">
+              <AddressSection family={family} />
+              <GuardianSection family={family} />
+              <PickupSection family={family} />
+            </div>
+            <section
+              aria-labelledby={`children-${family.id}`}
+              className="grid content-start gap-3 border-t border-foreground/8 px-5 py-5 sm:px-6 lg:border-t-0 lg:border-l"
+            >
               <h3 id={`children-${family.id}`} className="flex items-center gap-2 font-heading text-lg font-semibold">
                 <Baby aria-hidden="true" className="size-5 text-brand-green-dark" />
                 {t("children.title")}
@@ -87,7 +93,6 @@ export default async function FamilyPage({ params }: PageProps<"/[locale]/min-si
                 <p className="text-muted-foreground">{t("children.none")}</p>
               )}
             </section>
-            <PickupSection family={family} />
           </div>
         </article>
       ))}

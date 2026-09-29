@@ -28,7 +28,7 @@ export async function TeacherHome({ locale }: { locale: string }) {
       {classes.length === 0 ? (
         <p className="text-pretty text-muted-foreground">{tHome("teacherUnassigned")}</p>
       ) : null}
-      <ul className="grid gap-3">
+      <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {classes.map((row, index) => {
           const reported = rosters[index].filter((student) => student.absence_report_id).length;
           return (

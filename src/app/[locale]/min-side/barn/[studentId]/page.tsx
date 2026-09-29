@@ -59,38 +59,40 @@ export default async function ChildDetailPage({
         </p>
       </header>
 
-      <AttendanceYear
-        id="detail-absence"
-        title={t("attendance.title")}
-        historyTitle={t("attendance.historyTitle")}
-        days={yearDays}
-        statusByDate={statusByDate}
-        statusLabel={(status) => t(`status.${status}`)}
-        locale={locale}
-      >
-        <p className="text-pretty">
-          {summary.absent
-            ? t("attendance.absent", { count: summary.absent, term: t(`term.${term}`) })
-            : t("attendance.none", { term: t(`term.${term}`) })}
-          {summary.late ? ` ${t("attendance.late", { count: summary.late })}` : null}
-        </p>
-        <ChildAbsence
-          studentId={child.student_id}
-          classId={child.class_id}
-          childName={child.first_name ?? name}
-          days={options.days}
-          reports={options.reports}
-        />
-      </AttendanceYear>
+      <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
+        <AttendanceYear
+          id="detail-absence"
+          title={t("attendance.title")}
+          historyTitle={t("attendance.historyTitle")}
+          days={yearDays}
+          statusByDate={statusByDate}
+          statusLabel={(status) => t(`status.${status}`)}
+          locale={locale}
+        >
+          <p className="text-pretty">
+            {summary.absent
+              ? t("attendance.absent", { count: summary.absent, term: t(`term.${term}`) })
+              : t("attendance.none", { term: t(`term.${term}`) })}
+            {summary.late ? ` ${t("attendance.late", { count: summary.late })}` : null}
+          </p>
+          <ChildAbsence
+            studentId={child.student_id}
+            classId={child.class_id}
+            childName={child.first_name ?? name}
+            days={options.days}
+            reports={options.reports}
+          />
+        </AttendanceYear>
 
-      <NotesYear
-        id="detail-notes"
-        title={t("note.yearTitle")}
-        empty={t("note.empty")}
-        notes={data.notesByClass.get(child.class_id) ?? []}
-        labels={{ homework: t("note.homework"), summary: t("note.summary") }}
-        locale={locale}
-      />
+        <NotesYear
+          id="detail-notes"
+          title={t("note.yearTitle")}
+          empty={t("note.empty")}
+          notes={data.notesByClass.get(child.class_id) ?? []}
+          labels={{ homework: t("note.homework"), summary: t("note.summary") }}
+          locale={locale}
+        />
+      </div>
     </div>
   );
 }

@@ -17,7 +17,7 @@ export function PortalNav() {
   const pathname = usePathname();
 
   return (
-    <nav aria-label={t("label")} className="mx-auto w-full max-w-3xl px-4 pb-2 sm:px-6">
+    <nav aria-label={t("label")} className="mx-auto w-full max-w-6xl px-4 pb-2 sm:px-6">
       <ul className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
         {ITEMS.map((item) => {
           const Icon = item.icon;

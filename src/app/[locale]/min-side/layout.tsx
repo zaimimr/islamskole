@@ -36,7 +36,7 @@ export default async function PortalLayout({
   return (
     <div data-portal-shell className="flex min-h-dvh flex-col bg-background">
       <header className="sticky top-0 z-40 border-b border-foreground/8 bg-background/90 supports-backdrop-filter:backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-2 sm:px-6">
+        <div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 py-2 sm:px-6">
           <Logo priority className="mr-auto" />
           <LocaleSwitcher />
           {isAdmin ? (
@@ -60,13 +60,13 @@ export default async function PortalLayout({
           ) : null}
         </div>
         {user ? (
-          <p className="mx-auto w-full max-w-3xl truncate px-4 pb-2 text-sm text-muted-foreground sm:hidden">
+          <p className="mx-auto w-full max-w-6xl truncate px-4 pb-2 text-sm text-muted-foreground sm:hidden">
             {t("signedInAs")} <span className="font-semibold text-foreground">{user.email}</span>
           </p>
         ) : null}
         {context.isGuardian ? <PortalNav /> : null}
       </header>
-      <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
+      <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
         {children}
       </div>
     </div>
