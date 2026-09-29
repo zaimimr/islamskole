@@ -39,7 +39,7 @@ export function SiteHeader() {
   return (
     <header className="site-header sticky top-0 z-50 border-b border-foreground/8 bg-background/85 backdrop-blur-md">
       <div className="section-shell flex h-18 items-center justify-between gap-4 py-3">
-        <Logo priority />
+        <Logo priority className="shrink-0" />
 
         <nav aria-label={t("menu")} className="hidden lg:block">
           <ul className="flex items-center gap-1">
@@ -51,7 +51,7 @@ export function SiteHeader() {
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "relative rounded-full px-4 py-2 text-[0.95rem] font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                      "relative rounded-full px-3 py-2 text-[0.95rem] font-semibold whitespace-nowrap xl:px-4 transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
                       active
                         ? "bg-primary/12 text-brand-green-dark"
                         : "text-foreground/75 hover:bg-muted hover:text-foreground",
@@ -69,14 +69,14 @@ export function SiteHeader() {
           <Link
             href="/min-side/logg-inn"
             title={t("admin")}
-            className="hidden min-h-11 items-center justify-center gap-1.5 rounded-full px-3 text-[0.95rem] font-semibold whitespace-nowrap text-foreground/70 transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 sm:inline-flex lg:size-11 lg:px-0"
+            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-3 text-[0.95rem] font-semibold whitespace-nowrap text-foreground/80 ring-1 ring-foreground/10 transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 lg:max-xl:size-11 lg:max-xl:px-0"
           >
             <CircleUserRound aria-hidden="true" className="size-4.5 lg:size-5" />
-            <span className="lg:sr-only">{t("admin")}</span>
+            <span className="lg:max-xl:sr-only">{t("admin")}</span>
           </Link>
           <Link
             href="/pamelding"
-            className="btn-pill-primary hidden lg:inline-flex"
+            className="btn-pill-primary hidden whitespace-nowrap lg:inline-flex"
           >
             {t("enrollCta")}
           </Link>

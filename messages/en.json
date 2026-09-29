@@ -9,7 +9,7 @@
     "teacher": "Become a teacher",
     "contact": "Contact",
     "admin": "Log in",
-    "dashboard": "Dashboard",
+    "dashboard": "My page",
     "menu": "Menu",
     "menuDescription": "Navigate the site",
     "localeLabel": "Language",
@@ -444,7 +444,7 @@
     "signedInAs": "Signed in as",
     "login": {
       "title": "Sign in to My page",
-      "intro": "For parents and guardians, teachers, students and administrators. Enter the email address the school has registered for you and we will send you a sign-in link. No password needed.",
+      "intro": "For parents and guardians, teachers, students and administrators. Enter the email address the school has registered for you and we will send you a sign-in link. No password needed. Children without their own email sign in with a parent's email.",
       "emailLabel": "Email",
       "submit": "Send sign-in link",
       "sentTitle": "Check your email",
