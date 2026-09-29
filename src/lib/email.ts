@@ -13,6 +13,7 @@ export type EmailLang = "no" | "en";
 const STRINGS = {
   no: {
     footer: "Sendt automatisk fra islamskole.no",
+    fallback: "Virker ikke knappen? Kopier denne lenken inn i nettleseren:",
     rows: {
       student: "Elev",
       class: "Klasse",
@@ -91,9 +92,9 @@ const STRINGS = {
     loginLink: {
       subject: "Logg inn på Min side",
       badge: "Innlogging",
-      title: "Din innloggingslenke",
-      intro:
-        "Hei, trykk på knappen for å logge inn på Min side hos Islamskole Bærum. Lenken virker én gang og går ut etter en time. Har du ikke bedt om den, kan du se bort fra denne e-posten.",
+      title: "Logg inn på Min side",
+      intro: "Hei! Trykk på knappen under for å logge inn hos Islamskole Bærum.",
+      note: "Lenken virker én gang og går ut etter en time. Har du ikke bedt om den, kan du trygt se bort fra denne e-posten.",
       cta: "Logg inn",
     },
     teacherConfirmation: {
@@ -106,6 +107,7 @@ const STRINGS = {
   },
   en: {
     footer: "Sent automatically from islamskole.no",
+    fallback: "Button not working? Copy this link into your browser:",
     rows: {
       student: "Student",
       class: "Class",
@@ -184,9 +186,9 @@ const STRINGS = {
     loginLink: {
       subject: "Sign in to My page",
       badge: "Sign in",
-      title: "Your sign-in link",
-      intro:
-        "Hi, tap the button to sign in to My page at Islamskole Bærum. The link works once and expires after one hour. If you did not ask for it, you can ignore this email.",
+      title: "Sign in to My page",
+      intro: "Hi! Tap the button below to sign in to Islamskole Bærum.",
+      note: "The link works once and expires after one hour. If you did not ask for it, you can safely ignore this email.",
       cta: "Sign in",
     },
     teacherConfirmation: {
@@ -218,49 +220,103 @@ function escapeHtml(value: string) {
 
 type Row = [label: string, value: string | null | undefined];
 
+type Cta = { label: string; url: string; tone?: "vipps" };
+
+const SITE = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.islamskole.no").replace(/\/$/, "");
+
+const HEADING_FONT = "'Fredoka','Nunito',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+const BODY_FONT = "'Nunito',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
 function renderEmail(opts: {
   lang: EmailLang;
   badge: string;
   title: string;
   intro: string;
   rows: Row[];
-  cta?: { label: string; url: string };
+  note?: string;
+  cta?: Cta;
 }) {
+  const t = strings(opts.lang);
+  const ctaColor = opts.cta?.tone === "vipps" ? "#ff5b24" : "#317b33";
   const cta = opts.cta
-    ? `<div style="padding:8px 0 4px;">
-          <a href="${escapeHtml(opts.cta.url)}" style="display:inline-block;background:#ff5b24;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:12px 24px;border-radius:999px;">${escapeHtml(opts.cta.label)}</a>
-        </div>`
+    ? `<tr><td style="padding:8px 0 0;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="border-radius:999px;background:${ctaColor};">
+            <a href="${escapeHtml(opts.cta.url)}" style="display:inline-block;padding:14px 32px;font-family:${BODY_FONT};font-size:16px;font-weight:800;line-height:20px;color:#ffffff;text-decoration:none;border-radius:999px;">${escapeHtml(opts.cta.label)}</a>
+          </td></tr></table>
+        </td></tr>
+        <tr><td style="padding:20px 0 0;font-family:${BODY_FONT};font-size:13px;line-height:20px;color:#5f6d61;">
+          ${escapeHtml(t.fallback)}<br>
+          <a href="${escapeHtml(opts.cta.url)}" style="color:#317b33;word-break:break-all;">${escapeHtml(opts.cta.url)}</a>
+        </td></tr>`
     : "";
-  const rows = opts.rows
-    .filter(([, value]) => value != null && String(value).trim() !== "")
-    .map(
-      ([label, value]) => `
-        <tr>
-          <td style="padding:10px 16px;border-bottom:1px solid #e7eee0;color:#5b6b53;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;width:38%;vertical-align:top;">${escapeHtml(label)}</td>
-          <td style="padding:10px 16px;border-bottom:1px solid #e7eee0;color:#24331d;font-size:15px;vertical-align:top;white-space:pre-line;">${escapeHtml(String(value))}</td>
-        </tr>`,
-    )
-    .join("");
+  const visibleRows = opts.rows.filter(
+    ([, value]) => value != null && String(value).trim() !== "",
+  );
+  const rows = visibleRows.length
+    ? `<tr><td style="padding:0 0 ${opts.cta || opts.note ? 24 : 0}px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;border:1px solid #dae1d3;border-radius:14px;">
+            ${visibleRows
+              .map(
+                ([label, value], index) => `
+            <tr>
+              <td style="padding:12px 16px;${index ? "border-top:1px solid #dae1d3;" : ""}font-family:${BODY_FONT};font-size:13px;font-weight:700;color:#5f6d61;width:40%;vertical-align:top;">${escapeHtml(label)}</td>
+              <td style="padding:12px 16px;${index ? "border-top:1px solid #dae1d3;" : ""}font-family:${BODY_FONT};font-size:15px;color:#19221a;vertical-align:top;white-space:pre-line;">${escapeHtml(String(value))}</td>
+            </tr>`,
+              )
+              .join("")}
+          </table>
+        </td></tr>`
+    : "";
+  const note = opts.note
+    ? `<tr><td style="padding:24px 0 0;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+            <td style="padding:14px 16px;background:#eff4eb;border-radius:12px;font-family:${BODY_FONT};font-size:14px;line-height:21px;color:#3d4a3f;">${escapeHtml(opts.note)}</td>
+          </tr></table>
+        </td></tr>`
+    : "";
 
   return `<!doctype html>
 <html lang="${opts.lang}">
-  <body style="margin:0;background:#f3f6ee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-    <div style="max-width:600px;margin:0 auto;padding:24px;">
-      <div style="background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #e7eee0;">
-        <div style="background:#4e9d3f;padding:22px 28px;">
-          <div style="display:inline-block;background:#f6c544;color:#3a2e00;font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;letter-spacing:.04em;text-transform:uppercase;">${escapeHtml(opts.badge)}</div>
-          <h1 style="margin:12px 0 0;color:#ffffff;font-size:22px;">${escapeHtml(opts.title)}</h1>
-        </div>
-        <div style="padding:24px 28px;">
-          <p style="margin:0 0 18px;color:#5b6b53;font-size:15px;">${escapeHtml(opts.intro)}</p>
-          <table style="width:100%;border-collapse:collapse;border:1px solid #e7eee0;border-radius:12px;overflow:hidden;">${rows}</table>
-          ${cta}
-        </div>
-        <div style="padding:16px 28px;background:#f8faf4;color:#7d8a73;font-size:12px;">
-          ${escapeHtml(strings(opts.lang).footer)}
-        </div>
-      </div>
-    </div>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="supported-color-schemes" content="light">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+    <title>${escapeHtml(opts.title)}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#fdfaf0;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${escapeHtml(opts.intro)}</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fdfaf0;">
+      <tr><td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
+          <tr><td align="center" style="padding:0 0 24px;">
+            <a href="${SITE}" style="text-decoration:none;"><img src="${SITE}/brand/logo.png" width="140" height="57" alt="Islamskole Bærum" style="display:block;border:0;width:140px;height:auto;"></a>
+          </td></tr>
+          <tr><td style="background:#ffffff;border:1px solid #dae1d3;border-radius:20px;overflow:hidden;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr><td style="height:6px;line-height:6px;font-size:0;background:#4daa4b;">&nbsp;</td></tr>
+              <tr><td style="padding:32px 32px 36px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr><td style="padding:0 0 12px;">
+                    <span style="display:inline-block;padding:4px 12px;border-radius:999px;background:#f9e6bb;color:#513716;font-family:${BODY_FONT};font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;">${escapeHtml(opts.badge)}</span>
+                  </td></tr>
+                  <tr><td style="padding:0 0 12px;font-family:${HEADING_FONT};font-size:28px;line-height:34px;font-weight:600;color:#19221a;">${escapeHtml(opts.title)}</td></tr>
+                  <tr><td style="padding:0 0 24px;font-family:${BODY_FONT};font-size:16px;line-height:25px;color:#3d4a3f;">${escapeHtml(opts.intro)}</td></tr>
+                  ${rows}
+                  ${cta}
+                  ${note}
+                </table>
+              </td></tr>
+            </table>
+          </td></tr>
+          <tr><td align="center" style="padding:24px 16px 0;font-family:${BODY_FONT};font-size:12px;line-height:18px;color:#5f6d61;">
+            Islamskole Bærum &middot; <a href="${SITE}" style="color:#5f6d61;">islamskole.no</a><br>
+            ${escapeHtml(t.footer)}
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
   </body>
 </html>`;
 }
@@ -269,7 +325,8 @@ function renderText(opts: {
   title: string;
   intro: string;
   rows: Row[];
-  cta?: { label: string; url: string };
+  note?: string;
+  cta?: Cta;
 }) {
   return [
     opts.title,
@@ -278,6 +335,7 @@ function renderText(opts: {
       .filter(([, value]) => value != null && String(value).trim() !== "")
       .map(([label, value]) => `${label}: ${value}`),
     opts.cta ? `${opts.cta.label}: ${opts.cta.url}` : null,
+    opts.note ?? null,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -309,7 +367,8 @@ async function send(opts: {
   title: string;
   intro: string;
   rows: Row[];
-  cta?: { label: string; url: string };
+  note?: string;
+  cta?: Cta;
 }) {
   const html = renderEmail({
     lang: opts.lang,
@@ -317,6 +376,7 @@ async function send(opts: {
     title: opts.title,
     intro: opts.intro,
     rows: opts.rows,
+    note: opts.note,
     cta: opts.cta,
   });
   const outbox = process.env.EMAIL_OUTBOX_DIR;
@@ -391,7 +451,7 @@ export async function sendPaymentLinkEmail(opts: {
     badge: t.paymentLink.badge,
     title: t.paymentLink.title,
     intro: t.paymentLink.intro(names),
-    cta: { label: t.paymentLink.cta, url: opts.url },
+    cta: { label: t.paymentLink.cta, url: opts.url, tone: "vipps" },
     rows: [
       ...(several
         ? opts.children.map((child): Row => [child.name, formatNok(child.amount)])
@@ -431,7 +491,7 @@ export async function sendInstallmentEmail(opts: {
     badge: t.installment.badge,
     title: t.installment.title,
     intro: t.installment.intro(childNames),
-    cta: { label: t.installment.cta, url: opts.url },
+    cta: { label: t.installment.cta, url: opts.url, tone: "vipps" },
     rows: [
       ...opts.children.map(
         (child): Row => [child.name, formatNok(child.amount)],
@@ -614,6 +674,7 @@ export async function sendLoginLinkEmail(opts: {
     badge: t.loginLink.badge,
     title: t.loginLink.title,
     intro: t.loginLink.intro,
+    note: t.loginLink.note,
     cta: { label: t.loginLink.cta, url: opts.url },
     rows: [],
   });
