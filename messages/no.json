@@ -471,8 +471,7 @@
       "empty": "Vi fant ingen barn eller klasser knyttet til {email}. Ta kontakt med skolen, så kobler vi e-posten din til riktig familie.",
       "contact": "Kontakt skolen",
       "adminLink": "Til administrasjonen",
-      "teacherUnassignedTitle": "Du er registrert som lærer",
-      "teacherUnassigned": "Du er registrert som lærer, men er ikke satt opp i en klasse ennå. Skolen gir beskjed når du har fått en klasse."
+      "teacherUnassigned": "Du er registrert som lærer, men er ikke satt opp i en klasse ennå. Du kan likevel være vikar i en klasse under."
     },
     "student": {
       "title": "Min skole",
@@ -532,6 +531,17 @@
       "previous": {
         "title": "Tidligere notater",
         "empty": "Ingen tidligere notater ennå."
+      },
+      "backToAdmin": "Tilbake til klassen i admin",
+      "substitute": {
+        "title": "Vikar i en annen klasse",
+        "intro": "Skal du ta over en klasse for en annen lærer? Velg klassen, så får du tilgang til oppmøte og notater i 7 dager.",
+        "classLabel": "Klasse",
+        "placeholder": "Velg klasse",
+        "start": "Bli vikar",
+        "end": "Avslutt vikartilgang",
+        "badge": "Vikar til og med {date}",
+        "notice": "Du er vikar i denne klassen til og med {date}."
       }
     },
     "common": {

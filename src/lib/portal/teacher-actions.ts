@@ -39,3 +39,36 @@ export async function deleteClassNote(
   revalidatePath("/[locale]/min-side", "layout");
   return { ok: true };
 }
+
+export async function startSubstitute(classId: string): Promise<PortalActionResult> {
+  if (!uuid.safeParse(classId).success) return { ok: false, error: "invalid" };
+  const context = await getPortalContext();
+  if (!context.user) return { ok: false, error: "unauthenticated" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("portal_start_substitute", { p_class_id: classId });
+  if (error) return { ok: false, error: error.code === "42501" ? "forbidden" : "unknown" };
+
+  await writeAudit({
+    action: "class_substitute.start",
+    entityType: "class",
+    entityId: classId,
+    metadata: { until: data },
+  });
+  revalidatePath("/[locale]/min-side", "layout");
+  return { ok: true };
+}
+
+export async function endSubstitute(classId: string): Promise<PortalActionResult> {
+  if (!uuid.safeParse(classId).success) return { ok: false, error: "invalid" };
+  const context = await getPortalContext();
+  if (!context.user) return { ok: false, error: "unauthenticated" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("portal_end_substitute", { p_class_id: classId });
+  if (error) return { ok: false, error: "unknown" };
+
+  await writeAudit({ action: "class_substitute.end", entityType: "class", entityId: classId });
+  revalidatePath("/[locale]/min-side", "layout");
+  return { ok: true };
+}

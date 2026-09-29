@@ -2,14 +2,16 @@ import { getTranslations } from "next-intl/server";
 import { CalendarDays, ChevronRight, Users } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { osloToday } from "@/lib/dates";
-import { getClassRoster, getMyClasses, getSchoolDays } from "@/lib/portal/data";
+import { getClassRoster, getMyClasses, getSchoolDays, getSubstituteOptions } from "@/lib/portal/data";
 import { capitalize, defaultSchoolDay, formatSchoolDay } from "@/lib/portal/teacher-days";
+import { SubstitutePicker } from "@/components/portal/teacher/substitute-picker";
 
 export async function TeacherHome({ locale }: { locale: string }) {
-  const [t, tHome, classes] = await Promise.all([
+  const [t, tHome, classes, substituteOptions] = await Promise.all([
     getTranslations({ locale, namespace: "portal.teacher" }),
     getTranslations({ locale, namespace: "portal.home" }),
     getMyClasses(),
+    getSubstituteOptions(),
   ]);
   const days = await getSchoolDays(classes[0]?.school_year_id);
   const nextDay = defaultSchoolDay({ ...days, past: [] });
@@ -23,6 +25,9 @@ export async function TeacherHome({ locale }: { locale: string }) {
       <h2 id="teacher-home-title" className="text-2xl font-bold">
         {tHome("teacherTitle")}
       </h2>
+      {classes.length === 0 ? (
+        <p className="text-pretty text-muted-foreground">{tHome("teacherUnassigned")}</p>
+      ) : null}
       <ul className="grid gap-3">
         {classes.map((row, index) => {
           const reported = rosters[index].filter((student) => student.absence_report_id).length;
@@ -34,8 +39,13 @@ export async function TeacherHome({ locale }: { locale: string }) {
               >
                 <div className="flex items-start gap-3">
                   <div className="grid min-w-0 flex-1 gap-0.5">
-                    <p className="font-heading text-xl font-semibold">
+                    <p className="flex flex-wrap items-center gap-2 font-heading text-xl font-semibold">
                       {locale === "en" ? row.name_en : row.name_no}
+                      {row.substitute_until ? (
+                        <span className="rounded-full bg-secondary px-2.5 py-0.5 font-sans text-xs font-semibold text-secondary-foreground">
+                          {t("substitute.badge", { date: formatSchoolDay(row.substitute_until, locale) })}
+                        </span>
+                      ) : null}
                     </p>
                     <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
                       <Users aria-hidden="true" className="size-4 shrink-0" />
@@ -73,6 +83,14 @@ export async function TeacherHome({ locale }: { locale: string }) {
           );
         })}
       </ul>
+      {substituteOptions.length ? (
+        <SubstitutePicker
+          options={substituteOptions.map((option) => ({
+            value: option.class_id,
+            label: `${locale === "en" ? option.name_en : option.name_no} (${t("students", { count: option.student_count })})`,
+          }))}
+        />
+      ) : null}
     </section>
   );
 }

@@ -20,6 +20,7 @@ import type {
   PortalSchoolDays,
   PortalSelf,
   PortalSelfNote,
+  PortalSubstituteOption,
 } from "@/lib/portal/types";
 
 function referenceYear(label: string | null | undefined): number {
@@ -55,6 +56,18 @@ export const getMyClasses = cache(async (): Promise<PortalClass[]> => {
   const { data, error } = await supabase.rpc("portal_my_classes");
   if (error) {
     console.error("portal_my_classes failed", error);
+    return [];
+  }
+  return data ?? [];
+});
+
+export const getSubstituteOptions = cache(async (): Promise<PortalSubstituteOption[]> => {
+  const user = await getUser();
+  if (!user) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("portal_substitute_options");
+  if (error) {
+    console.error("portal_substitute_options failed", error);
     return [];
   }
   return data ?? [];
@@ -105,6 +118,7 @@ export async function getClassForAdmin(classId: string): Promise<PortalClass | n
     school_year_label: year.label,
     role: "admin",
     student_count: count ?? 0,
+    substitute_until: null,
   };
 }
 

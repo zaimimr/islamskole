@@ -227,6 +227,30 @@ export type Database = {
           },
         ]
       }
+      class_substitutes: {
+        Row: {
+          class_id: string
+          created_at: string
+          guardian_id: string
+          school_year_id: string
+          until: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          guardian_id: string
+          school_year_id: string
+          until: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          guardian_id?: string
+          school_year_id?: string
+          until?: string
+        }
+        Relationships: []
+      }
       class_teachers: {
         Row: {
           class_id: string
@@ -2322,7 +2346,19 @@ export type Database = {
         Args: { p_class_id: string }
         Returns: boolean
       }
+      portal_end_substitute: { Args: { p_class_id: string }; Returns: undefined }
+      portal_is_substitute_of: { Args: { p_class_id: string }; Returns: boolean }
       portal_is_teacher_of: { Args: { p_class_id: string }; Returns: boolean }
+      portal_start_substitute: { Args: { p_class_id: string }; Returns: string }
+      portal_substitute_options: {
+        Args: never
+        Returns: {
+          class_id: string
+          name_en: string
+          name_no: string
+          student_count: number
+        }[]
+      }
       portal_is_uncancelled_day: {
         Args: { p_school_day_id: string }
         Returns: boolean
@@ -2357,6 +2393,7 @@ export type Database = {
           school_year_id: string
           school_year_label: string
           student_count: number
+          substitute_until: string | null
         }[]
       }
       portal_my_self: {

@@ -1,10 +1,13 @@
+import NextLink from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { ArrowLeft, CalendarX, Info } from "lucide-react";
+import { ArrowLeft, CalendarX, Info, UserRoundCheck } from "lucide-react";
+import { adminBasePath } from "@/components/admin/paths";
 import { Link, redirect } from "@/i18n/navigation";
 import { AttendanceRoster } from "@/components/portal/teacher/attendance-roster";
 import { ClassNoteEditor } from "@/components/portal/teacher/class-note-editor";
 import { DaySwitcher } from "@/components/portal/teacher/day-switcher";
+import { EndSubstituteButton } from "@/components/portal/teacher/end-substitute-button";
 import { osloToday } from "@/lib/dates";
 import {
   getClassForAdmin,
@@ -22,6 +25,9 @@ import {
   formatSchoolDay,
 } from "@/lib/portal/teacher-days";
 import { getClassNoteForDay } from "@/lib/portal/teacher-notes";
+
+const backLinkClass =
+  "inline-flex min-h-11 w-fit items-center gap-1.5 rounded-lg pr-2 text-sm font-semibold text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50";
 
 export default async function TeacherClassPage({
   params,
@@ -65,19 +71,38 @@ export default async function TeacherClassPage({
   return (
     <div className="grid gap-8">
       <div className="grid gap-3">
-        <Link
-          href={context.isGuardian ? "/min-side?fane=klasse" : "/min-side"}
-          className="inline-flex min-h-11 w-fit items-center gap-1.5 rounded-lg pr-2 text-sm font-semibold text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
-        >
-          <ArrowLeft aria-hidden="true" className="size-4" />
-          {t("back")}
-        </Link>
+        {current.role === "admin" ? (
+          <NextLink
+            href={`${adminBasePath(locale)}/klasser/${classId}`}
+            className={backLinkClass}
+          >
+            <ArrowLeft aria-hidden="true" className="size-4" />
+            {t("backToAdmin")}
+          </NextLink>
+        ) : (
+          <Link
+            href={context.isGuardian ? "/min-side?fane=klasse" : "/min-side"}
+            className={backLinkClass}
+          >
+            <ArrowLeft aria-hidden="true" className="size-4" />
+            {t("back")}
+          </Link>
+        )}
         <div className="grid gap-1">
           <h1 className="text-3xl font-bold text-balance">{className}</h1>
           <p className="text-muted-foreground">
             {t("students", { count: current.student_count })} · {current.school_year_label}
           </p>
         </div>
+        {current.substitute_until ? (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-secondary p-3 text-sm text-secondary-foreground">
+            <p className="flex min-w-0 flex-1 gap-2">
+              <UserRoundCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+              {t("substitute.notice", { date: formatSchoolDay(current.substitute_until, locale) })}
+            </p>
+            <EndSubstituteButton classId={classId} />
+          </div>
+        ) : null}
       </div>
 
       {day ? (

@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ChevronDown, Mail, Phone, UsersRound } from "lucide-react";
+import { ArrowLeft, ChevronDown, ClipboardCheck, Mail, Phone, UsersRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { adminBasePath } from "@/components/admin/paths";
+import { adminBasePath, localePrefix } from "@/components/admin/paths";
+import { buttonVariants } from "@/components/ui/button";
 import { ClassForm, type ClassRecord } from "@/components/admin/class-form";
 import { ageInYear, schoolYearStart } from "@/lib/age";
 import { formatNok } from "@/lib/money";
@@ -376,6 +377,15 @@ export default async function KlassePage({
             ? `Elevliste for ${activeYear.label}`
             : "Velg et aktivt skoleår for å se elevlisten."}
         </p>
+        {activeYear ? (
+          <Link
+            href={`${localePrefix(locale)}/min-side/klasse/${id}`}
+            className={cn(buttonVariants({ variant: "outline" }), "mt-4 print:hidden")}
+          >
+            <ClipboardCheck aria-hidden="true" />
+            Oppmøte og notater
+          </Link>
+        ) : null}
       </header>
 
       <nav

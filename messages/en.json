@@ -471,8 +471,7 @@
       "empty": "We found no children or classes linked to {email}. Contact the school and we will link your email to the right family.",
       "contact": "Contact the school",
       "adminLink": "Go to administration",
-      "teacherUnassignedTitle": "You are registered as a teacher",
-      "teacherUnassigned": "You are registered as a teacher, but you are not assigned to a class yet. The school will let you know when you have a class."
+      "teacherUnassigned": "You are registered as a teacher, but you are not assigned to a class yet. You can still substitute in a class below."
     },
     "student": {
       "title": "My school",
@@ -532,6 +531,17 @@
       "previous": {
         "title": "Earlier notes",
         "empty": "No earlier notes yet."
+      },
+      "backToAdmin": "Back to the class in admin",
+      "substitute": {
+        "title": "Substitute in another class",
+        "intro": "Covering a class for another teacher? Pick the class and you get access to attendance and notes for 7 days.",
+        "classLabel": "Class",
+        "placeholder": "Choose class",
+        "start": "Become substitute",
+        "end": "End substitute access",
+        "badge": "Substitute until {date}",
+        "notice": "You are substitute in this class until {date}."
       }
     },
     "common": {

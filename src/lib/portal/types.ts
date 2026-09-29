@@ -68,6 +68,14 @@ export type PortalClass = {
   school_year_label: string;
   role: string;
   student_count: number;
+  substitute_until: string | null;
+};
+
+export type PortalSubstituteOption = {
+  class_id: string;
+  name_no: string;
+  name_en: string;
+  student_count: number;
 };
 
 export type PortalRosterRow = {

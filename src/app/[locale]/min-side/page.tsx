@@ -23,13 +23,13 @@ export default async function PortalHomePage({
   ]);
   if (!context.user) redirect({ href: "/min-side/logg-inn", locale });
 
-  const hasRole = context.isGuardian || context.isTeacher || context.isStudent;
-  const unassignedTeacher = !hasRole && (await isRegisteredTeacher());
+  const isTeacher = context.isTeacher || (await isRegisteredTeacher());
+  const hasRole = context.isGuardian || isTeacher || context.isStudent;
 
   return (
     <div className="grid gap-8">
       <h1 className="sr-only">{t("title")}</h1>
-      {context.isTeacher && context.isGuardian ? (
+      {isTeacher && context.isGuardian ? (
         <PortalTabs
           defaultTab={query.fane === "klasse" ? "klasse" : "barn"}
           parentLabel={t("parentTitle")}
@@ -38,18 +38,16 @@ export default async function PortalHomePage({
           teacher={<TeacherHome locale={locale} />}
         />
       ) : null}
-      {context.isTeacher && !context.isGuardian ? <TeacherHome locale={locale} /> : null}
-      {context.isGuardian && !context.isTeacher ? <ParentHome locale={locale} /> : null}
+      {isTeacher && !context.isGuardian ? <TeacherHome locale={locale} /> : null}
+      {context.isGuardian && !isTeacher ? <ParentHome locale={locale} /> : null}
       {context.isStudent ? <StudentHome locale={locale} /> : null}
       {!hasRole ? (
         <div className="soft-card grid gap-4 p-6 sm:p-8">
           <h2 className="font-heading text-2xl font-semibold text-balance">
-            {unassignedTeacher ? t("teacherUnassignedTitle") : t("emptyTitle")}
+            {t("emptyTitle")}
           </h2>
           <p className="text-pretty text-muted-foreground">
-            {unassignedTeacher
-              ? t("teacherUnassigned")
-              : t("empty", { email: context.email ?? "" })}
+            {t("empty", { email: context.email ?? "" })}
           </p>
           {settings?.contact_email ? (
             <p className="text-pretty">
