@@ -1294,6 +1294,24 @@ export type Database = {
           },
         ]
       }
+      portal_login_throttle: {
+        Row: {
+          hits: number
+          key: string
+          window_start: string
+        }
+        Insert: {
+          hits?: number
+          key: string
+          window_start?: string
+        }
+        Update: {
+          hits?: number
+          key?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -2225,6 +2243,18 @@ export type Database = {
       }
     }
     Functions: {
+      admin_merge_families: {
+        Args: { p_keep: string; p_merge: string }
+        Returns: undefined
+      }
+      admin_move_student_to_family: {
+        Args: { p_family_id: string; p_student_id: string }
+        Returns: undefined
+      }
+      admin_remove_guardian_from_family: {
+        Args: { p_family_id: string; p_guardian_id: string }
+        Returns: string
+      }
       create_manual_family_student: {
         Args: { p_student: Json }
         Returns: string
@@ -2252,6 +2282,10 @@ export type Database = {
         Args: { p_school_day_id: string; p_student_id: string }
         Returns: boolean
       }
+      portal_can_write_attendance: {
+        Args: { p_school_day_id: string; p_student_id: string }
+        Returns: boolean
+      }
       portal_class_roster: {
         Args: { p_class_id: string; p_school_day_id: string }
         Returns: {
@@ -2267,6 +2301,10 @@ export type Database = {
         }[]
       }
       portal_guardian_ids: { Args: never; Returns: string[] }
+      portal_is_active_year_day: {
+        Args: { p_school_day_id: string }
+        Returns: boolean
+      }
       portal_is_guardian_in_class: {
         Args: { p_class_id: string }
         Returns: boolean
@@ -2279,7 +2317,15 @@ export type Database = {
         Args: { p_school_day_id: string }
         Returns: boolean
       }
+      portal_is_student_in_class: {
+        Args: { p_class_id: string }
+        Returns: boolean
+      }
       portal_is_teacher_of: { Args: { p_class_id: string }; Returns: boolean }
+      portal_is_uncancelled_day: {
+        Args: { p_school_day_id: string }
+        Returns: boolean
+      }
       portal_login_hit: {
         Args: { p_key: string; p_limit: number; p_window_seconds: number }
         Returns: boolean
@@ -2312,6 +2358,24 @@ export type Database = {
           student_count: number
         }[]
       }
+      portal_my_self: {
+        Args: never
+        Returns: {
+          attendance: Json
+          birth_date: string
+          class_id: string
+          class_name_en: string
+          class_name_no: string
+          first_name: string
+          last_name: string
+          notes: Json
+          school_year_id: string
+          school_year_label: string
+          student_id: string
+          teachers: Json
+        }[]
+      }
+      portal_student_ids: { Args: never; Returns: string[] }
       portal_teaches_student: {
         Args: { p_student_id: string }
         Returns: boolean
@@ -2472,3 +2536,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
