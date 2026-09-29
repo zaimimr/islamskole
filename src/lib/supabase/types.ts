@@ -566,6 +566,66 @@ export type Database = {
           },
         ]
       }
+      family_pickup_persons: {
+        Row: {
+          created_at: string
+          family_id: string
+          id: string
+          name: string
+          phone: string | null
+          relation: string | null
+        }
+        Insert: {
+          created_at?: string
+          family_id: string
+          id?: string
+          name: string
+          phone?: string | null
+          relation?: string | null
+        }
+        Update: {
+          created_at?: string
+          family_id?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          relation?: string | null
+        }
+        Relationships: []
+      }
+      guardian_email_changes: {
+        Row: {
+          confirmed_at: string | null
+          created_at: string
+          expires_at: string
+          guardian_id: string
+          id: string
+          new_email: string
+          requested_by: string | null
+          token_hash: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          created_at?: string
+          expires_at: string
+          guardian_id: string
+          id?: string
+          new_email: string
+          requested_by?: string | null
+          token_hash: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          guardian_id?: string
+          id?: string
+          new_email?: string
+          requested_by?: string | null
+          token_hash?: string
+        }
+        Relationships: []
+      }
       family_guardians: {
         Row: {
           created_at: string
@@ -2005,6 +2065,12 @@ export type Database = {
       students: {
         Row: {
           application_id: string | null
+          allergies: string | null
+          medical_notes: string | null
+          photo_consent: boolean | null
+          health_updated_at: string | null
+          continues_next_year: boolean | null
+          continues_answered_at: string | null
           child_address: string | null
           child_birth_date: string | null
           child_city: string | null
@@ -2033,6 +2099,12 @@ export type Database = {
         }
         Insert: {
           application_id?: string | null
+          allergies?: string | null
+          medical_notes?: string | null
+          photo_consent?: boolean | null
+          health_updated_at?: string | null
+          continues_next_year?: boolean | null
+          continues_answered_at?: string | null
           child_address?: string | null
           child_birth_date?: string | null
           child_city?: string | null
@@ -2061,6 +2133,12 @@ export type Database = {
         }
         Update: {
           application_id?: string | null
+          allergies?: string | null
+          medical_notes?: string | null
+          photo_consent?: boolean | null
+          health_updated_at?: string | null
+          continues_next_year?: boolean | null
+          continues_answered_at?: string | null
           child_address?: string | null
           child_birth_date?: string | null
           child_city?: string | null
@@ -2311,6 +2389,46 @@ export type Database = {
         Args: { p_school_day_id: string; p_student_id: string }
         Returns: boolean
       }
+      portal_add_guardian: {
+        Args: {
+          p_family_id: string
+          p_first_name: string
+          p_last_name: string
+          p_phone: string
+          p_relationship_label: string
+        }
+        Returns: string
+      }
+      portal_add_pickup: {
+        Args: { p_family_id: string; p_name: string; p_phone: string; p_relation: string }
+        Returns: string
+      }
+      portal_can_edit_guardian: { Args: { p_guardian_id: string }; Returns: boolean }
+      portal_can_edit_student: { Args: { p_student_id: string }; Returns: boolean }
+      portal_my_families: { Args: never; Returns: Json }
+      portal_my_family_ids: { Args: never; Returns: string[] }
+      portal_remove_pickup: { Args: { p_id: string }; Returns: undefined }
+      portal_set_continues: {
+        Args: { p_continues: boolean | null; p_student_id: string }
+        Returns: undefined
+      }
+      portal_update_child_health: {
+        Args: {
+          p_allergies: string | null
+          p_medical_notes: string | null
+          p_photo_consent: boolean | null
+          p_student_id: string
+        }
+        Returns: undefined
+      }
+      portal_update_family_address: {
+        Args: { p_address: string; p_city: string; p_family_id: string; p_postal_code: string }
+        Returns: undefined
+      }
+      portal_update_guardian: {
+        Args: { p_first_name: string; p_guardian_id: string; p_last_name: string; p_phone: string }
+        Returns: undefined
+      }
       portal_class_roster: {
         Args: { p_class_id: string; p_school_day_id: string }
         Returns: {
@@ -2320,8 +2438,12 @@ export type Database = {
           attendance_status: string
           birth_date: string
           first_name: string
+          allergies: string | null
           guardians: Json
           last_name: string
+          medical_notes: string | null
+          photo_consent: boolean | null
+          pickup: Json
           student_id: string
         }[]
       }
