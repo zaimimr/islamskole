@@ -195,11 +195,57 @@ export async function studentNames(
 
 export type BatchSendOutcome = "sent" | "skipped";
 
+async function withdrawnStudents(
+  client: Client,
+  studentIds: string[],
+  schoolYearId: string,
+): Promise<Set<string>> {
+  if (studentIds.length === 0) return new Set();
+  const { data } = await client
+    .from("enrollments")
+    .select("student_id, status")
+    .eq("school_year_id", schoolYearId)
+    .in("student_id", studentIds);
+  const active = new Set(
+    (data ?? [])
+      .filter((row) => row.status === "aktiv")
+      .map((row) => row.student_id),
+  );
+  return new Set(
+    (data ?? [])
+      .filter((row) => row.status === "avsluttet" && !active.has(row.student_id))
+      .map((row) => row.student_id),
+  );
+}
+
 export async function sendInstallmentBatch(
   client: Client,
   batch: InstallmentBatch,
   siteUrl: string,
 ): Promise<BatchSendOutcome> {
+  const withdrawn = await withdrawnStudents(
+    client,
+    batch.installments.map((row) => row.studentId),
+    batch.schoolYearId,
+  );
+  const stoppedIds = batch.installments
+    .filter((row) => withdrawn.has(row.studentId))
+    .map((row) => row.id);
+  if (stoppedIds.length > 0) {
+    await client
+      .from("installments")
+      .update({ status: "stoppet" })
+      .in("id", stoppedIds)
+      .eq("status", "planlagt");
+    batch = {
+      ...batch,
+      installments: batch.installments.filter(
+        (row) => !withdrawn.has(row.studentId),
+      ),
+    };
+    if (batch.installments.length === 0) return "skipped";
+  }
+
   const studentIds = batch.installments.map((row) => row.studentId);
   const { data: balances } = await client
     .from("student_balances")

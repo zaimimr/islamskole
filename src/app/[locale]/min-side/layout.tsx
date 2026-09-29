@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import NextLink from "next/link";
+import { ShieldCheck } from "lucide-react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Logo } from "@/components/site/Logo";
 import { LocaleSwitcher } from "@/components/site/LocaleSwitcher";
 import { PortalSignOutButton } from "@/components/portal/portal-sign-out-button";
-import { getUser } from "@/lib/auth";
+import { getIsAdmin, getUser } from "@/lib/auth";
 
 export async function generateMetadata({
   params,
@@ -22,7 +24,11 @@ export default async function PortalLayout({
 }: LayoutProps<"/[locale]/min-side">) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const [t, user] = await Promise.all([getTranslations("portal"), getUser()]);
+  const [t, user, isAdmin] = await Promise.all([
+    getTranslations("portal"),
+    getUser(),
+    getIsAdmin(),
+  ]);
 
   return (
     <div data-portal-shell className="flex min-h-dvh flex-col bg-background">
@@ -30,6 +36,16 @@ export default async function PortalLayout({
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-2 sm:px-6">
           <Logo priority className="mr-auto" />
           <LocaleSwitcher />
+          {isAdmin ? (
+            <NextLink
+              href="/admin"
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-semibold outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <ShieldCheck aria-hidden="true" className="size-4" />
+              <span className="hidden sm:inline">{t("adminLink")}</span>
+              <span className="sr-only sm:hidden">{t("adminLink")}</span>
+            </NextLink>
+          ) : null}
           {user ? (
             <div className="flex min-w-0 items-center gap-2">
               <p className="hidden min-w-0 text-right text-sm leading-tight sm:block">

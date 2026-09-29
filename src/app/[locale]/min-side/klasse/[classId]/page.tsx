@@ -7,6 +7,7 @@ import { ClassNoteEditor } from "@/components/portal/teacher/class-note-editor";
 import { DaySwitcher } from "@/components/portal/teacher/day-switcher";
 import { osloToday } from "@/lib/dates";
 import {
+  getClassForAdmin,
   getClassNotes,
   getClassRoster,
   getMyClasses,
@@ -36,7 +37,9 @@ export default async function TeacherClassPage({
   ]);
   if (!context.user) redirect({ href: "/min-side/logg-inn", locale });
 
-  const current = classes.find((row) => row.class_id === classId);
+  const current =
+    classes.find((row) => row.class_id === classId) ??
+    (context.isAdmin ? await getClassForAdmin(classId) : null);
   if (!current) notFound();
 
   const days = await getSchoolDays(current.school_year_id);

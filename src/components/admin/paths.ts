@@ -9,5 +9,5 @@ export function adminBasePath(locale: string) {
 }
 
 export function loginPath(locale: string) {
-  return `${localePrefix(locale)}/login`;
+  return `${localePrefix(locale)}/min-side/logg-inn`;
 }

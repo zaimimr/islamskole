@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { CircleCheck, Loader2 } from "lucide-react";
 import { saveClassNote } from "@/lib/portal/actions";
+import { deleteClassNote } from "@/lib/portal/teacher-actions";
 import { formatSavedAt } from "@/lib/portal/teacher-days";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -46,8 +47,12 @@ export function ClassNoteEditor({
     if (!dirty || disabled) return;
     const next = { homework, summary };
     startTransition(async () => {
-      const result = await saveClassNote(classId, schoolDayId, next);
-      if (result.ok) setSaved({ ...next, label: formatSavedAt(new Date().toISOString(), locale) });
+      const cleared = !homework.trim() && !summary.trim();
+      const result = cleared
+        ? await deleteClassNote(classId, schoolDayId)
+        : await saveClassNote(classId, schoolDayId, next);
+      if (result.ok && cleared) setSaved({ homework: "", summary: "", label: null });
+      else if (result.ok) setSaved({ ...next, label: formatSavedAt(new Date().toISOString(), locale) });
       else toast.error(tErrors(result.error));
     });
   }

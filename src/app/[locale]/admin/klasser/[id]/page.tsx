@@ -184,9 +184,10 @@ async function getClassPage(id: string) {
       : Promise.resolve({ data: [], error: null }),
     supabase
       .from("class_teachers")
-      .select("guardian:guardians(id, first_name, last_name, phone, email)")
+      .select("guardian:guardians!inner(id, first_name, last_name, phone, email)")
       .eq("class_id", id)
-      .eq("school_year_id", activeYear.id),
+      .eq("school_year_id", activeYear.id)
+      .eq("guardian.is_teacher", true),
     supabase
       .from("guardians")
       .select("id, first_name, last_name")

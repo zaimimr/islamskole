@@ -444,15 +444,15 @@
     "signedInAs": "Innlogget som",
     "login": {
       "title": "Logg inn på Min side",
-      "intro": "Skriv e-postadressen du ga skolen ved påmelding. Vi sender deg en lenke, du trenger ikke passord.",
+      "intro": "For foreldre og foresatte, lærere, elever og administratorer. Skriv e-postadressen skolen har registrert på deg, så sender vi deg en innloggingslenke. Du trenger ikke passord.",
       "emailLabel": "E-post",
       "submit": "Send innloggingslenke",
       "sentTitle": "Sjekk e-posten din",
       "sent": "Hvis e-posten er registrert hos oss, får du en lenke i løpet av noen minutter. Sjekk også søppelposten.",
       "again": "Bruk en annen e-post",
-      "invalidLink": "Lenken er brukt eller utløpt. Be om en ny lenke under.",
-      "adminHint": "Administrator? Logg inn her"
+      "invalidLink": "Lenken er brukt eller utløpt. Be om en ny lenke under."
     },
+    "adminLink": "Administrasjon",
     "errors": {
       "invalid": "Sjekk at det du skrev er riktig.",
       "unauthenticated": "Du må logge inn på nytt.",
@@ -470,7 +470,13 @@
       "emptyTitle": "Ingen barn eller klasser ennå",
       "empty": "Vi fant ingen barn eller klasser knyttet til {email}. Ta kontakt med skolen, så kobler vi e-posten din til riktig familie.",
       "contact": "Kontakt skolen",
-      "adminLink": "Til administrasjonen"
+      "adminLink": "Til administrasjonen",
+      "teacherUnassignedTitle": "Du er registrert som lærer",
+      "teacherUnassigned": "Du er registrert som lærer, men er ikke satt opp i en klasse ennå. Skolen gir beskjed når du har fått en klasse."
+    },
+    "student": {
+      "title": "Min skole",
+      "noClass": "Du er ikke plassert i en klasse ennå."
     },
     "teacher": {
       "students": "{count, plural, one {# elev} other {# elever}}",
@@ -553,7 +559,8 @@
         "homework": "Lekser",
         "summary": "Hva vi gjorde",
         "empty": "Læreren har ikke skrevet noe notat ennå.",
-        "historyTitle": "Notater fra læreren"
+        "historyTitle": "Notater fra læreren",
+        "yearTitle": "Ukenotater"
       },
       "attendance": {
         "title": "Oppmøte",

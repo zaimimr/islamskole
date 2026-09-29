@@ -50,10 +50,15 @@ import {
 } from "@/lib/payment-integrity";
 import { guardianName, studentDisplayName } from "@/lib/student-name";
 import { familyDisplayName } from "@/lib/families/naming";
+import {
+  findReturningStudent,
+  targetApplicationPayment,
+} from "@/lib/families/returning-student";
 import { getSiteSettings } from "@/lib/data";
 import { toUserError } from "@/lib/action-errors";
 import { capAtLimit, formatNok } from "@/lib/money";
 import { osloToday } from "@/lib/dates";
+import { ageInYear, schoolYearStart } from "@/lib/age";
 import { emailNotifications } from "@/flags";
 
 type ActionResult =
@@ -216,19 +221,35 @@ async function studentName(
 export async function createStudent(formData: FormData): Promise<ActionResult> {
   const denied = await requireAdmin();
   if (denied) return denied;
-  const payload = readStudentPayload(formData);
+  const familyId = readString(formData, "family_id");
+  const payload = familyId
+    ? readChildPayload(formData)
+    : readStudentPayload(formData);
 
-  const parsed = studentSchema.safeParse(payload);
+  const parsed = (familyId ? childSchema : studentSchema).safeParse(payload);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0].message };
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("create_manual_family_student", {
-    p_student: { ...payload, guardians: readManualGuardians(formData) },
-  });
+  let data: string;
+  if (familyId) {
+    const { data: row, error } = await supabase
+      .from("students")
+      .insert({ ...payload, family_id: familyId } as never)
+      .select("id")
+      .single();
+    if (error) return { ok: false, error: toUserError(error) };
+    data = (row as unknown as { id: string }).id;
+  } else {
+    const { data: id, error } = await supabase.rpc(
+      "create_manual_family_student",
+      { p_student: { ...payload, guardians: readManualGuardians(formData) } },
+    );
+    if (error) return { ok: false, error: toUserError(error) };
+    data = id;
+  }
 
-  if (error) return { ok: false, error: toUserError(error) };
   await writeAudit({
     action: "student.create",
     entityType: "students",
@@ -236,6 +257,7 @@ export async function createStudent(formData: FormData): Promise<ActionResult> {
     metadata: {
       source: "manual",
       name: studentDisplayName(payload),
+      familyId: familyId || null,
     },
   });
   revalidate();
@@ -338,26 +360,59 @@ export async function createStudentFromApplication(
     notes: app.message,
   };
 
-  const { data, error } = await supabase
-    .from("students")
-    .insert(payload as never)
-    .select("id")
-    .single();
+  const { data: applicationGuardians } = app.family_id
+    ? await supabase
+        .from("family_guardians")
+        .select("guardians(email)")
+        .eq("family_id", app.family_id)
+    : { data: [] };
+  const returning = await findReturningStudent(supabase, {
+    firstName: app.child_first_name,
+    lastName: app.child_last_name,
+    birthDate: app.child_birth_date,
+    guardianEmails: [
+      app.mother_email,
+      app.father_email,
+      ...(applicationGuardians ?? []).map(
+        (link) =>
+          (link.guardians as unknown as { email: string | null } | null)?.email,
+      ),
+    ],
+  });
 
-  if (error) return { ok: false, error: toUserError(error) };
-
-  const studentId = (data as unknown as { id: string }).id;
+  let studentId: string;
+  if (returning) {
+    studentId = returning.id;
+  } else {
+    const { data, error } = await supabase
+      .from("students")
+      .insert(payload as never)
+      .select("id")
+      .single();
+    if (error) return { ok: false, error: toUserError(error) };
+    studentId = (data as unknown as { id: string }).id;
+  }
   const name = studentDisplayName(app) || null;
 
   await writeAudit({
-    action: "student.create",
+    action: returning ? "student.relinked" : "student.create",
     entityType: "students",
     entityId: studentId,
     metadata: { source: "application", applicationId, name },
   });
 
+  const { count: existingPlacements } =
+    returning && schoolYearId
+      ? await supabase
+          .from("enrollments")
+          .select("id", { count: "exact", head: true })
+          .eq("student_id", studentId)
+          .eq("school_year_id", schoolYearId)
+          .eq("status", "aktiv")
+      : { count: 0 };
+
   let placementError: string | null = null;
-  if (pricing && classId && schoolYearId) {
+  if (pricing && classId && schoolYearId && !existingPlacements) {
     const { data: enrollment, error: enrollError } = await supabase
       .from("enrollments")
       .insert({
@@ -394,11 +449,23 @@ export async function createStudentFromApplication(
     .update({ status: "akseptert" } as never)
     .eq("id", applicationId);
 
+  await targetApplicationPayment(
+    supabase,
+    studentId,
+    applicationId,
+    Boolean(returning),
+  );
   await allocatePaymentsForStudent(supabase, studentId, applicationId);
 
   revalidate();
   if (placementError) return { ok: false, error: placementError };
-  return { ok: true, id: studentId };
+  return {
+    ok: true,
+    id: studentId,
+    note: returning
+      ? `${name ?? "Eleven"} var allerede elev og er koblet til den eksisterende elevoppføringen.`
+      : undefined,
+  };
 }
 
 export async function updateStudent(
@@ -483,6 +550,12 @@ export async function deleteStudent(id: string): Promise<ActionResult> {
   const denied = await requireAdmin();
   if (denied) return denied;
   const blockers = await getStudentDeleteBlockers(id);
+  if (
+    blockers.includes("betalinger") ||
+    blockers.includes("fordelte betalinger")
+  ) {
+    return { ok: false, error: "Eleven har betalinger og kan ikke slettes" };
+  }
   if (blockers.length > 0) {
     return {
       ok: false,
@@ -504,6 +577,12 @@ export async function deleteStudent(id: string): Promise<ActionResult> {
       .update({ status: "arkivert" } as never)
       .eq("id", student.application_id);
   }
+
+  const { error: feeError } = await supabase
+    .from("student_fees")
+    .delete()
+    .eq("student_id", id);
+  if (feeError) return { ok: false, error: toUserError(feeError) };
 
   const { error } = await supabase.from("students").delete().eq("id", id);
   if (error) return { ok: false, error: toUserError(error) };
@@ -537,6 +616,14 @@ export async function archiveStudent(id: string): Promise<ActionResult> {
   const ended =
     (data as unknown as
       { id: string; class_id: string; school_year_id: string }[] | null) ?? [];
+  if (ended.length > 0) {
+    await supabase
+      .from("installments")
+      .update({ status: "stoppet" })
+      .eq("student_id", id)
+      .eq("status", "planlagt")
+      .in("school_year_id", [...new Set(ended.map((row) => row.school_year_id))]);
+  }
   await writeAudit({
     action: "student.archive",
     entityType: "students",
@@ -805,9 +892,53 @@ export async function changeEnrollmentClass(
   );
   if (full) return { ok: false, error: full };
 
+  const [allocations, fee, oldPricing, { data: student }, { data: target }, { data: year }] =
+    await Promise.all([
+      supabase
+        .from("payment_allocations")
+        .select("id", { count: "exact", head: true })
+        .eq("student_id", enrollment.student_id)
+        .eq("school_year_id", enrollment.school_year_id),
+      supabase
+        .from("student_fees")
+        .select("amount")
+        .eq("student_id", enrollment.student_id)
+        .eq("school_year_id", enrollment.school_year_id)
+        .maybeSingle(),
+      resolveEnrollmentPricing(supabase, enrollment.class_id, enrollment.school_year_id),
+      supabase
+        .from("students")
+        .select("child_birth_date")
+        .eq("id", enrollment.student_id)
+        .maybeSingle(),
+      supabase
+        .from("classes")
+        .select("age_min, age_max")
+        .eq("id", classId)
+        .maybeSingle(),
+      supabase
+        .from("school_years")
+        .select("label, starts_on")
+        .eq("id", enrollment.school_year_id)
+        .maybeSingle(),
+    ]);
+  const oldPrice = enrollment.price_snapshot ?? oldPricing.priceSnapshot;
+  const feeIsClassPrice =
+    !fee.error &&
+    (!fee.data || (oldPrice != null && fee.data.amount === Math.round(oldPrice * 100)));
+  const repriced =
+    !allocations.error &&
+    allocations.count === 0 &&
+    feeIsClassPrice &&
+    pricing.priceSnapshot != null;
+
   const { error } = await supabase
     .from("enrollments")
-    .update({ class_id: classId } as never)
+    .update(
+      (repriced
+        ? { class_id: classId, price_snapshot: pricing.priceSnapshot }
+        : { class_id: classId }) as never,
+    )
     .eq("id", enrollmentId);
   if (error) {
     if (error.code === "23505") {
@@ -831,11 +962,34 @@ export async function changeEnrollmentClass(
       fromClassName: enrollment.classes?.name_no ?? null,
       toClassId: classId,
       toClassName: pricing.className,
-      priceSnapshot: enrollment.price_snapshot,
+      priceSnapshot: repriced ? pricing.priceSnapshot : enrollment.price_snapshot,
     },
   });
+  if (repriced) {
+    await setStudentFee(supabase, enrollment.student_id, enrollment.school_year_id, {
+      amount: Math.round((pricing.priceSnapshot ?? 0) * 100),
+    });
+    await rebuildPendingInstallmentsForStudent(
+      supabase,
+      enrollment.student_id,
+      enrollment.school_year_id,
+    );
+  }
+  const referenceYear =
+    schoolYearStart(year?.label) ?? Number((year?.starts_on ?? osloToday()).slice(0, 4));
+  const age = ageInYear(student?.child_birth_date, referenceYear);
+  const outsideRange =
+    age != null &&
+    ((target?.age_min != null && age < target.age_min) ||
+      (target?.age_max != null && age > target.age_max));
   revalidate();
-  return { ok: true, id: enrollmentId };
+  return {
+    ok: true,
+    id: enrollmentId,
+    note: outsideRange
+      ? `Eleven er ${age} år, mens ${pricing.className} er for ${target?.age_min ?? "?"}-${target?.age_max ?? "?"} år.`
+      : undefined,
+  };
 }
 
 export async function endEnrollment(id: string): Promise<ActionResult> {
@@ -877,8 +1031,77 @@ export async function removeEnrollment(id: string): Promise<ActionResult> {
   const enrollment = await loadEnrollment(supabase, id);
   if (!enrollment) return { ok: false, error: "Fant ikke plasseringen" };
 
+  const [
+    { data: allocated },
+    { count: otherPlacements },
+    { count: targets },
+    { count: sentInstallments },
+    { count: adjustments },
+  ] = await Promise.all([
+    supabase
+      .from("payment_allocations")
+      .select("amount")
+      .eq("student_id", enrollment.student_id)
+      .eq("school_year_id", enrollment.school_year_id),
+    supabase
+      .from("enrollments")
+      .select("id", { count: "exact", head: true })
+      .eq("student_id", enrollment.student_id)
+      .eq("school_year_id", enrollment.school_year_id)
+      .neq("id", id),
+    supabase
+      .from("payment_targets")
+      .select("payment_id, payments!inner(school_year_id)", {
+        count: "exact",
+        head: true,
+      })
+      .eq("student_id", enrollment.student_id)
+      .eq("payments.school_year_id", enrollment.school_year_id),
+    supabase
+      .from("installments")
+      .select("id", { count: "exact", head: true })
+      .eq("student_id", enrollment.student_id)
+      .eq("school_year_id", enrollment.school_year_id)
+      .in("status", ["sendt", "betalt"]),
+    supabase
+      .from("student_fee_adjustments")
+      .select("id", { count: "exact", head: true })
+      .eq("student_id", enrollment.student_id)
+      .eq("school_year_id", enrollment.school_year_id)
+      .is("revoked_at", null),
+  ]);
+  const lastPlacement = !otherPlacements;
+  if (lastPlacement && (allocated ?? []).some((row) => row.amount > 0)) {
+    return {
+      ok: false,
+      error:
+        "Eleven har betalt for dette skoleåret, så plassen kan ikke fjernes. Avslutt plassen i stedet.",
+    };
+  }
+  if (lastPlacement && (targets || sentInstallments || adjustments)) {
+    return {
+      ok: false,
+      error:
+        "Eleven har betalingslenker, sendte avdrag eller rabatter dette skoleåret, så plassen kan ikke fjernes. Avslutt plassen i stedet.",
+    };
+  }
+
   const { error } = await supabase.from("enrollments").delete().eq("id", id);
   if (error) return { ok: false, error: toUserError(error) };
+
+  if (lastPlacement) {
+    await supabase
+      .from("installments")
+      .update({ status: "stoppet" })
+      .eq("student_id", enrollment.student_id)
+      .eq("school_year_id", enrollment.school_year_id)
+      .eq("status", "planlagt");
+    await supabase
+      .from("student_fees")
+      .delete()
+      .eq("student_id", enrollment.student_id)
+      .eq("school_year_id", enrollment.school_year_id);
+  }
 
   await writeAudit({
     action: "enrollment.delete",

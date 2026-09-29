@@ -25,6 +25,7 @@ import { formatNok } from "@/lib/money";
 import { schoolYearStart } from "@/lib/age";
 import { osloToday } from "@/lib/dates";
 import { SchoolDays, type SchoolDayRow } from "./school-days";
+import { countCopyableAssignments } from "../copyable-assignments";
 
 export const metadata: Metadata = { title: "Skoleår" };
 
@@ -102,6 +103,9 @@ export default async function SkolearDetailPage({
     starts_on: string | null;
   } | null;
   const activeYearLabel = activeYear?.label ?? null;
+  const copyableAssignments = year.is_active
+    ? 0
+    : await countCopyableAssignments(activeYear?.id);
   const balances = (balanceData as BalanceRow[] | null) ?? [];
 
   const balanceByStudent = new Map<string, BalanceRow>();
@@ -342,7 +346,11 @@ export default async function SkolearDetailPage({
           />
         </summary>
         <div className="grid gap-5 border-t border-[#ECE8DF] bg-[#FBFAF6] p-4 sm:p-5">
-          <SchoolYearForm schoolYear={year} listHref={listHref} />
+          <SchoolYearForm
+            schoolYear={year}
+            listHref={listHref}
+            copyableAssignments={copyableAssignments}
+          />
 
           <section className="flex flex-col gap-4 rounded-2xl bg-white p-5 ring-1 ring-[#E3DED3] sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -350,7 +358,7 @@ export default async function SkolearDetailPage({
               <p className="mt-0.5 max-w-2xl text-sm text-admin-muted">
                 {year.is_active
                   ? "Det aktive skoleåret kan ikke slettes."
-                  : "Går bare når ingen elever er plassert og ingen betalinger er knyttet til året."}
+                  : "Går bare når året ikke har plasseringer, betalinger, oppmøte eller ukenotater."}
               </p>
             </div>
             {year.is_active ? null : (

@@ -466,6 +466,7 @@ export function rowWith(page: Page, text: string, container = "li") {
 }
 
 export async function rowAction(page: Page, row: Locator, name: string | RegExp) {
+  await row.waitFor();
   const direct = row.getByRole("button", { name, exact: typeof name === "string" });
   if (await direct.count()) {
     await direct.first().click();
@@ -476,6 +477,7 @@ export async function rowAction(page: Page, row: Locator, name: string | RegExp)
 }
 
 export async function hasRowAction(page: Page, row: Locator, name: string) {
+  await row.waitFor();
   if (await row.getByRole("button", { name, exact: true }).count()) return true;
   const menu = row.getByRole("button", { name: /^Flere valg/ });
   if (!(await menu.count())) return false;

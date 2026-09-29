@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AlertTriangle, Loader2, MailCheck } from "lucide-react";
 import { sendPortalLoginLink } from "@/lib/portal/actions";
 import type { PortalErrorCode } from "@/lib/portal/types";
@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function PortalLoginForm({ invalidLink }: { invalidLink: boolean }) {
+export function PortalLoginForm({ invalidLink, next }: { invalidLink: boolean; next?: string }) {
   const t = useTranslations("portal");
+  const locale = useLocale();
   const [pending, startTransition] = useTransition();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
@@ -25,6 +26,8 @@ export function PortalLoginForm({ invalidLink }: { invalidLink: boolean }) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     formData.set("loaded_at", String(loadedAt.current ?? Date.now()));
+    formData.set("locale", locale);
+    if (next) formData.set("next", next);
     setError(null);
     startTransition(async () => {
       const result = await sendPortalLoginLink(formData);

@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -9,6 +8,7 @@ import { getIsAdmin, getUser } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { toUserError } from "@/lib/action-errors";
 import { isPlaceholderEmail } from "@/lib/portal/emails";
+import { sendLoginLink } from "@/lib/login-link";
 
 type ActionResult =
   | { ok: true; id?: string; count?: number }
@@ -180,6 +180,7 @@ export async function generateSchoolDays(
 
 export async function sendLoginLinkToGuardian(
   guardianId: string,
+  locale = "no",
 ): Promise<ActionResult> {
   const denied = await requireAdmin();
   if (denied) return denied;
@@ -205,35 +206,8 @@ export async function sendLoginLinkToGuardian(
   }
   const email = parsed.data;
 
-  const { error: createError } = await admin.auth.admin.createUser({
-    email,
-    email_confirm: true,
-    app_metadata: { role: "member" },
-  });
-  if (createError && createError.code !== "email_exists") {
-    console.error("admin login link createUser failed", createError);
-    return { ok: false, error: "Kunne ikke opprette innlogging. Prøv igjen." };
-  }
-
-  const mailer = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
-  const { error: otpError } = await mailer.auth.signInWithOtp({
-    email,
-    options: { shouldCreateUser: false },
-  });
-  if (otpError) {
-    console.error("admin login link otp failed", otpError);
-    return {
-      ok: false,
-      error:
-        otpError.status === 429
-          ? "Det er nettopp sendt en lenke. Vent litt før du sender en ny."
-          : "Kunne ikke sende lenken. Prøv igjen.",
-    };
-  }
+  const sent = await sendLoginLink({ email, locale: locale === "en" ? "en" : "no" });
+  if (!sent.ok) return sent;
 
   await writeAudit({
     action: "portal.login_link_sent",

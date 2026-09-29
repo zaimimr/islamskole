@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { adminBasePath } from "@/components/admin/paths";
 import { SchoolYearForm } from "@/components/admin/school-year-form";
+import { createClient } from "@/lib/supabase/server";
+import { countCopyableAssignments } from "../copyable-assignments";
 
 export const metadata: Metadata = { title: "Nytt skoleår" };
 
@@ -13,6 +15,13 @@ export default async function NyttSkolearPage({
 }) {
   const { locale } = await params;
   const listHref = `${adminBasePath(locale)}/skolear`;
+  const supabase = await createClient();
+  const { data: activeYear } = await supabase
+    .from("school_years")
+    .select("id")
+    .eq("is_active", true)
+    .maybeSingle();
+  const copyableAssignments = await countCopyableAssignments(activeYear?.id);
 
   return (
     <div className="grid gap-6 lg:gap-7">
@@ -31,7 +40,7 @@ export default async function NyttSkolearPage({
           Angi perioden og årsavgiften før skoleåret tas i bruk.
         </p>
       </header>
-      <SchoolYearForm listHref={listHref} />
+      <SchoolYearForm listHref={listHref} copyableAssignments={copyableAssignments} />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { getAdminFamilies, getAdminFamilyById } from "@/lib/families/service";
 import { formatNok } from "@/lib/money";
 import { formatOsloDate } from "@/lib/dates";
 import { findDuplicateFamilies } from "../duplicates";
+import { familyOptions } from "../family-options";
 import { adminBasePath } from "@/components/admin/paths";
 import { ageInYear, schoolYearStart } from "@/lib/age";
 import { FamilyEconomy } from "@/components/admin/family-economy";
@@ -544,10 +545,12 @@ export default async function FamilyPage({
       activeTab="overview"
       editFamilyHref={editFamilyHref}
       addGuardianHref={`${editFamilyHref}#new-guardian`}
+      addChildHref={`${basePath}/elever/ny?familie=${family.id}`}
       editRelationshipsHref={editFamilyHref}
       nextAction={nextAction}
       recentActivity={recentActivity}
       duplicateFamilies={duplicateFamilies}
+      mergeOptions={familyOptions(allFamilies, family.id)}
       />
       {activeYear ? (
         <FamilyEconomy

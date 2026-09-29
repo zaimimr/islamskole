@@ -160,8 +160,6 @@
 
 body:has([data-admin-shell]) .site-header,
 body:has([data-admin-shell]) .site-footer,
-body:has([data-admin-login]) .site-header,
-body:has([data-admin-login]) .site-footer,
 body:has([data-portal-shell]) .site-header,
 body:has([data-portal-shell]) .site-footer {
   display: none;
@@ -176,8 +174,7 @@ body:has([data-admin-shell]) a[href="#main-content"] {
   display: none;
 }
 
-body:has([data-admin-shell]),
-body:has([data-admin-login]) {
+body:has([data-admin-shell]) {
   --primary: var(--admin-action);
   --primary-foreground: #ffffff;
   --ring: var(--admin-action);

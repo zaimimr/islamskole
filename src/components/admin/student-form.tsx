@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -117,12 +117,17 @@ function FormSectionHeading({
 export function StudentForm({
   student,
   listHref,
+  families = [],
+  defaultFamilyId = "",
 }: {
   student?: StudentRecord;
   listHref: string;
+  families?: { id: string; name: string; description?: string }[];
+  defaultFamilyId?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [familyId, setFamilyId] = useState(defaultFamilyId);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -147,6 +152,33 @@ export function StudentForm({
       className="grid gap-5 [&_input]:min-h-11 [&_input]:rounded-xl [&_input]:border-[#CFC9BD] [&_input]:shadow-none [&_textarea]:rounded-xl [&_textarea]:border-[#CFC9BD] [&_textarea]:shadow-none"
       aria-busy={pending}
     >
+      {!student && families.length > 0 ? (
+        <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
+          <FormSectionHeading
+            icon={<UsersRound aria-hidden="true" className="size-4" />}
+            title="Familie"
+            description="Velg en familie som allerede er registrert, eller lag en ny."
+          />
+          <div className="grid gap-2 p-4 sm:p-5">
+            <Label htmlFor="family_id">Familie</Label>
+            <SelectField
+              id="family_id"
+              name="family_id"
+              value={familyId}
+              onValueChange={setFamilyId}
+              options={[
+                { value: "", label: "Ny familie" },
+                ...families.map((family) => ({
+                  value: family.id,
+                  label: family.name,
+                  description: family.description,
+                })),
+              ]}
+            />
+          </div>
+        </section>
+      ) : null}
+
       <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
         <FormSectionHeading
           icon={<UserRound aria-hidden="true" className="size-4" />}
@@ -230,7 +262,7 @@ export function StudentForm({
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="email">E-post (kontakt)</Label>
+              <Label htmlFor="email">Elevens e-post (innlogging)</Label>
               <Input
                 id="email"
                 name="email"
@@ -251,7 +283,7 @@ export function StudentForm({
         </div>
       </section>
 
-      {student ? null : (
+      {student || familyId ? null : (
         <>
           <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
             <FormSectionHeading

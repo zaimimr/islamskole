@@ -47,8 +47,8 @@ test.describe("Min side for parents and students", () => {
 
     const notes = page.getByRole("region", { name: "Ukenotater" });
     await expect(notes).toBeVisible();
-    await expect(notes.getByText(world.newerNote)).toBeVisible();
-    await expect(notes.getByText(world.olderNote)).toBeVisible();
+    await expect(notes.getByText(world.newerNote, { exact: true })).toBeVisible();
+    await expect(notes.getByText(world.olderNote, { exact: true })).toBeVisible();
     await expect(notes.locator("[data-date]").first()).toHaveAttribute("data-date", world.days[2].date);
   });
 
@@ -60,7 +60,7 @@ test.describe("Min side for parents and students", () => {
 
     await expect(page.getByRole("heading", { name: "Min skole" })).toBeVisible();
     await expect(page.getByText(world.schoolClass.name).first()).toBeVisible();
-    await expect(page.getByText(world.newerNote)).toBeVisible();
+    await expect(page.getByText(world.newerNote, { exact: true })).toBeVisible();
     const attendance = page.getByRole("region", { name: "Oppmøte" });
     await expect(attendance.locator(`[data-date="${world.days[0].date}"]`)).toContainText("Til stede");
     await expect(page.locator("main")).not.toContainText(/Gjenstår|Alt er betalt|betaling/i);

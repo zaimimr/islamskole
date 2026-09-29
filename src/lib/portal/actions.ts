@@ -3,10 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { after } from "next/server";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { writeAudit } from "@/lib/audit";
 import { getUser } from "@/lib/auth";
+import { findAuthUserId, sendLoginLink } from "@/lib/login-link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getPortalContext } from "@/lib/portal/data";
@@ -62,44 +62,43 @@ async function allowLogin(key: string, limit: number, windowSeconds: number) {
   return data === true;
 }
 
-async function deliverLoginLink(email: string) {
+function escapeLike(value: string) {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
+async function isKnownEmail(email: string) {
+  const admin = createAdminClient();
+  const pattern = escapeLike(email);
+  const [guardians, students] = await Promise.all([
+    admin.from("guardians").select("id").ilike("email", pattern).limit(1),
+    admin.from("students").select("id").ilike("child_email", pattern).limit(1),
+  ]);
+  if (guardians.error || students.error) {
+    console.error("portal login lookup failed", guardians.error ?? students.error);
+    return false;
+  }
+  if (guardians.data?.length || students.data?.length) return true;
+  const userId = await findAuthUserId(email);
+  if (!userId) return false;
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .maybeSingle();
+  return profile?.role === "admin";
+}
+
+async function deliverLoginLink(email: string, locale: "no" | "en", next: string | undefined) {
   try {
     if (isPlaceholderEmail(email)) return;
     if (!(await allowLogin(`email:${email}`, 3, 600))) return;
-    if (!(await allowLogin("global", 60, 3600))) return;
-
-    const admin = createAdminClient();
-    const { data: guardians, error: lookupError } = await admin
-      .from("guardians")
-      .select("id")
-      .ilike("email", email.replace(/[\\%_]/g, "\\$&"))
-      .limit(1);
-    if (lookupError) {
-      console.error("portal login lookup failed", lookupError);
+    if (!(await isKnownEmail(email))) return;
+    if (!(await allowLogin("global:known", 60, 3600))) {
+      console.error("portal login global limit reached");
       return;
     }
-    if (!guardians?.length) return;
-
-    const { error: createError } = await admin.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      app_metadata: { role: "member" },
-    });
-    if (createError && createError.code !== "email_exists") {
-      console.error("portal login createUser failed", createError);
-      return;
-    }
-
-    const mailer = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { auth: { persistSession: false, autoRefreshToken: false } },
-    );
-    const { error: otpError } = await mailer.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: false },
-    });
-    if (otpError) console.error("portal login otp failed", otpError);
+    const result = await sendLoginLink({ email, locale, next });
+    if (!result.ok) console.error("portal login link failed", result.error);
   } catch (error) {
     console.error("portal login failed", error);
   }
@@ -120,7 +119,9 @@ export async function sendPortalLoginLink(formData: FormData): Promise<PortalAct
   const parsed = z.string().trim().toLowerCase().email().max(254).safeParse(formData.get("email"));
   if (!parsed.success) return { ok: false, error: "invalid" };
 
-  after(() => deliverLoginLink(parsed.data));
+  const locale = formData.get("locale") === "en" ? "en" : "no";
+  const next = String(formData.get("next") ?? "") || undefined;
+  after(() => deliverLoginLink(parsed.data, locale, next));
   return { ok: true };
 }
 

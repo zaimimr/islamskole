@@ -3,6 +3,7 @@ import { cache } from "react";
 import { getIsAdmin, getUser } from "@/lib/auth";
 import { ageInYear, schoolYearStart } from "@/lib/age";
 import { osloToday } from "@/lib/dates";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type {
   AttendanceStatus,
@@ -17,6 +18,8 @@ import type {
   PortalRosterRow,
   PortalSchoolDay,
   PortalSchoolDays,
+  PortalSelf,
+  PortalSelfNote,
 } from "@/lib/portal/types";
 
 function referenceYear(label: string | null | undefined): number {
@@ -57,6 +60,54 @@ export const getMyClasses = cache(async (): Promise<PortalClass[]> => {
   return data ?? [];
 });
 
+export const getMySelf = cache(async (): Promise<PortalSelf[]> => {
+  const user = await getUser();
+  if (!user) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("portal_my_self");
+  if (error) {
+    console.error("portal_my_self failed", error);
+    return [];
+  }
+  return (data ?? []).map((row) => ({
+    ...row,
+    birth_date: row.birth_date ?? null,
+    age: ageInYear(row.birth_date, referenceYear(row.school_year_label)),
+    class_id: row.class_id ?? null,
+    class_name_no: row.class_name_no ?? null,
+    class_name_en: row.class_name_en ?? null,
+    school_year_id: row.school_year_id ?? null,
+    school_year_label: row.school_year_label ?? null,
+    teachers: asArray<PortalPerson>(row.teachers),
+    notes: asArray<PortalSelfNote>(row.notes),
+    attendance: asArray<{ date: string; status: AttendanceStatus }>(row.attendance),
+  }));
+});
+
+export async function getClassForAdmin(classId: string): Promise<PortalClass | null> {
+  const supabase = await createClient();
+  const [{ data: row }, year] = await Promise.all([
+    supabase.from("classes").select("id, name_no, name_en").eq("id", classId).maybeSingle(),
+    getActiveYear(),
+  ]);
+  if (!row || !year) return null;
+  const { count } = await supabase
+    .from("enrollments")
+    .select("id", { count: "exact", head: true })
+    .eq("class_id", classId)
+    .eq("school_year_id", year.id)
+    .eq("status", "aktiv");
+  return {
+    class_id: row.id,
+    name_no: row.name_no,
+    name_en: row.name_en ?? row.name_no,
+    school_year_id: year.id,
+    school_year_label: year.label,
+    role: "admin",
+    student_count: count ?? 0,
+  };
+}
+
 const getGuardianIds = cache(async (): Promise<string[]> => {
   const user = await getUser();
   if (!user) return [];
@@ -78,13 +129,15 @@ export const getPortalContext = cache(async (): Promise<PortalContext> => {
       guardianIds: [],
       isTeacher: false,
       isGuardian: false,
+      isStudent: false,
       isAdmin: false,
     };
   }
-  const [guardianIds, children, classes, isAdmin] = await Promise.all([
+  const [guardianIds, children, classes, self, isAdmin] = await Promise.all([
     getGuardianIds(),
     getMyChildren(),
     getMyClasses(),
+    getMySelf(),
     getIsAdmin(),
   ]);
   return {
@@ -93,9 +146,22 @@ export const getPortalContext = cache(async (): Promise<PortalContext> => {
     guardianIds,
     isTeacher: classes.length > 0,
     isGuardian: children.length > 0,
+    isStudent: self.length > 0,
     isAdmin,
   };
 });
+
+export async function isRegisteredTeacher(): Promise<boolean> {
+  const guardianIds = await getGuardianIds();
+  if (!guardianIds.length) return false;
+  const { count, error } = await createAdminClient()
+    .from("guardians")
+    .select("id", { count: "exact", head: true })
+    .in("id", guardianIds)
+    .eq("is_teacher", true);
+  if (error) console.error("guardians is_teacher failed", error);
+  return (count ?? 0) > 0;
+}
 
 const getActiveYear = cache(
   async (): Promise<{ id: string; label: string } | null> => {

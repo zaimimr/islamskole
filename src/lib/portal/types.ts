@@ -9,6 +9,7 @@ export type PortalContext = {
   guardianIds: string[];
   isTeacher: boolean;
   isGuardian: boolean;
+  isStudent: boolean;
   isAdmin: boolean;
 };
 
@@ -34,6 +35,29 @@ export type PortalChild = {
   school_year_label: string;
   teachers: PortalPerson[];
   remaining_ore: number | null;
+};
+
+export type PortalSelfNote = {
+  id: string;
+  date: string;
+  homework: string | null;
+  summary: string | null;
+};
+
+export type PortalSelf = {
+  student_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  birth_date: string | null;
+  age: number | null;
+  class_id: string | null;
+  class_name_no: string | null;
+  class_name_en: string | null;
+  school_year_id: string | null;
+  school_year_label: string | null;
+  teachers: PortalPerson[];
+  notes: PortalSelfNote[];
+  attendance: { date: string; status: AttendanceStatus }[];
 };
 
 export type PortalClass = {

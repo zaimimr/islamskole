@@ -4,7 +4,7 @@ create extension if not exists pgtap with schema extensions;
 
 set local search_path = public, extensions;
 
-select plan(24);
+select plan(27);
 
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
 
@@ -267,6 +267,34 @@ select lives_ok(
     values ('d7000000-0000-0000-0000-0000000000c2', 'd7000000-0000-0000-0000-0000000000d2', 'ZZTEST admin')
   $$,
   'D10 CLS-26: admin can write a note for any class'
+);
+
+insert into public.class_notes (class_id, school_day_id, homework)
+values ('d7000000-0000-0000-0000-0000000000c2', 'd7000000-0000-0000-0000-0000000000d2', 'ZZTEST admin endret')
+on conflict (class_id, school_day_id) do update set homework = excluded.homework;
+
+select is(
+  (select homework from public.class_notes where class_id = 'd7000000-0000-0000-0000-0000000000c2' and school_day_id = 'd7000000-0000-0000-0000-0000000000d2'),
+  'ZZTEST admin endret',
+  'D10 CLS-26: admin can update a note for any class with the app upsert'
+);
+
+insert into public.attendance (student_id, school_day_id, status)
+values ('d7000000-0000-0000-0000-000000000053', 'd7000000-0000-0000-0000-0000000000d4', 'til_stede')
+on conflict (student_id, school_day_id) do update set status = excluded.status;
+
+select is(
+  (select status::text from public.attendance where student_id = 'd7000000-0000-0000-0000-000000000053' and school_day_id = 'd7000000-0000-0000-0000-0000000000d4'),
+  'til_stede',
+  'D10 CLS-26: admin can change attendance with the app upsert'
+);
+
+delete from public.class_notes where class_id = 'd7000000-0000-0000-0000-0000000000c2' and school_day_id = 'd7000000-0000-0000-0000-0000000000d2';
+
+select is(
+  (select count(*) from public.class_notes where class_id = 'd7000000-0000-0000-0000-0000000000c2' and school_day_id = 'd7000000-0000-0000-0000-0000000000d2'),
+  0::bigint,
+  'D10 CLS-24: admin can delete a note for any class'
 );
 
 select is(

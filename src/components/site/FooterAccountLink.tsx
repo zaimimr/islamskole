@@ -25,7 +25,7 @@ export function FooterAccountLink() {
 
   return (
     <NextLink
-      href={isLoggedIn ? "/admin" : "/login"}
+      href={isLoggedIn ? "/admin" : "/min-side/logg-inn"}
       className="inline-flex min-h-11 items-center gap-1.5 font-semibold transition-colors hover:text-primary-foreground focus-visible:underline outline-none sm:min-h-0"
     >
       <AccountIcon className="size-4" aria-hidden="true" />

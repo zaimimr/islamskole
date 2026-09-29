@@ -19,7 +19,7 @@ type ExportQuery = PromiseLike<ExportResult> & {
   range: (from: number, to: number) => ExportQuery;
 };
 
-type ExportTable = "students" | "student_applications" | "teacher_applications";
+type ExportTable = "students" | "student_applications" | "guardians";
 
 type EntityConfig = {
   table: ExportTable;
@@ -89,16 +89,15 @@ const entityConfigs: Record<ExportEntity, EntityConfig> = {
     ],
   },
   teachers: {
-    table: "teacher_applications",
-    select: "id, full_name, email, phone, subjects, message, status, created_at",
+    table: "guardians",
+    select: "id, first_name, last_name, email, phone, teacher_note, created_at",
     columns: [
-      { key: "full_name", header: "Navn" },
+      { key: "first_name", header: "Fornavn" },
+      { key: "last_name", header: "Etternavn" },
       { key: "email", header: "E-post" },
       { key: "phone", header: "Telefon" },
-      { key: "subjects", header: "Fag" },
-      { key: "message", header: "Melding" },
-      { key: "status", header: "Status" },
-      { key: "created_at", header: "Dato" },
+      { key: "teacher_note", header: "Notat" },
+      { key: "created_at", header: "Registrert" },
     ],
   },
 };
@@ -326,7 +325,8 @@ export async function GET(
       .order("id", { ascending: true })
       .range(from, to) as unknown as ExportQuery;
 
-    if (status && status !== "alle" && entity !== "students") {
+    if (entity === "teachers") query = query.eq("is_teacher", "true");
+    if (status && status !== "alle" && entity === "applications") {
       query = query.eq("status", status);
     }
     if (term) {
@@ -336,7 +336,7 @@ export async function GET(
         );
       } else if (entity === "teachers") {
         query = query.or(
-          `full_name.ilike.%${term}%,email.ilike.%${term}%,subjects.ilike.%${term}%`,
+          `first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%`,
         );
       }
     }

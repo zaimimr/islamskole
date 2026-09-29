@@ -1,18 +1,18 @@
 "use server";
 
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { getIsAdmin, getUser } from "@/lib/auth";
 import { toUserError } from "@/lib/action-errors";
 import { osloLocalToIso } from "@/lib/dates";
 import { formatNok } from "@/lib/money";
 import { getSiteSettings } from "@/lib/data";
 import { writeAudit } from "@/lib/audit";
+import { findAuthUserId, sendLoginLink } from "@/lib/login-link";
 import { rateLimit } from "@/lib/rate-limit";
 import {
   sendTeacherApplicationEmail,
@@ -21,18 +21,6 @@ import {
 import type { Json } from "@/lib/supabase/types";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
-type PasswordResult =
-  { ok: true; password: string; email?: string } | { ok: false; error: string };
-
-function generatePassword() {
-  const raw = randomBytes(12)
-    .toString("base64")
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .slice(0, 12)
-    .padEnd(12, "x");
-  return `${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`;
-}
-
 type Denied = { ok: false; error: string };
 
 async function requireAdmin(): Promise<Denied | null> {
@@ -51,10 +39,6 @@ function toAuthUserError(error: { code?: string; message?: string }) {
     case "email_exists":
     case "user_already_exists":
       return "Det finnes allerede en bruker med denne e-postadressen.";
-    case "weak_password":
-      return "Passordet er for svakt. Bruk minst 8 tegn, gjerne flere ord.";
-    case "same_password":
-      return "Det nye passordet må være forskjellig fra det gamle.";
     case "user_not_found":
       return "Fant ikke brukeren. Last siden på nytt.";
     default:
@@ -899,58 +883,217 @@ export async function deleteStudentApplication(
   return { ok: true, id };
 }
 
-const createUserSchema = z.object({
-  email: z.string().min(1, "E-post er påkrevd").email("Ugyldig e-postadresse"),
+const grantAdminSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(1, "E-post er påkrevd")
+    .email("Ugyldig e-postadresse"),
+  fullName: z.string().trim().max(200),
 });
 
-export async function createUser(formData: FormData): Promise<PasswordResult> {
+export async function grantAdminAccess(
+  _previous: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
   const denied = await requireAdmin();
   if (denied) return denied;
-  const email = readString(formData, "email");
-  const fullName = readOptionalString(formData, "full_name");
-
-  const parsed = createUserSchema.safeParse({ email });
+  const parsed = grantAdminSchema.safeParse({
+    email: readString(formData, "email"),
+    fullName: readString(formData, "full_name"),
+  });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0].message };
   }
+  const { email, fullName } = parsed.data;
 
-  const password = generatePassword();
   const admin = createAdminClient();
-  const { error } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { full_name: fullName ?? "" },
-    app_metadata: { role: "admin" },
-  });
+  let existingId;
+  try {
+    existingId = await findAuthUserId(email);
+  } catch (error) {
+    return { ok: false, error: toUserError(error as { code?: string; message?: string }) };
+  }
+  const existing = existingId
+    ? (await admin.auth.admin.getUserById(existingId)).data.user
+    : null;
 
-  if (error) return { ok: false, error: toAuthUserError(error) };
+  let userId: string;
+  let oldRole = "none";
+  if (existing) {
+    userId = existing.id;
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("role, full_name")
+      .eq("id", userId)
+      .maybeSingle();
+    oldRole = profile?.role ?? "member";
+    const { error: metaError } = await admin.auth.admin.updateUserById(userId, {
+      app_metadata: { ...existing.app_metadata, role: "admin" },
+    });
+    if (metaError) return { ok: false, error: toAuthUserError(metaError) };
+    const { error } = await admin.from("profiles").upsert({
+      id: userId,
+      role: "admin",
+      full_name: profile?.full_name || fullName,
+    });
+    if (error) return { ok: false, error: toUserError(error) };
+  } else {
+    const { data, error } = await admin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      user_metadata: { full_name: fullName },
+      app_metadata: { role: "admin" },
+    });
+    if (error || !data.user) {
+      return { ok: false, error: toAuthUserError(error ?? {}) };
+    }
+    userId = data.user.id;
+    const { error: profileError } = await admin
+      .from("profiles")
+      .upsert({ id: userId, role: "admin", full_name: fullName });
+    if (profileError) return { ok: false, error: toUserError(profileError) };
+  }
 
   await writeAudit({
-    action: "user.create",
-    entityType: "users",
-    metadata: { email },
-  });
-
-  revalidatePath("/", "layout");
-  return { ok: true, password, email };
-}
-
-export async function resetUserPassword(
-  userId: string,
-): Promise<PasswordResult> {
-  const denied = await requireAdmin();
-  if (denied) return denied;
-  const password = generatePassword();
-  const admin = createAdminClient();
-  const { error } = await admin.auth.admin.updateUserById(userId, { password });
-  if (error) return { ok: false, error: toAuthUserError(error) };
-  await writeAudit({
-    action: "user.reset_password",
+    action: "user.role_changed",
     entityType: "users",
     entityId: userId,
+    metadata: { email, old_role: oldRole, new_role: "admin" },
   });
-  return { ok: true, password };
+  revalidatePath("/", "layout");
+
+  const link = await sendLoginLink({ email, locale: "no" });
+  if (!link.ok) {
+    return {
+      ok: false,
+      error: `Tilgangen er gitt, men innloggingslenken ble ikke sendt. ${link.error}`,
+    };
+  }
+  return { ok: true, id: userId };
+}
+
+export async function removeAdminAccess(
+  _previous: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const userId = readString(formData, "user_id");
+  const denied = await requireAdmin();
+  if (denied) return denied;
+  if (!z.string().uuid().safeParse(userId).success) {
+    return { ok: false, error: "Ugyldig bruker." };
+  }
+  const me = await getUser();
+  if (me?.id === userId) {
+    return { ok: false, error: "Du kan ikke fjerne din egen administratortilgang." };
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("profiles")
+    .update({ role: "member" })
+    .eq("id", userId)
+    .select("id")
+    .maybeSingle();
+  if (error) {
+    return {
+      ok: false,
+      error: error.message.includes("minst én administrator")
+        ? "Det må alltid finnes minst én administrator."
+        : toUserError(error),
+    };
+  }
+  if (!data) return { ok: false, error: "Fant ikke brukeren. Last siden på nytt." };
+
+  const { data: authUser } = await admin.auth.admin.getUserById(userId);
+  if (authUser.user) {
+    await admin.auth.admin.updateUserById(userId, {
+      app_metadata: { ...authUser.user.app_metadata, role: "member" },
+    });
+  }
+
+  await writeAudit({
+    action: "user.role_changed",
+    entityType: "users",
+    entityId: userId,
+    metadata: { email: authUser.user?.email ?? null, old_role: "admin", new_role: "member" },
+  });
+  revalidatePath("/", "layout");
+  return { ok: true, id: userId };
+}
+
+function splitFullName(fullName: string, email: string) {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { first: email.split("@")[0], last: null };
+  if (parts.length === 1) return { first: parts[0], last: null };
+  return { first: parts.slice(0, -1).join(" "), last: parts[parts.length - 1] };
+}
+
+export async function makeUserTeacher(
+  _previous: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const userId = readString(formData, "user_id");
+  const denied = await requireAdmin();
+  if (denied) return denied;
+  if (!z.string().uuid().safeParse(userId).success) {
+    return { ok: false, error: "Ugyldig bruker." };
+  }
+
+  const admin = createAdminClient();
+  const { data: authUser, error: userError } = await admin.auth.admin.getUserById(userId);
+  const email = authUser.user?.email?.trim().toLowerCase();
+  if (userError || !email) {
+    return { ok: false, error: "Fant ikke brukeren. Last siden på nytt." };
+  }
+
+  const { data: matches, error: lookupError } = await admin
+    .from("guardians")
+    .select("id")
+    .ilike("email", email.replace(/[\\%_]/g, "\\$&"));
+  if (lookupError) return { ok: false, error: toUserError(lookupError) };
+  if ((matches?.length ?? 0) > 1) {
+    return {
+      ok: false,
+      error: "E-posten finnes hos flere foresatte. Gjør riktig person til lærer fra familiesiden.",
+    };
+  }
+
+  let guardianId = matches?.[0]?.id ?? null;
+  if (guardianId) {
+    const { error } = await admin
+      .from("guardians")
+      .update({ is_teacher: true })
+      .eq("id", guardianId);
+    if (error) return { ok: false, error: toUserError(error) };
+  } else {
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("full_name")
+      .eq("id", userId)
+      .maybeSingle();
+    const name = splitFullName(
+      profile?.full_name || String(authUser.user?.user_metadata?.full_name ?? ""),
+      email,
+    );
+    const { data, error } = await admin
+      .from("guardians")
+      .insert({ email, first_name: name.first, last_name: name.last, is_teacher: true })
+      .select("id")
+      .single();
+    if (error) return { ok: false, error: toUserError(error) };
+    guardianId = data.id;
+  }
+
+  await writeAudit({
+    action: "teacher.registered",
+    entityType: "guardian",
+    entityId: guardianId,
+    metadata: { email, from_user: userId },
+  });
+  revalidatePath("/", "layout");
+  return { ok: true, id: guardianId };
 }
 
 export async function deleteUser(userId: string): Promise<ActionResult> {
@@ -973,64 +1116,6 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
   });
   revalidatePath("/", "layout");
   return { ok: true, id: userId };
-}
-
-export async function changeOwnPassword(
-  formData: FormData,
-): Promise<ActionResult> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user?.email) {
-    return {
-      ok: false,
-      error: "Du er logget ut. Logg inn på nytt og prøv igjen.",
-    };
-  }
-
-  const current = String(formData.get("current_password") ?? "");
-  const password = String(formData.get("password") ?? "");
-  const confirm = String(formData.get("confirm") ?? "");
-  if (!current) {
-    return { ok: false, error: "Skriv inn passordet du bruker i dag" };
-  }
-  if (password.length < 8) {
-    return { ok: false, error: "Det nye passordet må ha minst 8 tegn" };
-  }
-  if (password !== confirm) {
-    return { ok: false, error: "De nye passordene er ikke like" };
-  }
-  if (password === current) {
-    return {
-      ok: false,
-      error: "Det nye passordet må være forskjellig fra det gamle.",
-    };
-  }
-
-  const verifier = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
-  const { error: verifyError } = await verifier.auth.signInWithPassword({
-    email: user.email,
-    password: current,
-  });
-  if (verifyError) {
-    return { ok: false, error: "Passordet du bruker i dag er feil" };
-  }
-  await verifier.auth.signOut({ scope: "local" });
-
-  const { error } = await supabase.auth.updateUser({ password });
-  if (error) return { ok: false, error: toAuthUserError(error) };
-
-  await writeAudit({
-    action: "user.change_password",
-    entityType: "users",
-    entityId: user.id,
-  });
-  return { ok: true };
 }
 
 export async function reorderClasses(ids: string[]): Promise<ActionResult> {

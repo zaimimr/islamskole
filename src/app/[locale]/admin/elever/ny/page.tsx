@@ -3,16 +3,25 @@ import Link from "next/link";
 import { ArrowLeft, UserRoundPlus } from "lucide-react";
 import { adminBasePath } from "@/components/admin/paths";
 import { StudentForm } from "@/components/admin/student-form";
+import { getAdminFamilies } from "@/lib/families/service";
+import { familyOptions } from "@/app/[locale]/admin/familier/family-options";
 
 export const metadata: Metadata = { title: "Ny elev" };
 
 export default async function NyElevPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { locale } = await params;
+  const [{ locale }, { familie }, families] = await Promise.all([
+    params,
+    searchParams,
+    getAdminFamilies(),
+  ]);
   const listHref = `${adminBasePath(locale)}/elever`;
+  const options = familyOptions(families, null);
 
   return (
     <div className="grid gap-5 sm:gap-6">
@@ -33,13 +42,19 @@ export default async function NyElevPage({
               Ny elev
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-admin-muted sm:text-base">
-              Registrer barnet og minst én foresatt. Familieforbindelsen
-              opprettes når du lagrer.
+              Registrer barnet i en eksisterende familie, eller med minst én
+              foresatt i en ny familie.
             </p>
           </div>
         </div>
       </header>
-      <StudentForm listHref={listHref} />
+      <StudentForm
+        listHref={listHref}
+        families={options}
+        defaultFamilyId={
+          options.find((option) => option.id === familie)?.id ?? ""
+        }
+      />
     </div>
   );
 }

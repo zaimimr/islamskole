@@ -629,10 +629,11 @@ security definer
 set search_path = public
 as $$
 begin
-  if old.role = 'admin'
-    and (tg_op = 'DELETE' or new.role is distinct from 'admin')
-    and not exists (select 1 from public.profiles where role = 'admin') then
-    raise exception 'Det må finnes minst én administrator.';
+  if old.role = 'admin' and (tg_op = 'DELETE' or new.role is distinct from 'admin') then
+    perform pg_advisory_xact_lock(hashtext('public.profiles_keep_last_admin'));
+    if not exists (select 1 from public.profiles where role = 'admin') then
+      raise exception 'Det må finnes minst én administrator.';
+    end if;
   end if;
   return null;
 end;

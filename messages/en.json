@@ -444,15 +444,15 @@
     "signedInAs": "Signed in as",
     "login": {
       "title": "Sign in to My page",
-      "intro": "Enter the email address you gave the school at enrollment. We will send you a link, no password needed.",
+      "intro": "For parents and guardians, teachers, students and administrators. Enter the email address the school has registered for you and we will send you a sign-in link. No password needed.",
       "emailLabel": "Email",
       "submit": "Send sign-in link",
       "sentTitle": "Check your email",
       "sent": "If the email is registered with us, you will receive a link within a few minutes. Also check your spam folder.",
       "again": "Use a different email",
-      "invalidLink": "The link has been used or has expired. Request a new link below.",
-      "adminHint": "Administrator? Sign in here"
+      "invalidLink": "The link has been used or has expired. Request a new link below."
     },
+    "adminLink": "Administration",
     "errors": {
       "invalid": "Check that what you entered is correct.",
       "unauthenticated": "Please sign in again.",
@@ -470,7 +470,13 @@
       "emptyTitle": "No children or classes yet",
       "empty": "We found no children or classes linked to {email}. Contact the school and we will link your email to the right family.",
       "contact": "Contact the school",
-      "adminLink": "Go to administration"
+      "adminLink": "Go to administration",
+      "teacherUnassignedTitle": "You are registered as a teacher",
+      "teacherUnassigned": "You are registered as a teacher, but you are not assigned to a class yet. The school will let you know when you have a class."
+    },
+    "student": {
+      "title": "My school",
+      "noClass": "You are not placed in a class yet."
     },
     "teacher": {
       "students": "{count, plural, one {# student} other {# students}}",
@@ -553,7 +559,8 @@
         "homework": "Homework",
         "summary": "What we did",
         "empty": "The teacher has not written a note yet.",
-        "historyTitle": "Notes from the teacher"
+        "historyTitle": "Notes from the teacher",
+        "yearTitle": "Weekly notes"
       },
       "attendance": {
         "title": "Attendance",

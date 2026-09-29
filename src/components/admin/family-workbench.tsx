@@ -25,6 +25,13 @@ import {
   TeacherRole,
   TeacherToggleButton,
 } from "@/components/admin/teacher-toggle-button";
+import {
+  FamilyPickerDialog,
+  MergeDuplicateButton,
+  RemoveGuardianButton,
+  type FamilyOption,
+} from "@/app/[locale]/admin/familier/family-controls";
+import { mergeFamilies } from "@/app/[locale]/admin/familier/families-actions";
 
 export type FamilyStatusTone =
   "success" | "warning" | "danger" | "info" | "neutral";
@@ -116,6 +123,7 @@ export type FamilyWorkbenchProps = {
   activeTab: FamilyWorkbenchTab["id"];
   editFamilyHref?: string;
   addGuardianHref?: string;
+  addChildHref?: string;
   editRelationshipsHref?: string;
   nextAction?: FamilyNextAction;
   recentActivity: FamilyActivity[];
@@ -123,6 +131,7 @@ export type FamilyWorkbenchProps = {
   attentionItems?: FamilyAttentionItem[];
   allAttentionHref?: string;
   duplicateFamilies?: FamilyDuplicate[];
+  mergeOptions?: FamilyOption[];
 };
 
 export type FamilyDuplicate = {
@@ -214,11 +223,13 @@ function RelationshipMember({
   phone,
   email,
   loginGuardianId,
+  removeFromFamilyId,
   isPrimary = false,
   isTeacher = false,
   child = false,
 }: {
   loginGuardianId?: string;
+  removeFromFamilyId?: string;
   isTeacher?: boolean;
   name: string;
   role: string;
@@ -303,6 +314,14 @@ function RelationshipMember({
                 className="justify-self-start"
               />
             ) : null}
+            {loginGuardianId && removeFromFamilyId ? (
+              <RemoveGuardianButton
+                familyId={removeFromFamilyId}
+                guardianId={loginGuardianId}
+                name={name}
+                className="justify-self-start"
+              />
+            ) : null}
           </div>
         ) : null}
       </li>
@@ -351,6 +370,7 @@ export function FamilyWorkbench({
   activeTab,
   editFamilyHref,
   addGuardianHref,
+  addChildHref,
   editRelationshipsHref,
   nextAction,
   recentActivity,
@@ -358,6 +378,7 @@ export function FamilyWorkbench({
   attentionItems = [],
   allAttentionHref,
   duplicateFamilies = [],
+  mergeOptions = [],
 }: FamilyWorkbenchProps) {
   const primaryGuardian =
     family.guardians.find((guardian) => guardian.isPrimary) ??
@@ -415,6 +436,9 @@ export function FamilyWorkbench({
                 phone={guardian.phone}
                 email={guardian.email}
                 loginGuardianId={guardian.id}
+                removeFromFamilyId={
+                  family.guardians.length > 1 ? family.id : undefined
+                }
                 isTeacher={guardian.isTeacher}
               />
             ))}
@@ -437,6 +461,15 @@ export function FamilyWorkbench({
           >
             <UserRound aria-hidden="true" className="size-4" />
             Legg til foresatt
+          </Link>
+        ) : null}
+        {addChildHref ? (
+          <Link
+            href={addChildHref}
+            className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#CFC8BA] px-3 text-sm font-bold text-[#277A31] outline-none transition-colors hover:border-[#8DB793] hover:bg-[#F7FBF7] focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <GraduationCap aria-hidden="true" className="size-4" />
+            Legg til barn
           </Link>
         ) : null}
       </aside>
@@ -473,15 +506,28 @@ export function FamilyWorkbench({
               </p>
             ) : null}
           </div>
-          {editFamilyHref ? (
-            <Link
-              href={editFamilyHref}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#DDD8CE] px-3 text-sm font-bold outline-none transition-colors hover:bg-[#F2F1EB] focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              <Pencil aria-hidden="true" className="size-4" />
-              Rediger familie
-            </Link>
-          ) : null}
+          <div className="flex flex-wrap gap-2">
+            {editFamilyHref ? (
+              <Link
+                href={editFamilyHref}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#DDD8CE] px-3 text-sm font-bold outline-none transition-colors hover:bg-[#F2F1EB] focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <Pencil aria-hidden="true" className="size-4" />
+                Rediger familie
+              </Link>
+            ) : null}
+            {mergeOptions.length > 0 ? (
+              <FamilyPickerDialog
+                triggerLabel="Slå sammen med annen familie"
+                title={`Slå sammen med ${family.name}`}
+                description="Barn, foresatte, betalingsplaner og innmeldinger fra familien du velger flyttes hit. Foresatte med samme e-post blir én person, og den andre familien slettes."
+                confirmLabel="Slå sammen"
+                successMessage="Familiene er slått sammen"
+                options={mergeOptions}
+                action={mergeFamilies.bind(null, family.id)}
+              />
+            ) : null}
+          </div>
         </header>
 
         <section
@@ -538,10 +584,10 @@ export function FamilyWorkbench({
               </p>
               <ul className="mt-3 grid gap-2">
                 {duplicateFamilies.map((duplicate) => (
-                  <li key={duplicate.id}>
+                  <li key={duplicate.id} className="flex items-center gap-2">
                     <Link
                       href={duplicate.href}
-                      className="group flex min-h-11 items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm outline-none ring-1 ring-[#EDD49A] transition-colors hover:bg-[#FFFDF7] focus-visible:ring-3 focus-visible:ring-ring/50"
+                      className="group flex min-h-11 min-w-0 flex-1 items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm outline-none ring-1 ring-[#EDD49A] transition-colors hover:bg-[#FFFDF7] focus-visible:ring-3 focus-visible:ring-ring/50"
                     >
                       <span className="min-w-0">
                         <span className="block truncate font-bold">{duplicate.name}</span>
@@ -554,6 +600,11 @@ export function FamilyWorkbench({
                         className="size-4 shrink-0 text-admin-muted transition-transform group-hover:translate-x-0.5"
                       />
                     </Link>
+                    <MergeDuplicateButton
+                      keepFamilyId={family.id}
+                      mergeFamilyId={duplicate.id}
+                      mergeFamilyName={duplicate.name}
+                    />
                   </li>
                 ))}
               </ul>

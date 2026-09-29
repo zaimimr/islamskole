@@ -83,7 +83,11 @@ const entityFilters: { key: string; label: string; types: string[] }[] = [
       "teacher",
     ],
   },
-  { key: "classes", label: "Klasser", types: ["classes", "class"] },
+  {
+    key: "classes",
+    label: "Klasser",
+    types: ["classes", "class", "class_teachers", "class_teacher"],
+  },
   {
     key: "school_years",
     label: "Skoleår",
@@ -117,6 +121,10 @@ const actionLabels: Record<string, string> = {
   "teacher.bulk_status": "Endret status på flere lærersøknader",
   "teacher.registered": "Registrerte en lærer",
   "teacher.removed": "Fjernet lærerrollen",
+  "teacher.updated": "Endret opplysninger om en lærer",
+  "class_teacher.assign": "Knyttet en lærer til en klasse",
+  "class_teacher.remove": "Fjernet en lærer fra en klasse",
+  "portal.login_link_sent": "Sendte innloggingslenke",
   "application.status": "Endret opptaksstatus",
   "application.delete": "Slettet en innmelding",
   "application.bulk_status": "Endret status på flere innmeldinger",

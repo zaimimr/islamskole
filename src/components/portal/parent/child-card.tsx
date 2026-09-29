@@ -21,7 +21,7 @@ export function ClassNoteBody({
   note,
   labels,
 }: {
-  note: PortalClassNote;
+  note: Pick<PortalClassNote, "homework" | "summary">;
   labels: { homework: string; summary: string };
 }) {
   return (

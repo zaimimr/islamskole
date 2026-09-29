@@ -11,6 +11,8 @@ import {
   SEMESTER_INSTALLMENT_ORE,
 } from "@/lib/payment-plans";
 import { sendInstallmentBatch } from "@/lib/installment-billing";
+import { sendLoginLink } from "@/lib/login-link";
+import { isPlaceholderEmail } from "@/lib/portal/emails";
 
 type FamilyActionResult = { ok: true } | { ok: false; error: string };
 
@@ -427,6 +429,84 @@ export async function dismissSiblingSuggestion(
   return { ok: true };
 }
 
+export async function removeGuardianFromFamily(
+  familyId: string,
+  guardianId: string,
+): Promise<{ ok: true; deleted: boolean } | { ok: false; error: string }> {
+  if (!(await getIsAdmin())) return { ok: false, error: "Ikke autorisert" };
+  if (!familyId || !guardianId) {
+    return { ok: false, error: "Mangler familie eller foresatt" };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc(
+    "admin_remove_guardian_from_family",
+    { p_family_id: familyId, p_guardian_id: guardianId },
+  );
+  if (error) return { ok: false, error: toUserError(error) };
+
+  await writeAudit({
+    action: "family.guardian_removed",
+    entityType: "families",
+    entityId: familyId,
+    metadata: { guardianId, result: data },
+  });
+  revalidatePath("/", "layout");
+  return { ok: true, deleted: data === "deleted" };
+}
+
+export async function mergeFamilies(
+  keepFamilyId: string,
+  mergeFamilyId: string,
+): Promise<FamilyActionResult> {
+  if (!(await getIsAdmin())) return { ok: false, error: "Ikke autorisert" };
+  if (!keepFamilyId || !mergeFamilyId) {
+    return { ok: false, error: "Velg familien du vil slå sammen med" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_merge_families", {
+    p_keep: keepFamilyId,
+    p_merge: mergeFamilyId,
+  });
+  if (error) return { ok: false, error: toUserError(error) };
+
+  await writeAudit({
+    action: "family.merged",
+    entityType: "families",
+    entityId: keepFamilyId,
+    metadata: { mergedFamilyId: mergeFamilyId },
+  });
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function moveStudentToFamily(
+  studentId: string,
+  familyId: string,
+): Promise<FamilyActionResult> {
+  if (!(await getIsAdmin())) return { ok: false, error: "Ikke autorisert" };
+  if (!studentId || !familyId) {
+    return { ok: false, error: "Velg familien eleven skal flyttes til" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_move_student_to_family", {
+    p_student_id: studentId,
+    p_family_id: familyId,
+  });
+  if (error) return { ok: false, error: toUserError(error) };
+
+  await writeAudit({
+    action: "student.family_moved",
+    entityType: "students",
+    entityId: studentId,
+    metadata: { familyId },
+  });
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
 export async function updateGuardianRoles(
   formData: FormData,
 ): Promise<FamilyActionResult> {
@@ -445,7 +525,7 @@ export async function updateGuardianRoles(
     .update({
       is_teacher: isTeacher,
       is_volunteer: isVolunteer,
-      teacher_note: teacherNote,
+      ...(formData.has("teacher_note") ? { teacher_note: teacherNote } : {}),
     })
     .eq("id", guardianId);
   if (error) return { ok: false, error: toUserError(error) };
@@ -460,40 +540,63 @@ export async function updateGuardianRoles(
   return { ok: true };
 }
 
+type TeacherActionResult =
+  | { ok: true; linkedName?: string; inviteError?: string }
+  | { ok: false; error: string };
+
 export async function registerTeacher(
   formData: FormData,
-): Promise<FamilyActionResult> {
+): Promise<TeacherActionResult> {
   if (!(await getIsAdmin())) return { ok: false, error: "Ikke autorisert" };
 
   const guardianId = read(formData, "guardian_id");
   const firstName = read(formData, "first_name");
   const lastName = read(formData, "last_name");
-  const email = read(formData, "email") || null;
+  const email = read(formData, "email").toLowerCase() || null;
   const phone = read(formData, "phone") || null;
   const sourceApplicationId = read(formData, "source_application_id") || null;
   const teacherNote = read(formData, "teacher_note") || null;
+  const sendLink = formData.get("send_login_link") === "on";
+  const locale = read(formData, "locale") === "en" ? "en" : "no";
+  const extras = {
+    ...(teacherNote ? { teacher_note: teacherNote } : {}),
+    ...(sourceApplicationId ? { source_application_id: sourceApplicationId } : {}),
+  };
 
   const supabase = await createClient();
 
-  if (guardianId) {
-    const { error } = await supabase
-      .from("guardians")
-      .update({
-        is_teacher: true,
-        teacher_note: teacherNote,
-        source_application_id: sourceApplicationId,
-      })
-      .eq("id", guardianId);
-    if (error) return { ok: false, error: toUserError(error) };
-
+  async function finish(id: string, email: string | null, metadata: Record<string, unknown>, linkedName?: string) {
+    if (sourceApplicationId) {
+      await supabase
+        .from("teacher_applications")
+        .update({ status: "kontaktet" })
+        .eq("id", sourceApplicationId)
+        .eq("status", "ny");
+    }
     await writeAudit({
       action: "teacher.registered",
       entityType: "guardians",
-      entityId: guardianId,
-      metadata: { fromApplication: sourceApplicationId },
+      entityId: id,
+      metadata: { ...metadata, fromApplication: sourceApplicationId },
     });
     revalidatePath("/", "layout");
-    return { ok: true };
+    if (sendLink && email && !isPlaceholderEmail(email)) {
+      const sent = await sendLoginLink({ email, locale });
+      if (!sent.ok) return { ok: true as const, linkedName, inviteError: sent.error };
+    }
+    return { ok: true as const, linkedName };
+  }
+
+  if (guardianId) {
+    const { data: updated, error } = await supabase
+      .from("guardians")
+      .update({ is_teacher: true, ...extras })
+      .eq("id", guardianId)
+      .select("email")
+      .maybeSingle();
+    if (error) return { ok: false, error: toUserError(error) };
+    const savedEmail = updated?.email?.trim().toLowerCase() ?? "";
+    return finish(guardianId, emailPattern.test(savedEmail) ? savedEmail : null, {});
   }
 
   if (!firstName && !lastName) {
@@ -503,32 +606,32 @@ export async function registerTeacher(
     return { ok: false, error: "Skriv inn en gyldig e-postadresse" };
   }
 
-  if (email) {
-    const { data: match } = await supabase
+  if (email && !isPlaceholderEmail(email)) {
+    const { data: candidates, error: matchError } = await supabase
       .from("guardians")
-      .select("id")
-      .ilike("email", email)
-      .limit(1)
-      .maybeSingle();
+      .select("id, first_name, last_name, email")
+      .ilike("email", email.replace(/[\\%_]/g, "\\$&"));
+    if (matchError) return { ok: false, error: toUserError(matchError) };
+    const matches = (candidates ?? []).filter(
+      (row) => row.email?.trim().toLowerCase() === email,
+    );
+    if (matches.length > 1) {
+      return {
+        ok: false,
+        error:
+          "Flere foresatte har denne e-postadressen. Åpne riktig familie og gjør personen til lærer fra familiesiden.",
+      };
+    }
+    const match = matches[0];
     if (match) {
       const { error } = await supabase
         .from("guardians")
-        .update({
-          is_teacher: true,
-          teacher_note: teacherNote,
-          source_application_id: sourceApplicationId,
-        })
+        .update({ is_teacher: true, ...extras })
         .eq("id", match.id);
       if (error) return { ok: false, error: toUserError(error) };
-
-      await writeAudit({
-        action: "teacher.registered",
-        entityType: "guardians",
-        entityId: match.id,
-        metadata: { matchedByEmail: true, fromApplication: sourceApplicationId },
-      });
-      revalidatePath("/", "layout");
-      return { ok: true };
+      const name =
+        [match.first_name, match.last_name].filter(Boolean).join(" ") || email;
+      return finish(match.id, email, { matchedByEmail: true }, name);
     }
   }
 
@@ -546,15 +649,7 @@ export async function registerTeacher(
     .select("id")
     .single();
   if (error) return { ok: false, error: toUserError(error) };
-
-  await writeAudit({
-    action: "teacher.registered",
-    entityType: "guardians",
-    entityId: created.id,
-    metadata: { fromApplication: sourceApplicationId },
-  });
-  revalidatePath("/", "layout");
-  return { ok: true };
+  return finish(created.id, email, {});
 }
 
 export async function removeTeacher(

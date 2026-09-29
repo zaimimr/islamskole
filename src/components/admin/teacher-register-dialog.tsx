@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import { toast } from "sonner";
 import { GraduationCap, Loader2, Plus } from "lucide-react";
 import { registerTeacher } from "@/app/[locale]/admin/familier/families-actions";
@@ -32,6 +33,7 @@ export function TeacherRegisterDialog({
   compact?: boolean;
 }) {
   const router = useRouter();
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -44,10 +46,16 @@ export function TeacherRegisterDialog({
     if (sourceApplicationId) {
       formData.set("source_application_id", sourceApplicationId);
     }
+    formData.set("locale", locale);
     startTransition(async () => {
       const result = await registerTeacher(formData);
       if (result.ok) {
-        toast.success("Læreren er registrert");
+        toast.success(
+          result.linkedName
+            ? `${result.linkedName} er koblet til og registrert som lærer`
+            : "Læreren er registrert",
+        );
+        if (result.inviteError) toast.error(result.inviteError);
         setOpen(false);
         router.refresh();
       } else {
@@ -144,6 +152,15 @@ export function TeacherRegisterDialog({
               className="h-11 rounded-xl"
             />
           </div>
+          <label className="flex min-h-11 items-center gap-3 text-sm font-bold">
+            <input
+              type="checkbox"
+              name="send_login_link"
+              defaultChecked
+              className="size-4 accent-[#3C8F44]"
+            />
+            Send innloggingslenke nå
+          </label>
           <DialogFooter className="[&_[data-slot=button]]:min-h-11 [&_[data-slot=button]]:rounded-xl [&_[data-slot=button]]:px-4">
             <Button
               type="button"

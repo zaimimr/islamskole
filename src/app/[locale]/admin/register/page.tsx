@@ -168,6 +168,43 @@ async function getRegisteredMap(): Promise<Map<string, string> | null> {
   }
 }
 
+type GuardianContact = {
+  name: string;
+  phone: string | null;
+  email: string | null;
+};
+
+async function getFamilyGuardians(
+  familyIds: string[],
+): Promise<Map<string, GuardianContact[]>> {
+  const byFamily = new Map<string, GuardianContact[]>();
+  if (familyIds.length === 0) return byFamily;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("family_guardians")
+    .select("family_id, guardians(first_name, last_name, phone, email)")
+    .in("family_id", familyIds)
+    .order("sort_order", { ascending: true });
+  for (const row of data ?? []) {
+    const guardian = row.guardians as unknown as {
+      first_name: string | null;
+      last_name: string | null;
+      phone: string | null;
+      email: string | null;
+    } | null;
+    if (!guardian) continue;
+    byFamily.set(row.family_id, [
+      ...(byFamily.get(row.family_id) ?? []),
+      {
+        name: fullName(guardian.first_name, guardian.last_name),
+        phone: guardian.phone,
+        email: guardian.email,
+      },
+    ]);
+  }
+  return byFamily;
+}
+
 async function getPlacementOptions(): Promise<{
   classes: PlacementClass[];
   activeYear: { id: string; label: string } | null;
@@ -324,6 +361,13 @@ export default async function OpptakPage({
     desiredClass: application.desired_class,
   }));
   const suggestions = suggestPlacements(candidates, placement.classes);
+  const familyGuardians = await getFamilyGuardians([
+    ...new Set(
+      applications
+        .map((application) => application.family_id)
+        .filter((familyId): familyId is string => Boolean(familyId)),
+    ),
+  ]);
   const candidateById = new Map(candidates.map((c) => [c.id, c]));
 
   return (
@@ -445,22 +489,27 @@ export default async function OpptakPage({
                 const name = candidate?.name ?? "Navn mangler";
                 const appStatus = application.status ?? "ny";
                 const statusChip = statusLabels[appStatus] ?? statusLabels.arkivert;
-                const guardians = [
-                  {
-                    name: fullName(
-                      application.mother_first_name,
-                      application.mother_last_name,
-                    ),
-                    phone: application.mother_phone,
-                  },
-                  {
-                    name: fullName(
-                      application.father_first_name,
-                      application.father_last_name,
-                    ),
-                    phone: application.father_phone,
-                  },
-                ].filter((guardian) => guardian.name || guardian.phone);
+                const guardians = (
+                  (application.family_id &&
+                    familyGuardians.get(application.family_id)) || [
+                    {
+                      name: fullName(
+                        application.mother_first_name,
+                        application.mother_last_name,
+                      ),
+                      phone: application.mother_phone,
+                      email: application.mother_email,
+                    },
+                    {
+                      name: fullName(
+                        application.father_first_name,
+                        application.father_last_name,
+                      ),
+                      phone: application.father_phone,
+                      email: application.father_email,
+                    },
+                  ]
+                ).filter((guardian) => guardian.name || guardian.phone);
                 const canAdmit = !["avslatt", "arkivert"].includes(appStatus);
                 return (
                   <li key={application.id} className="p-4 sm:p-5">
@@ -610,16 +659,14 @@ export default async function OpptakPage({
                           value={application.child_phone}
                           href={application.child_phone ? telHref(application.child_phone) : undefined}
                         />
-                        <Field
-                          label="E-post foresatt 1"
-                          value={application.mother_email}
-                          href={application.mother_email ? `mailto:${application.mother_email}` : undefined}
-                        />
-                        <Field
-                          label="E-post foresatt 2"
-                          value={application.father_email}
-                          href={application.father_email ? `mailto:${application.father_email}` : undefined}
-                        />
+                        {guardians.map((guardian, index) => (
+                          <Field
+                            key={index}
+                            label={`E-post ${guardian.name || `foresatt ${index + 1}`}`}
+                            value={guardian.email}
+                            href={guardian.email ? `mailto:${guardian.email}` : undefined}
+                          />
+                        ))}
                         <Field
                           label="Nivå (Koran / Arabisk / Islam)"
                           value={`${levelLabel(application.child_level_quran)} / ${levelLabel(application.child_level_arabic)} / ${levelLabel(application.child_level_islam)}`}

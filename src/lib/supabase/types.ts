@@ -2255,6 +2255,7 @@ export type Database = {
         Args: { p_family_id: string; p_guardian_id: string }
         Returns: string
       }
+      auth_user_id_by_email: { Args: { p_email: string }; Returns: string }
       create_manual_family_student: {
         Args: { p_student: Json }
         Returns: string

@@ -12,6 +12,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export type SchoolYearRecord = {
   id: string;
@@ -28,14 +38,17 @@ export type SchoolYearRecord = {
 export function SchoolYearForm({
   schoolYear,
   listHref,
+  copyableAssignments = 0,
 }: {
   schoolYear?: SchoolYearRecord;
   listHref: string;
+  copyableAssignments?: number;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [isActive, setIsActive] = useState(schoolYear?.is_active ?? false);
   const lockedActive = Boolean(schoolYear?.is_active);
+  const [pendingActivation, setPendingActivation] = useState<FormData | null>(null);
 
   function handleSubmit(formData: FormData) {
     formData.set("is_active", isActive ? "true" : "false");
@@ -57,7 +70,9 @@ export function SchoolYearForm({
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        handleSubmit(new FormData(event.currentTarget));
+        const formData = new FormData(event.currentTarget);
+        if (isActive && !lockedActive) setPendingActivation(formData);
+        else handleSubmit(formData);
       }}
       className="grid gap-5"
     >
@@ -196,6 +211,7 @@ export function SchoolYearForm({
                   checked={isActive}
                   onCheckedChange={setIsActive}
                   disabled={lockedActive}
+                  aria-label="Aktivt skoleår"
                 />
               </div>
               {isActive && !lockedActive ? (
@@ -226,6 +242,37 @@ export function SchoolYearForm({
           {schoolYear ? "Lagre endringer" : "Opprett skoleår"}
         </Button>
       </div>
+
+      <AlertDialog
+        open={pendingActivation !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingActivation(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gjøre dette til aktivt skoleår?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Dette året blir standard for plasseringer, betalinger og Min side.{" "}
+              {copyableAssignments === 1
+                ? "1 lærertildeling kopieres fra det aktive skoleåret, så lærerne beholder klassene sine."
+                : `${copyableAssignments} lærertildelinger kopieres fra det aktive skoleåret, så lærerne beholder klassene sine.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Avbryt</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={pending}
+              onClick={() => {
+                if (pendingActivation) handleSubmit(pendingActivation);
+                setPendingActivation(null);
+              }}
+            >
+              Aktiver skoleåret
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   );
 }

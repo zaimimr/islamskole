@@ -3,8 +3,9 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { CalendarRange, UserRound } from "lucide-react";
+import { CalendarRange, House, UserRound } from "lucide-react";
 import { getIsAdmin, getUser } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { AdminMobileNav } from "@/components/admin/admin-mobile-nav";
 import { CommandPalette } from "@/components/admin/command-palette";
@@ -14,7 +15,7 @@ import {
   type NavCounts,
 } from "@/components/admin/sidebar-nav";
 import { SignOutButton } from "@/components/admin/sign-out-button";
-import { adminBasePath, loginPath } from "@/components/admin/paths";
+import { adminBasePath, localePrefix, loginPath } from "@/components/admin/paths";
 
 export const metadata: Metadata = {
   title: {
@@ -71,6 +72,37 @@ async function ActiveSchoolYearLabel() {
     : (schoolYear.label ?? "Velg skoleår");
 }
 
+async function hasPortalRole(email: string | undefined) {
+  if (!email) return false;
+  const pattern = email.replace(/[\\%_]/g, "\\$&");
+  const admin = createAdminClient();
+  const [guardians, students] = await Promise.all([
+    admin.from("guardians").select("id").ilike("email", pattern).limit(1),
+    admin.from("students").select("id").ilike("child_email", pattern).limit(1),
+  ]);
+  return Boolean(guardians.data?.length || students.data?.length);
+}
+
+async function PortalLink({
+  email,
+  href,
+}: {
+  email: string | undefined;
+  href: string;
+}) {
+  if (!(await hasPortalRole(email))) return null;
+  return (
+    <Link
+      href={href}
+      className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-[#E4E1D8] bg-white px-3 text-sm font-bold text-foreground outline-none transition-colors hover:bg-[#F2F1EB] focus-visible:ring-3 focus-visible:ring-ring/50"
+    >
+      <House aria-hidden="true" className="size-4 text-[#3C8F44]" />
+      <span className="hidden xl:inline">Min side</span>
+      <span className="sr-only xl:hidden">Min side</span>
+    </Link>
+  );
+}
+
 export default async function AdminLayout({
   children,
   params,
@@ -78,10 +110,10 @@ export default async function AdminLayout({
   const { locale } = await params;
   const [user, isAdmin] = await Promise.all([getUser(), getIsAdmin()]);
   if (!user) {
-    redirect(loginPath(locale));
+    redirect(`${loginPath(locale)}?next=${encodeURIComponent(adminBasePath(locale))}`);
   }
   if (!isAdmin) {
-    redirect(`${loginPath(locale)}?ingen-tilgang=1`);
+    redirect(`${localePrefix(locale)}/min-side`);
   }
   const navCounts = getNavCounts();
 
@@ -167,6 +199,13 @@ export default async function AdminLayout({
               <div className="flex lg:mx-auto lg:w-full lg:max-w-[46rem]">
                 <CommandPalette basePath={basePath} />
               </div>
+
+              <Suspense fallback={null}>
+                <PortalLink
+                  email={user.email}
+                  href={`${localePrefix(locale)}/min-side`}
+                />
+              </Suspense>
 
               <Link
                 href={`${basePath}/konto`}

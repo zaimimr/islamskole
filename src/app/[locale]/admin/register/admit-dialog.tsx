@@ -55,6 +55,7 @@ export function AdmitDialog({
         toast.success(
           classId ? `${childName} er tatt opp og plassert` : `${childName} er tatt opp`,
           {
+            description: result.note,
             action: {
               label: "Åpne elev",
               onClick: () => router.push(`${basePath}/elever/${studentId}`),

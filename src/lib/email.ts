@@ -1,4 +1,7 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { Resend } from "resend";
 import { formatNok } from "@/lib/money";
 
@@ -85,6 +88,14 @@ const STRINGS = {
           ? `Hei, ${child} har fått plass i ${className}. Vi gleder oss til å se dere!`
           : `Hei, ${child} har fått plass hos oss. Vi gleder oss til å se dere!`,
     },
+    loginLink: {
+      subject: "Logg inn på Min side",
+      badge: "Innlogging",
+      title: "Din innloggingslenke",
+      intro:
+        "Hei, trykk på knappen for å logge inn på Min side hos Islamskole Bærum. Lenken virker én gang og går ut etter en time. Har du ikke bedt om den, kan du se bort fra denne e-posten.",
+      cta: "Logg inn",
+    },
     teacherConfirmation: {
       subject: "Vi har mottatt søknaden din",
       badge: "Lærer",
@@ -170,6 +181,14 @@ const STRINGS = {
           ? `Hi, ${child} has been placed in ${className}. We look forward to seeing you!`
           : `Hi, ${child} has a place with us. We look forward to seeing you!`,
     },
+    loginLink: {
+      subject: "Sign in to My page",
+      badge: "Sign in",
+      title: "Your sign-in link",
+      intro:
+        "Hi, tap the button to sign in to My page at Islamskole Bærum. The link works once and expires after one hour. If you did not ask for it, you can ignore this email.",
+      cta: "Sign in",
+    },
     teacherConfirmation: {
       subject: "We have received your application",
       badge: "Teacher",
@@ -246,6 +265,41 @@ function renderEmail(opts: {
 </html>`;
 }
 
+function renderText(opts: {
+  title: string;
+  intro: string;
+  rows: Row[];
+  cta?: { label: string; url: string };
+}) {
+  return [
+    opts.title,
+    opts.intro,
+    ...opts.rows
+      .filter(([, value]) => value != null && String(value).trim() !== "")
+      .map(([label, value]) => `${label}: ${value}`),
+    opts.cta ? `${opts.cta.label}: ${opts.cta.url}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+async function writeOutbox(
+  dir: string,
+  message: { to: string | string[]; subject: string; html: string; text: string; links: string[] },
+) {
+  try {
+    await mkdir(dir, { recursive: true });
+    await writeFile(
+      path.join(dir, `${Date.now()}-${randomUUID()}.json`),
+      JSON.stringify(message),
+    );
+    return true;
+  } catch (error) {
+    console.error("Email outbox write failed", error);
+    return false;
+  }
+}
+
 async function send(opts: {
   lang: EmailLang;
   to: string | string[];
@@ -257,6 +311,24 @@ async function send(opts: {
   rows: Row[];
   cta?: { label: string; url: string };
 }) {
+  const html = renderEmail({
+    lang: opts.lang,
+    badge: opts.badge,
+    title: opts.title,
+    intro: opts.intro,
+    rows: opts.rows,
+    cta: opts.cta,
+  });
+  const outbox = process.env.EMAIL_OUTBOX_DIR;
+  if (outbox) {
+    return await writeOutbox(outbox, {
+      to: opts.to,
+      subject: opts.subject,
+      html,
+      text: renderText(opts),
+      links: opts.cta ? [opts.cta.url] : [],
+    });
+  }
   const resend = getClient();
   if (!resend) return false;
   try {
@@ -265,14 +337,8 @@ async function send(opts: {
       to: opts.to,
       subject: opts.subject,
       replyTo: opts.replyTo ?? undefined,
-      html: renderEmail({
-        lang: opts.lang,
-        badge: opts.badge,
-        title: opts.title,
-        intro: opts.intro,
-        rows: opts.rows,
-        cta: opts.cta,
-      }),
+      html,
+      text: renderText(opts),
     });
     if (error) {
       console.error("Resend email failed", error);
@@ -531,6 +597,25 @@ export async function sendWelcomeEmail(opts: {
       [t.rows.hours, opts.hours],
       [t.rows.address, opts.address],
     ],
+  });
+}
+
+export async function sendLoginLinkEmail(opts: {
+  to: string;
+  url: string;
+  lang?: EmailLang;
+}): Promise<boolean> {
+  const lang = opts.lang ?? "no";
+  const t = strings(lang);
+  return await send({
+    lang,
+    to: opts.to,
+    subject: t.loginLink.subject,
+    badge: t.loginLink.badge,
+    title: t.loginLink.title,
+    intro: t.loginLink.intro,
+    cta: { label: t.loginLink.cta, url: opts.url },
+    rows: [],
   });
 }
 

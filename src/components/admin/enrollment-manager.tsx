@@ -162,6 +162,7 @@ export function EnrollmentManager({
       const result = await changeEnrollmentClass(enrollmentId, switchClass);
       if (result.ok) {
         toast.success("Eleven har byttet klasse");
+        if (result.note) toast.warning(result.note);
         setSwitchingId(null);
         router.refresh();
       } else {
@@ -334,7 +335,7 @@ export function EnrollmentManager({
                             }))}
                         />
                         <p className="text-xs text-admin-muted">
-                          Prisen eleven har fått for skoleåret beholdes.
+                          Er ingenting betalt ennå, får eleven prisen til den nye klassen. Ellers beholdes prisen.
                         </p>
                       </div>
                       <div className="flex gap-2">

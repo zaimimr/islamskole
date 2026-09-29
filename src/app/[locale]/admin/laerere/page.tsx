@@ -15,7 +15,7 @@ import { deleteTeacherApplication } from "@/app/[locale]/admin/actions";
 import { adminBasePath } from "@/components/admin/paths";
 import { TeacherStatusSelect } from "@/components/admin/teacher-status-select";
 import { TeacherRegisterDialog } from "@/components/admin/teacher-register-dialog";
-import { SendLoginLinkButton } from "@/components/admin/send-login-link-button";
+import { isPlaceholderEmail } from "@/lib/portal/emails";
 import { formatNok } from "@/lib/money";
 import { formatOsloDateTime } from "@/lib/dates";
 import { Pagination } from "@/components/admin/pagination";
@@ -422,13 +422,11 @@ export default async function LaererePage({
                             ({gift.students} barn)
                           </span>
                         ) : null}
-                        {teacher.email ? (
-                          <SendLoginLinkButton
-                            guardianId={teacher.id}
-                            email={teacher.email}
-                          />
-                        ) : null}
-                        <TeacherRowMenu guardianId={teacher.id} name={name} />
+                        <TeacherRowMenu
+                          teacher={teacher}
+                          name={name}
+                          canSendLink={Boolean(teacher.email) && !isPlaceholderEmail(teacher.email)}
+                        />
                       </div>
                     </>
                   ),

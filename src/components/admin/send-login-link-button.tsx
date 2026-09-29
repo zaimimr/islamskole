@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useLocale } from "next-intl";
 import { toast } from "sonner";
 import { KeyRound, Loader2 } from "lucide-react";
 import { sendLoginLinkToGuardian } from "@/app/[locale]/admin/portal-admin-actions";
@@ -15,11 +16,12 @@ export function SendLoginLinkButton({
   email: string;
   className?: string;
 }) {
+  const locale = useLocale();
   const [pending, startTransition] = useTransition();
 
   function send() {
     startTransition(async () => {
-      const result = await sendLoginLinkToGuardian(guardianId);
+      const result = await sendLoginLinkToGuardian(guardianId, locale);
       if (result.ok) toast.success(`Innloggingslenke sendt til ${email}`);
       else toast.error(result.error);
     });

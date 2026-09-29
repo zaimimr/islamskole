@@ -6,10 +6,21 @@ import { updateSession } from "@/lib/supabase/middleware";
 const handleI18n = createMiddleware(routing);
 
 const ADMIN_PATH = /^\/(?:no\/)?admin(?:\/|$)/;
-const ENGLISH_ADMIN_PATH = /^\/en\/(admin|login)(\/.*)?$/;
+const ENGLISH_ADMIN_PATH = /^\/en\/(admin)(\/.*)?$/;
+const OLD_LOGIN_PATH = /^\/(?:(no|en)\/)?login(?:\/nytt-passord)?\/?$/;
 
 export default async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+
+  const oldLogin = OLD_LOGIN_PATH.exec(pathname);
+  if (oldLogin) {
+    const url = request.nextUrl.clone();
+    url.pathname = `${oldLogin[1] === "en" ? "/en" : ""}/min-side/logg-inn`;
+    url.search = "";
+    const next = request.nextUrl.searchParams.get("next");
+    if (next) url.searchParams.set("next", next);
+    return NextResponse.redirect(url);
+  }
 
   const english = ENGLISH_ADMIN_PATH.exec(pathname);
   if (english) {
@@ -35,7 +46,7 @@ export default async function proxy(request: NextRequest) {
     !request.headers.has("next-action")
   ) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = "/min-side/logg-inn";
     url.search = "";
     url.searchParams.set("next", `${pathname}${search}`);
     return NextResponse.redirect(url);

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { KeyRound, Mail, ShieldCheck } from "lucide-react";
+import { Mail, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { ChangePasswordForm } from "./change-password-form";
 
 export const metadata: Metadata = { title: "Min konto" };
 
@@ -27,11 +26,11 @@ export default async function KontoPage() {
           Min konto
         </h1>
         <p className="mt-1 max-w-2xl text-admin-muted">
-          Se hvilken konto du bruker og hold innloggingen sikker.
+          Se hvilken konto du bruker. Du logger inn med en lenke vi sender til e-posten din, uten passord.
         </p>
       </header>
 
-      <div className="grid max-w-4xl items-start gap-5 lg:grid-cols-[minmax(16rem,0.72fr)_minmax(0,1.28fr)]">
+      <div className="grid max-w-md items-start gap-5">
         <aside className="rounded-2xl bg-white p-5 ring-1 ring-[#E3DED3] sm:p-6">
           <span className="flex size-12 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B]">
             <ShieldCheck aria-hidden="true" className="size-6" />
@@ -56,24 +55,6 @@ export default async function KontoPage() {
             </div>
           </dl>
         </aside>
-
-        <section className="rounded-2xl bg-white p-5 ring-1 ring-[#E3DED3] sm:p-6">
-          <div className="flex items-start gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#FEEDCA] text-[#775108]">
-              <KeyRound aria-hidden="true" className="size-5" />
-            </span>
-            <div>
-              <h2 className="font-heading text-xl font-bold">Endre passord</h2>
-              <p className="mt-0.5 text-sm text-admin-muted">
-                Bekreft med passordet du bruker i dag, og velg et nytt som ikke
-                brukes på andre tjenester.
-              </p>
-            </div>
-          </div>
-          <div className="mt-5 border-t border-[#ECE8DF] pt-5">
-            <ChangePasswordForm />
-          </div>
-        </section>
       </div>
     </div>
   );

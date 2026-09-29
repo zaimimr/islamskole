@@ -1,8 +1,8 @@
-import NextLink from "next/link";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { redirect } from "@/i18n/navigation";
+import { redirect } from "next/navigation";
 import { PortalLoginForm } from "@/components/portal/portal-login-form";
-import { getUser } from "@/lib/auth";
+import { getIsAdmin, getUser } from "@/lib/auth";
+import { resolvePostLoginPath, safeNextPath } from "@/lib/auth-redirect";
 
 export default async function PortalLoginPage({
   params,
@@ -15,7 +15,10 @@ export default async function PortalLoginPage({
     searchParams,
     getTranslations("portal"),
   ]);
-  if (user) redirect({ href: "/min-side", locale });
+  const next = safeNextPath(typeof query.next === "string" ? query.next : null);
+  if (user) {
+    redirect(resolvePostLoginPath({ next, isAdmin: await getIsAdmin(), locale }));
+  }
 
   return (
     <div className="mx-auto grid w-full max-w-md gap-6 pt-2 sm:pt-8">
@@ -24,14 +27,11 @@ export default async function PortalLoginPage({
         <p className="text-pretty text-muted-foreground">{t("login.intro")}</p>
       </div>
       <div className="soft-card p-5 sm:p-7">
-        <PortalLoginForm invalidLink={query.lenke === "ugyldig"} />
+        <PortalLoginForm
+          invalidLink={query.lenke === "ugyldig"}
+          next={next ?? undefined}
+        />
       </div>
-      <NextLink
-        href="/login"
-        className="inline-flex min-h-11 w-fit items-center rounded-lg px-1 text-sm font-semibold text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        {t("login.adminHint")}
-      </NextLink>
     </div>
   );
 }

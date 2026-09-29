@@ -31,6 +31,11 @@ import { ageInYear, formatAge, schoolYearStart } from "@/lib/age";
 import { formatOsloDate } from "@/lib/dates";
 import { formatNok } from "@/lib/money";
 import { StudentExitPanel } from "./student-exit-panel";
+import { StudentLoginEmail } from "./student-login-email";
+import { getAdminFamilies } from "@/lib/families/service";
+import { FamilyPickerDialog } from "@/app/[locale]/admin/familier/family-controls";
+import { familyOptions } from "@/app/[locale]/admin/familier/family-options";
+import { moveStudentToFamily } from "@/app/[locale]/admin/familier/families-actions";
 
 export const metadata: Metadata = { title: "Elev" };
 
@@ -218,6 +223,7 @@ export default async function ElevDetailPage({
     { data: yearEnrollmentData },
     { data: targetData },
     deleteBlockers,
+    allFamilies,
   ] = await Promise.all([
     student.family_id
       ? supabase
@@ -244,6 +250,7 @@ export default async function ElevDetailPage({
       : Promise.resolve({ data: [] }),
     supabase.from("payment_targets").select("payment_id").eq("student_id", id),
     getStudentDeleteBlockers(id),
+    getAdminFamilies(),
   ]);
 
   const guardians = ((guardianData as GuardianLink[] | null) ?? []).filter(
@@ -532,6 +539,13 @@ export default async function ElevDetailPage({
     ? `${basePath}/familier/${student.family_id}`
     : null;
   const hasActivePlacement = enrollmentRaw.some((e) => e.status === "aktiv");
+  const endedYearId = hasActivePlacement
+    ? null
+    : (enrollmentRaw.find((e) => e.status === "avsluttet")?.school_year_id ??
+      null);
+  const endedRemaining = endedYearId
+    ? (balancesByYear[endedYearId]?.remaining ?? 0)
+    : 0;
   const address = [
     student.child_address,
     [student.child_postal_code, student.child_city].filter(Boolean).join(" "),
@@ -580,6 +594,16 @@ export default async function ElevDetailPage({
                 Åpne familie
               </Link>
             ) : null}
+            <FamilyPickerDialog
+              triggerLabel="Flytt til annen familie"
+              title={`Flytt ${name} til en annen familie`}
+              description="Eleven kobles til den nye familiens foresatte. Betalinger og plasser følger eleven."
+              confirmLabel="Flytt"
+              successMessage={`${name} er flyttet`}
+              options={familyOptions(allFamilies, student.family_id)}
+              action={moveStudentToFamily.bind(null, student.id)}
+              triggerClassName="border-[#CFC9BD] bg-white px-4"
+            />
           </div>
         ) : null}
       </div>
@@ -728,6 +752,11 @@ export default async function ElevDetailPage({
             )}
           </div>
 
+          <StudentLoginEmail
+            studentId={student.id}
+            email={student.child_email}
+          />
+
           <details className="group border-t border-[#ECE8DF] pt-2">
             <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-2 text-sm font-bold text-admin-muted outline-none hover:bg-[#F2F1EB] hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
               Detaljer
@@ -742,18 +771,6 @@ export default async function ElevDetailPage({
                 {student.child_phone ? (
                   <a href={telHref(student.child_phone)} className={linkClass}>
                     {student.child_phone}
-                  </a>
-                ) : (
-                  "Ikke oppgitt"
-                )}
-              </Fact>
-              <Fact label="E-post (kontakt)">
-                {student.child_email ? (
-                  <a
-                    href={`mailto:${student.child_email}`}
-                    className={`${linkClass} break-all`}
-                  >
-                    {student.child_email}
                   </a>
                 ) : (
                   "Ikke oppgitt"
@@ -809,6 +826,11 @@ export default async function ElevDetailPage({
         hasActivePlacement={hasActivePlacement}
         deleteBlockers={deleteBlockers}
         listHref={listHref}
+        outstanding={
+          endedYearId && endedRemaining > 0
+            ? { schoolYearId: endedYearId, remaining: endedRemaining }
+            : null
+        }
       />
     </div>
   );

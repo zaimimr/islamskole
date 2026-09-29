@@ -192,7 +192,8 @@ export async function deleteSchoolYear(id: string): Promise<ActionResult> {
     if (error.code === "23503") {
       return {
         ok: false,
-        error: "Kan ikke slette: skoleåret har elever plassert i klasser",
+        error:
+          "Kan ikke slette skoleåret fordi det har plasseringer, betalinger, oppmøte eller ukenotater. La det ligge som historikk.",
       };
     }
     return { ok: false, error: toUserError(error) };
