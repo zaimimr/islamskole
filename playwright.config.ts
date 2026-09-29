@@ -11,7 +11,10 @@ function requestedProjects() {
 }
 
 const projects = requestedProjects();
-const wantsE2E = projects.length === 0 || projects.some((name) => name.startsWith("e2e"));
+process.env.E2E_WANTED ??= String(
+  projects.length === 0 || projects.some((name) => name.startsWith("e2e")),
+);
+const wantsE2E = process.env.E2E_WANTED === "true";
 const supabase = wantsE2E ? localSupabase() : null;
 if (supabase) assertLocal(supabase);
 
