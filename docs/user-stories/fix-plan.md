@@ -22,7 +22,7 @@ Already verified in prod auth config (Management API, 2026-09-29): `disable_sign
 
 ## Database contract (one new migration, idempotent)
 
-File: `supabase/migrations/20260929120000_access_and_integrity.sql`. Tests: `supabase/tests/*.sql` (pgTAP).
+File: `supabase/migrations/20260929014714_access_and_integrity.sql`. Tests: `supabase/tests/*.sql` (pgTAP).
 
 | # | Change | Stories |
 | --- | --- | --- |
