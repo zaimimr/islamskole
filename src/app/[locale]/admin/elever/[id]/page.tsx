@@ -64,6 +64,9 @@ type StudentData = {
   child_level_arabic: string | null;
   child_level_islam: string | null;
   notes: string | null;
+  allergies: string | null;
+  medical_notes: string | null;
+  photo_consent: boolean | null;
 };
 
 type GuardianLink = {
@@ -137,7 +140,7 @@ export default async function ElevDetailPage({
     supabase
       .from("students")
       .select(
-        "id, family_id, application_id, child_first_name, child_last_name, child_birth_date, child_gender, child_address, child_postal_code, child_city, child_email, child_phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, child_level_quran, child_level_arabic, child_level_islam, notes",
+        "id, family_id, application_id, child_first_name, child_last_name, child_birth_date, child_gender, child_address, child_postal_code, child_city, child_email, child_phone, mother_first_name, mother_last_name, mother_phone, mother_email, father_first_name, father_last_name, father_phone, father_email, child_level_quran, child_level_arabic, child_level_islam, notes, allergies, medical_notes, photo_consent",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -224,6 +227,7 @@ export default async function ElevDetailPage({
     { data: targetData },
     deleteBlockers,
     allFamilies,
+    { data: pickupData },
   ] = await Promise.all([
     student.family_id
       ? supabase
@@ -251,7 +255,15 @@ export default async function ElevDetailPage({
     supabase.from("payment_targets").select("payment_id").eq("student_id", id),
     getStudentDeleteBlockers(id),
     getAdminFamilies(),
+    student.family_id
+      ? supabase
+          .from("family_pickup_persons")
+          .select("id, name, phone, relation")
+          .eq("family_id", student.family_id)
+          .order("created_at", { ascending: true })
+      : Promise.resolve({ data: [] }),
   ]);
+  const pickup = pickupData ?? [];
 
   const guardians = ((guardianData as GuardianLink[] | null) ?? []).filter(
     (link) => link.guardians,
@@ -748,6 +760,55 @@ export default async function ElevDetailPage({
             ) : (
               <p className="mt-2 text-sm text-admin-muted">
                 Ingen foresatte er koblet til familien.
+              </p>
+            )}
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold">Helse, bilder og henting</h3>
+            <dl className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-4">
+              <Fact label="Allergier">
+                {student.allergies ?? "Ikke oppgitt"}
+              </Fact>
+              <Fact label="Helse">
+                {student.medical_notes ?? "Ikke oppgitt"}
+              </Fact>
+              <Fact label="Fotosamtykke">
+                {student.photo_consent == null
+                  ? "Ikke svart"
+                  : student.photo_consent
+                    ? "Ja"
+                    : "Nei"}
+              </Fact>
+            </dl>
+            {pickup.length > 0 ? (
+              <ul className="mt-3 grid gap-2">
+                {pickup.map((person) => (
+                  <li
+                    key={person.id}
+                    className="grid gap-1 rounded-xl border border-[#ECE8DF] px-3 py-2 text-sm sm:flex sm:flex-wrap sm:items-center sm:gap-x-4"
+                  >
+                    <span className="font-bold">
+                      {person.name}
+                      {person.relation ? (
+                        <span className="font-normal text-admin-muted">
+                          {" "}
+                          · {person.relation}
+                        </span>
+                      ) : null}
+                    </span>
+                    {person.phone ? (
+                      <a href={telHref(person.phone)} className={linkClass}>
+                        <Phone aria-hidden="true" className="size-3.5" />
+                        {person.phone}
+                      </a>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-sm text-admin-muted">
+                Ingen hentepersoner registrert.
               </p>
             )}
           </div>

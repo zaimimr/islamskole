@@ -1,9 +1,13 @@
 import { getTranslations } from "next-intl/server";
-import { Mail } from "lucide-react";
+import { ChevronRight, ClipboardPen, HeartPulse, Mail, Users, Wallet } from "lucide-react";
 import { localePrefix } from "@/components/admin/paths";
+import { Link } from "@/i18n/navigation";
 import { ChildCard } from "@/components/portal/parent/child-card";
+import { NextDay } from "@/components/portal/parent/next-day";
 import { UpcomingList } from "@/components/portal/parent/upcoming-list";
-import { absenceOptions, getParentData, getPortalEvents } from "@/lib/portal/parent-data";
+import { formatNok } from "@/lib/money";
+import { getMyFamilies } from "@/lib/portal/family-data";
+import { absenceOptions, getParentData, getPortalEvents, missingFamilyInfo } from "@/lib/portal/parent-data";
 import { currentTerm, summarizeAttendance } from "@/lib/portal/parent-format";
 
 const RECENT_NOTE_DAYS = 7;
@@ -15,13 +19,16 @@ function daysBefore(date: string, days: number) {
 }
 
 export async function ParentHome({ locale }: { locale: string }) {
-  const [t, data, events] = await Promise.all([
+  const [t, tHome, data, events, families] = await Promise.all([
     getTranslations({ locale, namespace: "portal.parent" }),
+    getTranslations({ locale, namespace: "portal.home" }),
     getParentData(),
     getPortalEvents(),
+    getMyFamilies(),
   ]);
   const { term, from, to } = currentTerm(data.today);
   const recentFrom = daysBefore(data.today, RECENT_NOTE_DAYS);
+  const listFormat = new Intl.ListFormat(locale === "en" ? "en-GB" : "nb-NO", { type: "conjunction" });
   const reportedNames = new Map<string, string[]>();
   for (const report of data.reports) {
     const child = data.children.find((row) => row.student_id === report.student_id);
@@ -30,10 +37,25 @@ export async function ParentHome({ locale }: { locale: string }) {
     if (!names.includes(child.first_name)) names.push(child.first_name);
     reportedNames.set(report.school_day_id, names);
   }
-  const listFormat = new Intl.ListFormat(locale === "en" ? "en-GB" : "nb-NO", { type: "conjunction" });
   const contactHref = data.contactEmail
     ? `mailto:${data.contactEmail}`
     : `${localePrefix(locale)}/kontakt`;
+  const rows = data.children.map((child) => ({
+    child,
+    options: absenceOptions(child, data.schoolDays.upcoming, data.reports, locale, data.today),
+  }));
+  const missing = missingFamilyInfo(families);
+  const remaining = data.children.reduce((sum, child) => sum + Math.max(child.remaining_ore ?? 0, 0), 0);
+  const tiles = [
+    { href: "/min-side/familie", icon: Users, title: tHome("tiles.family"), text: tHome("tiles.familyText") },
+    {
+      href: "/min-side/okonomi",
+      icon: Wallet,
+      title: tHome("tiles.economy"),
+      text: remaining > 0 ? tHome("tiles.economyDue", { amount: formatNok(remaining) }) : tHome("tiles.economyPaid"),
+    },
+    { href: "/min-side/pamelding", icon: ClipboardPen, title: tHome("tiles.enroll"), text: tHome("tiles.enrollText") },
+  ];
 
   return (
     <div className="grid gap-10">
@@ -46,10 +68,28 @@ export async function ParentHome({ locale }: { locale: string }) {
             {t("intro", { count: data.children.length, year: data.children[0]?.school_year_label ?? "" })}
           </p>
         </div>
+
+        {missing.length ? (
+          <Link
+            href="/min-side/familie"
+            className="flex items-start gap-3 rounded-2xl bg-brand-sun/25 p-4 outline-none transition-colors hover:bg-brand-sun/35 focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <HeartPulse aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+            <span className="grid flex-1 gap-0.5">
+              <span className="font-semibold text-pretty">
+                {tHome("missing.title", { names: listFormat.format(missing) })}
+              </span>
+              <span className="text-sm text-pretty text-foreground/80">{tHome("missing.text")}</span>
+            </span>
+            <ChevronRight aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+          </Link>
+        ) : null}
+
+        <NextDay locale={locale} today={data.today} upcoming={data.schoolDays.upcoming} rows={rows} />
+
         <div className="grid gap-6">
           {data.children.map((child) => {
             const note = data.notesByClass.get(child.class_id)?.[0] ?? null;
-            const options = absenceOptions(child, data.schoolDays.upcoming, data.reports, locale, data.today);
             return (
               <ChildCard
                 key={`${child.student_id}-${child.class_id}`}
@@ -59,14 +99,33 @@ export async function ParentHome({ locale }: { locale: string }) {
                 noteIsRecent={Boolean(note?.date && note.date >= recentFrom)}
                 attendance={summarizeAttendance(data.attendance, child.student_id, { from, to }, data.today)}
                 term={term}
-                days={options.days}
-                reports={options.reports}
-                contactHref={contactHref}
               />
             );
           })}
         </div>
       </section>
+
+      <nav aria-label={tHome("tiles.label")}>
+        <ul className="grid gap-3 sm:grid-cols-3">
+          {tiles.map((tile) => {
+            const Icon = tile.icon;
+            return (
+              <li key={tile.href}>
+                <Link
+                  href={tile.href}
+                  className="soft-card flex h-full items-start gap-3 p-4 outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 sm:flex-col"
+                >
+                  <Icon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-brand-green-dark" />
+                  <span className="grid gap-0.5">
+                    <span className="font-heading text-lg font-semibold">{tile.title}</span>
+                    <span className="text-sm text-pretty text-muted-foreground">{tile.text}</span>
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
 
       <UpcomingList
         locale={locale}

@@ -97,6 +97,15 @@ const STRINGS = {
       note: "Lenken virker én gang og går ut etter en time. Har du ikke bedt om den, kan du trygt se bort fra denne e-posten.",
       cta: "Logg inn",
     },
+    emailChange: {
+      subject: "Bekreft ny e-postadresse",
+      badge: "Min side",
+      title: "Bekreft ny e-postadresse",
+      intro: (name: string) =>
+        `Hei ${name}! Noen har bedt om å bruke denne adressen for innlogging og beskjeder fra Islamskole Bærum. Trykk på knappen for å bekrefte.`,
+      note: "Lenken går ut etter 24 timer. Har du ikke bedt om dette, kan du trygt se bort fra denne e-posten.",
+      cta: "Bekreft e-post",
+    },
     teacherConfirmation: {
       subject: "Vi har mottatt søknaden din",
       badge: "Lærer",
@@ -190,6 +199,15 @@ const STRINGS = {
       intro: "Hi! Tap the button below to sign in to Islamskole Bærum.",
       note: "The link works once and expires after one hour. If you did not ask for it, you can safely ignore this email.",
       cta: "Sign in",
+    },
+    emailChange: {
+      subject: "Confirm your new email address",
+      badge: "My page",
+      title: "Confirm your new email address",
+      intro: (name: string) =>
+        `Hi ${name}! Someone asked to use this address for signing in and messages from Islamskole Bærum. Tap the button to confirm.`,
+      note: "The link expires after 24 hours. If you did not ask for this, you can safely ignore this email.",
+      cta: "Confirm email",
     },
     teacherConfirmation: {
       subject: "We have received your application",
@@ -676,6 +694,27 @@ export async function sendLoginLinkEmail(opts: {
     intro: t.loginLink.intro,
     note: t.loginLink.note,
     cta: { label: t.loginLink.cta, url: opts.url },
+    rows: [],
+  });
+}
+
+export async function sendEmailChangeConfirmation(opts: {
+  to: string;
+  url: string;
+  name: string;
+  lang?: EmailLang;
+}): Promise<boolean> {
+  const lang = opts.lang ?? "no";
+  const t = strings(lang);
+  return await send({
+    lang,
+    to: opts.to,
+    subject: t.emailChange.subject,
+    badge: t.emailChange.badge,
+    title: t.emailChange.title,
+    intro: t.emailChange.intro(opts.name),
+    note: t.emailChange.note,
+    cta: { label: t.emailChange.cta, url: opts.url },
     rows: [],
   });
 }

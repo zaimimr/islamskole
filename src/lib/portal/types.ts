@@ -22,6 +22,12 @@ export type PortalGuardianContact = PortalPerson & {
   phone: string | null;
 };
 
+export type PortalPickupPerson = {
+  name: string;
+  phone: string | null;
+  relation: string | null;
+};
+
 export type PortalChild = {
   student_id: string;
   first_name: string | null;
@@ -89,6 +95,10 @@ export type PortalRosterRow = {
   attendance_marked_at: string | null;
   absence_report_id: string | null;
   absence_reason: string | null;
+  allergies: string | null;
+  medical_notes: string | null;
+  photo_consent: boolean | null;
+  pickup: PortalPickupPerson[];
 };
 
 export type PortalSchoolDay = {

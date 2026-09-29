@@ -439,6 +439,167 @@
     "notFoundBody": "Innholdet du leter etter finnes ikke."
   },
   "portal": {
+    "family": {
+      "title": "Min familie",
+      "intro": "Hold opplysningene oppdatert, så vet skolen hvem vi skal kontakte. Endringer lagres med en gang.",
+      "back": "Tilbake",
+      "familyLabel": "Familie",
+      "edit": "Endre",
+      "editLabel": "Endre {what}",
+      "save": "Lagre",
+      "cancel": "Avbryt",
+      "close": "Lukk",
+      "optional": "valgfritt",
+      "emptyTitle": "Vi fant ingen familie",
+      "empty": "Vi fant ingen familie knyttet til {email}. Ta kontakt med skolen hvis dette er feil.",
+      "address": {
+        "title": "Adresse",
+        "street": "Gateadresse",
+        "postalCode": "Postnummer",
+        "city": "Poststed",
+        "missing": "Ingen adresse registrert.",
+        "saved": "Adressen er lagret."
+      },
+      "guardians": {
+        "title": "Foresatte",
+        "you": "Deg",
+        "firstName": "Fornavn",
+        "lastName": "Etternavn",
+        "phone": "Telefon",
+        "email": "E-post",
+        "noPhone": "Ingen telefon",
+        "noEmail": "Ingen e-post",
+        "pending": "Venter på bekreftelse: {email}",
+        "saved": "Opplysningene er lagret.",
+        "editTitle": "Endre {name}",
+        "add": "Legg til foresatt",
+        "addTitle": "Legg til foresatt",
+        "addIntro": "Den nye foresatte kan logge inn på Min side når e-postadressen er lagt inn og bekreftet.",
+        "relationship": "Rolle",
+        "added": "{name} er lagt til. Legg inn e-post med Endre e-post.",
+        "relations": {
+          "mor": "Mor",
+          "far": "Far",
+          "foresatt": "Foresatt",
+          "steforelder": "Steforelder",
+          "verge": "Verge",
+          "annet": "Annet"
+        }
+      },
+      "emailChange": {
+        "open": "Endre e-post",
+        "openLabel": "Endre e-post for {name}",
+        "title": "Endre e-post for {name}",
+        "intro": "E-postadressen brukes til innlogging og beskjeder. Vi sender en lenke til den nye adressen, og e-posten endres først når lenken er åpnet.",
+        "label": "Ny e-postadresse",
+        "submit": "Send lenke",
+        "sent": "Vi har sendt en lenke til {email}. Den virker i 24 timer.",
+        "duplicate": "Denne e-postadressen brukes allerede av en annen foresatt. Ta kontakt med skolen.",
+        "same": "Dette er e-postadressen som allerede er registrert."
+      },
+      "children": {
+        "title": "Barn",
+        "none": "Ingen barn er registrert i familien.",
+        "born": "Født {date}",
+        "wrongInfo": "Feil navn eller fødselsdato? Kontakt skolen.",
+        "healthTitle": "Helse",
+        "allergies": "Allergier",
+        "allergiesHint": "For eksempel nøtter eller gluten. La feltet stå tomt hvis ingen.",
+        "medical": "Medisinske opplysninger",
+        "medicalHint": "Sykdom, medisiner eller annet lærerne bør vite om.",
+        "photo": "Fotosamtykke",
+        "photoQuestion": "Kan skolen ta bilder der {name} er med?",
+        "photoYes": "Ja",
+        "photoNo": "Nei",
+        "photoUnanswered": "Ikke svart",
+        "teachersSee": "Lærerne til {name} ser disse opplysningene.",
+        "updated": "Sist oppdatert {date}",
+        "saved": "Opplysningene om {name} er lagret."
+      },
+      "pickup": {
+        "title": "Hvem kan hente",
+        "intro": "Foresatte kan alltid hente. Legg til andre som kan hente barna, for eksempel besteforeldre eller naboer. Lærerne ser listen.",
+        "empty": "Ingen andre er lagt til.",
+        "name": "Navn",
+        "phone": "Telefon",
+        "relation": "Hvem er det",
+        "relationPlaceholder": "For eksempel bestemor",
+        "add": "Legg til person",
+        "addTitle": "Legg til person som kan hente",
+        "added": "{name} er lagt til.",
+        "remove": "Fjern",
+        "removeLabel": "Fjern {name}",
+        "removed": "{name} er fjernet."
+      },
+      "confirm": {
+        "title": "Bekreft ny e-post",
+        "intro": "Vil du bruke {email} til innlogging og beskjeder fra Islamskole Bærum?",
+        "submit": "Bekreft e-post",
+        "successTitle": "E-posten er endret",
+        "success": "Fra nå logger du inn med den nye e-postadressen.",
+        "login": "Logg inn",
+        "expiredTitle": "Lenken virker ikke",
+        "expired": "Lenken er allerede brukt eller har gått ut. Be om en ny lenke fra Min familie på Min side.",
+        "duplicate": "Denne e-postadressen brukes allerede av en annen foresatt. Ta kontakt med skolen.",
+        "unknown": "Noe gikk galt. Prøv igjen.",
+        "home": "Til Min side"
+      }
+    },
+    "economy": {
+      "metaTitle": "Min økonomi",
+      "title": "Min økonomi",
+      "back": "Tilbake til Min side",
+      "year": "Skoleår {year}",
+      "remaining": "Gjenstår {amount} for skoleåret",
+      "allPaid": "Alt er betalt",
+      "allPaidText": "Takk! Det er ingenting å betale nå.",
+      "payAll": "Betal alt som gjenstår med Vipps",
+      "opening": "Åpner Vipps ...",
+      "children": {
+        "title": "Per barn",
+        "owed": "Skolepenger",
+        "paid": "Betalt",
+        "remaining": "Gjenstår"
+      },
+      "installment": {
+        "next": "Neste avdrag",
+        "title": "Betalingsplan",
+        "due": "Forfaller {date}",
+        "for": "Gjelder {names}",
+        "pay": "Betal avdrag",
+        "status": {
+          "planlagt": "Planlagt",
+          "sendt": "Ikke betalt",
+          "betalt": "Betalt"
+        }
+      },
+      "history": {
+        "title": "Betalinger",
+        "empty": "Ingen betalinger ennå.",
+        "refunded": "{amount} refundert",
+        "receipt": "Send kvittering på e-post",
+        "receiptSent": "Kvitteringen er sendt på e-post.",
+        "status": {
+          "autorisert": "Behandles",
+          "fanget": "Betalt",
+          "refundert": "Refundert"
+        },
+        "method": {
+          "vipps": "Vipps",
+          "kontant": "Kontant",
+          "bank": "Bank",
+          "annet": "Annet",
+          "sadaqa": "Støtte fra skolen"
+        }
+      },
+      "empty": {
+        "title": "Ingen skolepenger å vise",
+        "text": "Når skolepengene for skoleåret er registrert, ser du dem her."
+      },
+      "errors": {
+        "settled": "Det er ingenting å betale."
+      }
+    },
     "metaTitle": "Min side",
     "signOut": "Logg ut",
     "signedInAs": "Innlogget som",
@@ -471,7 +632,83 @@
       "empty": "Vi fant ingen barn eller klasser knyttet til {email}. Ta kontakt med skolen, så kobler vi e-posten din til riktig familie.",
       "contact": "Kontakt skolen",
       "adminLink": "Til administrasjonen",
-      "teacherUnassigned": "Du er registrert som lærer, men er ikke satt opp i en klasse ennå. Du kan likevel være vikar i en klasse under."
+      "teacherUnassigned": "Du er registrert som lærer, men er ikke satt opp i en klasse ennå. Du kan likevel være vikar i en klasse under.",
+      "next": {
+        "title": "Neste skoledag",
+        "today": "i dag",
+        "tomorrow": "i morgen",
+        "cancelled": "Ingen skole {day}",
+        "thenOpen": "Neste skoledag er {day}",
+        "none": "Det er ingen flere skoledager satt opp i år.",
+        "expected": "Kommer",
+        "reported": "Meldt fravær"
+      },
+      "missing": {
+        "title": "Mangler helseinfo eller fotosamtykke for {names}",
+        "text": "Legg det inn under Min familie, så vet læreren hva som gjelder."
+      },
+      "tiles": {
+        "label": "Snarveier",
+        "family": "Min familie",
+        "familyText": "Kontaktinfo, adresse, helse og hvem som kan hente.",
+        "economy": "Min økonomi",
+        "economyDue": "Gjenstår {amount}. Se og betal.",
+        "economyPaid": "Alt er betalt. Se kvitteringer.",
+        "enroll": "Påmelding",
+        "enrollText": "Neste skoleår og påmelding av søsken."
+      }
+    },
+    "nav": {
+      "label": "Min side",
+      "home": "Oversikt",
+      "family": "Min familie",
+      "economy": "Min økonomi",
+      "enroll": "Påmelding"
+    },
+    "enroll": {
+      "title": "Påmelding",
+      "intro": "Si fra om barna fortsetter neste skoleår, og meld på søsken uten å fylle ut alt på nytt.",
+      "noFamily": "Vi fant ingen familie knyttet til deg. Ta kontakt med skolen.",
+      "continues": {
+        "title": "Neste skoleår",
+        "intro": "Svaret hjelper skolen å planlegge klasser. Du kan endre det senere.",
+        "none": "Ingen av barna har plass i år.",
+        "question": "Fortsetter {name} neste skoleår?",
+        "yes": "Ja",
+        "no": "Nei",
+        "unanswered": "Ikke svart ennå",
+        "answeredYes": "Du har svart ja.",
+        "answeredNo": "Du har svart nei.",
+        "saved": "Svaret for {name} er lagret."
+      },
+      "sibling": {
+        "title": "Meld på søsken",
+        "intro": "Vi bruker familiens kontaktinfo. Skolen går gjennom påmeldingen og gir beskjed om klasse.",
+        "closed": "Påmelding er ikke åpen ennå. Ta kontakt med skolen.",
+        "family": "Hvilken familie?",
+        "parents": "Foresatte: {names}",
+        "firstName": "Fornavn",
+        "lastName": "Etternavn",
+        "birthDate": "Fødselsdato",
+        "gender": "Kjønn",
+        "genders": {
+          "jente": "Jente",
+          "gutt": "Gutt"
+        },
+        "address": "Adresse",
+        "street": "Gateadresse",
+        "postalCode": "Postnummer",
+        "city": "Sted",
+        "optional": "Ønsket klasse og melding (valgfritt)",
+        "desiredClass": "Ønsket klasse",
+        "message": "Melding til skolen",
+        "deposit": "Påmeldingsavgift: {amount}. Du betaler med Vipps nå.",
+        "termsLead": "Jeg bekrefter å ha lest reglementet og godtar",
+        "termsLink": "salgsbetingelsene",
+        "termsTail": ", og vil respektere innbetalingsplan og skoletider.",
+        "termsError": "Du må godta salgsbetingelsene.",
+        "submit": "Meld på og betal med Vipps"
+      }
     },
     "student": {
       "title": "Min skole",
@@ -501,7 +738,11 @@
         "restPresent": "Resten til stede ({count})",
         "statusGroup": "Oppmøte for {name}",
         "call": "Ring {name}",
-        "noPhone": "Ingen telefonnummer registrert"
+        "noPhone": "Ingen telefonnummer registrert",
+        "noPhoto": "Ikke fotosamtykke",
+        "allergies": "Allergi",
+        "medical": "Helse",
+        "pickup": "Kan også hente"
       },
       "status": {
         "til_stede": "Til stede",
@@ -589,7 +830,7 @@
       "payment": {
         "paid": "Alt er betalt for {year}.",
         "remaining": "Gjenstår {amount} for {year}.",
-        "contact": "Kontakt skolen om betaling"
+        "pay": "Se og betal"
       },
       "absence": {
         "open": "Meld fravær",

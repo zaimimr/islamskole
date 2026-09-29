@@ -439,6 +439,167 @@
     "notFoundBody": "The content you are looking for does not exist."
   },
   "portal": {
+    "family": {
+      "title": "My family",
+      "intro": "Keep your details up to date so the school knows who to contact. Changes are saved right away.",
+      "back": "Back",
+      "familyLabel": "Family",
+      "edit": "Edit",
+      "editLabel": "Edit {what}",
+      "save": "Save",
+      "cancel": "Cancel",
+      "close": "Close",
+      "optional": "optional",
+      "emptyTitle": "We could not find a family",
+      "empty": "We could not find a family linked to {email}. Please contact the school if this is wrong.",
+      "address": {
+        "title": "Address",
+        "street": "Street address",
+        "postalCode": "Postcode",
+        "city": "City",
+        "missing": "No address registered.",
+        "saved": "The address has been saved."
+      },
+      "guardians": {
+        "title": "Guardians",
+        "you": "You",
+        "firstName": "First name",
+        "lastName": "Last name",
+        "phone": "Phone",
+        "email": "Email",
+        "noPhone": "No phone",
+        "noEmail": "No email",
+        "pending": "Waiting for confirmation: {email}",
+        "saved": "The details have been saved.",
+        "editTitle": "Edit {name}",
+        "add": "Add guardian",
+        "addTitle": "Add guardian",
+        "addIntro": "The new guardian can sign in to My page once their email address has been added and confirmed.",
+        "relationship": "Role",
+        "added": "{name} has been added. Add their email with Change email.",
+        "relations": {
+          "mor": "Mother",
+          "far": "Father",
+          "foresatt": "Guardian",
+          "steforelder": "Step-parent",
+          "verge": "Legal guardian",
+          "annet": "Other"
+        }
+      },
+      "emailChange": {
+        "open": "Change email",
+        "openLabel": "Change email for {name}",
+        "title": "Change email for {name}",
+        "intro": "The email address is used for signing in and messages. We send a link to the new address, and the email only changes once the link has been opened.",
+        "label": "New email address",
+        "submit": "Send link",
+        "sent": "We have sent a link to {email}. It works for 24 hours.",
+        "duplicate": "This email address is already used by another guardian. Please contact the school.",
+        "same": "This is the email address that is already registered."
+      },
+      "children": {
+        "title": "Children",
+        "none": "No children are registered in the family.",
+        "born": "Born {date}",
+        "wrongInfo": "Wrong name or date of birth? Contact the school.",
+        "healthTitle": "Health",
+        "allergies": "Allergies",
+        "allergiesHint": "For example nuts or gluten. Leave empty if none.",
+        "medical": "Medical information",
+        "medicalHint": "Illness, medication or anything else the teachers should know.",
+        "photo": "Photo consent",
+        "photoQuestion": "May the school take photos where {name} is included?",
+        "photoYes": "Yes",
+        "photoNo": "No",
+        "photoUnanswered": "Not answered",
+        "teachersSee": "The teachers of {name} can see this information.",
+        "updated": "Last updated {date}",
+        "saved": "The details for {name} have been saved."
+      },
+      "pickup": {
+        "title": "Who can pick up",
+        "intro": "Guardians can always pick up. Add others who may pick up the children, for example grandparents or neighbours. The teachers can see this list.",
+        "empty": "No one else has been added.",
+        "name": "Name",
+        "phone": "Phone",
+        "relation": "Who is this",
+        "relationPlaceholder": "For example grandmother",
+        "add": "Add person",
+        "addTitle": "Add a person who can pick up",
+        "added": "{name} has been added.",
+        "remove": "Remove",
+        "removeLabel": "Remove {name}",
+        "removed": "{name} has been removed."
+      },
+      "confirm": {
+        "title": "Confirm new email",
+        "intro": "Do you want to use {email} for signing in and messages from Islamskole Bærum?",
+        "submit": "Confirm email",
+        "successTitle": "Your email has been changed",
+        "success": "From now on you sign in with the new email address.",
+        "login": "Sign in",
+        "expiredTitle": "The link does not work",
+        "expired": "The link has already been used or has expired. Request a new link from My family on My page.",
+        "duplicate": "This email address is already used by another guardian. Please contact the school.",
+        "unknown": "Something went wrong. Please try again.",
+        "home": "Go to My page"
+      }
+    },
+    "economy": {
+      "metaTitle": "My finances",
+      "title": "My finances",
+      "back": "Back to My page",
+      "year": "School year {year}",
+      "remaining": "{amount} left to pay this school year",
+      "allPaid": "Everything is paid",
+      "allPaidText": "Thank you! There is nothing to pay right now.",
+      "payAll": "Pay everything left with Vipps",
+      "opening": "Opening Vipps ...",
+      "children": {
+        "title": "Per child",
+        "owed": "Tuition",
+        "paid": "Paid",
+        "remaining": "Left"
+      },
+      "installment": {
+        "next": "Next instalment",
+        "title": "Payment plan",
+        "due": "Due {date}",
+        "for": "For {names}",
+        "pay": "Pay instalment",
+        "status": {
+          "planlagt": "Planned",
+          "sendt": "Not paid",
+          "betalt": "Paid"
+        }
+      },
+      "history": {
+        "title": "Payments",
+        "empty": "No payments yet.",
+        "refunded": "{amount} refunded",
+        "receipt": "Email receipt",
+        "receiptSent": "The receipt has been emailed.",
+        "status": {
+          "autorisert": "Processing",
+          "fanget": "Paid",
+          "refundert": "Refunded"
+        },
+        "method": {
+          "vipps": "Vipps",
+          "kontant": "Cash",
+          "bank": "Bank",
+          "annet": "Other",
+          "sadaqa": "Support from the school"
+        }
+      },
+      "empty": {
+        "title": "No tuition to show",
+        "text": "When tuition for the school year is registered, you will see it here."
+      },
+      "errors": {
+        "settled": "There is nothing to pay."
+      }
+    },
     "metaTitle": "My page",
     "signOut": "Sign out",
     "signedInAs": "Signed in as",
@@ -471,7 +632,83 @@
       "empty": "We found no children or classes linked to {email}. Contact the school and we will link your email to the right family.",
       "contact": "Contact the school",
       "adminLink": "Go to administration",
-      "teacherUnassigned": "You are registered as a teacher, but you are not assigned to a class yet. You can still substitute in a class below."
+      "teacherUnassigned": "You are registered as a teacher, but you are not assigned to a class yet. You can still substitute in a class below.",
+      "next": {
+        "title": "Next school day",
+        "today": "today",
+        "tomorrow": "tomorrow",
+        "cancelled": "No school {day}",
+        "thenOpen": "Next school day is {day}",
+        "none": "There are no more school days planned this year.",
+        "expected": "Attending",
+        "reported": "Absence reported"
+      },
+      "missing": {
+        "title": "Health info or photo consent is missing for {names}",
+        "text": "Add it under My family so the teacher knows what applies."
+      },
+      "tiles": {
+        "label": "Shortcuts",
+        "family": "My family",
+        "familyText": "Contact details, address, health and who can pick up.",
+        "economy": "My payments",
+        "economyDue": "{amount} left. View and pay.",
+        "economyPaid": "Everything is paid. View receipts.",
+        "enroll": "Enrollment",
+        "enrollText": "Next school year and enrolling siblings."
+      }
+    },
+    "nav": {
+      "label": "My page",
+      "home": "Overview",
+      "family": "My family",
+      "economy": "My payments",
+      "enroll": "Enrollment"
+    },
+    "enroll": {
+      "title": "Enrollment",
+      "intro": "Tell us if your children continue next school year, and enroll siblings without filling in everything again.",
+      "noFamily": "We could not find a family linked to you. Please contact the school.",
+      "continues": {
+        "title": "Next school year",
+        "intro": "Your answer helps the school plan classes. You can change it later.",
+        "none": "None of the children have a place this year.",
+        "question": "Will {name} continue next school year?",
+        "yes": "Yes",
+        "no": "No",
+        "unanswered": "Not answered yet",
+        "answeredYes": "You answered yes.",
+        "answeredNo": "You answered no.",
+        "saved": "The answer for {name} is saved."
+      },
+      "sibling": {
+        "title": "Enroll a sibling",
+        "intro": "We use your family's contact details. The school reviews the enrollment and lets you know the class.",
+        "closed": "Enrollment is not open yet. Please contact the school.",
+        "family": "Which family?",
+        "parents": "Guardians: {names}",
+        "firstName": "First name",
+        "lastName": "Last name",
+        "birthDate": "Date of birth",
+        "gender": "Gender",
+        "genders": {
+          "jente": "Girl",
+          "gutt": "Boy"
+        },
+        "address": "Address",
+        "street": "Street address",
+        "postalCode": "Postal code",
+        "city": "City",
+        "optional": "Desired class and message (optional)",
+        "desiredClass": "Desired class",
+        "message": "Message to the school",
+        "deposit": "Enrollment fee: {amount}. You pay with Vipps now.",
+        "termsLead": "I confirm that I have read the rules and accept the",
+        "termsLink": "terms of sale",
+        "termsTail": ", and will respect the payment plan and school hours.",
+        "termsError": "You must accept the terms of sale.",
+        "submit": "Enroll and pay with Vipps"
+      }
     },
     "student": {
       "title": "My school",
@@ -501,7 +738,11 @@
         "restPresent": "Rest present ({count})",
         "statusGroup": "Attendance for {name}",
         "call": "Call {name}",
-        "noPhone": "No phone number registered"
+        "noPhone": "No phone number registered",
+        "noPhoto": "No photo consent",
+        "allergies": "Allergy",
+        "medical": "Health",
+        "pickup": "Can also pick up"
       },
       "status": {
         "til_stede": "Present",
@@ -589,7 +830,7 @@
       "payment": {
         "paid": "Everything is paid for {year}.",
         "remaining": "{amount} left to pay for {year}.",
-        "contact": "Contact the school about payment"
+        "pay": "View and pay"
       },
       "absence": {
         "open": "Report absence",

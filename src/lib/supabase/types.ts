@@ -2376,6 +2376,21 @@ export type Database = {
         }
         Returns: Json
       }
+      create_portal_sibling_enrollment: {
+        Args: {
+          p_address: string
+          p_amount: number
+          p_child: Json
+          p_city: string
+          p_description: string
+          p_family_id: string
+          p_payer_guardian_id: string | null
+          p_postal_code: string
+          p_reference: string
+          p_school_year_id: string
+        }
+        Returns: Json
+      }
       ensure_school_days: {
         Args: { p_school_year_id: string }
         Returns: number
@@ -2405,6 +2420,7 @@ export type Database = {
       }
       portal_can_edit_guardian: { Args: { p_guardian_id: string }; Returns: boolean }
       portal_can_edit_student: { Args: { p_student_id: string }; Returns: boolean }
+      portal_my_economy: { Args: never; Returns: Json }
       portal_my_families: { Args: never; Returns: Json }
       portal_my_family_ids: { Args: never; Returns: string[] }
       portal_remove_pickup: { Args: { p_id: string }; Returns: undefined }

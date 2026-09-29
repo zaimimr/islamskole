@@ -114,6 +114,22 @@ async function sendReminders(admin: Admin, siteUrl: string) {
         .maybeSingle();
       if (!payment || payment.status !== "opprettet") continue;
 
+      const remaining = await remainingFor(
+        admin,
+        group.rows.map((row) => row.studentId),
+        group.schoolYearId,
+      );
+      if (remaining !== null && remaining <= 0) {
+        await admin
+          .from("installments")
+          .update({ status: "betalt" })
+          .in(
+            "id",
+            group.rows.map((row) => row.id),
+          );
+        continue;
+      }
+
       if (await emailNotifications()) {
         const [recipients, lang] = await Promise.all([
           familyRecipients(admin, group.familyId),
@@ -132,11 +148,7 @@ async function sendReminders(admin: Admin, siteUrl: string) {
 
           await sendInstallmentEmail({
             lang,
-            remaining: await remainingFor(
-              admin,
-              group.rows.map((row) => row.studentId),
-              group.schoolYearId,
-            ),
+            remaining,
             to: recipients,
             children: group.rows.map((row) => ({
               name: names.get(row.studentId) ?? "Elev",

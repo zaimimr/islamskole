@@ -8,6 +8,7 @@ import {
   getMyChildren,
   getSchoolDays,
 } from "@/lib/portal/data";
+import type { PortalFamily } from "@/lib/portal/family-types";
 import { formatPortalDay } from "@/lib/portal/parent-format";
 import type { PortalAbsenceReport, PortalChild, PortalSchoolDay } from "@/lib/portal/types";
 
@@ -72,4 +73,13 @@ export function absenceOptions(
         reason: report.reason,
       })),
   };
+}
+
+export function missingFamilyInfo(families: PortalFamily[]): string[] {
+  const names = families
+    .flatMap((family) => family.children)
+    .filter((child) => child.active_this_year && (child.photo_consent === null || !child.health_updated_at))
+    .map((child) => child.first_name ?? "")
+    .filter(Boolean);
+  return [...new Set(names)];
 }

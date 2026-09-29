@@ -124,7 +124,7 @@ export default async function RolloverPage({
     supabase
       .from("enrollments")
       .select(
-        "student_id, class_id, students(child_first_name, child_last_name, child_birth_date, family_id)",
+        "student_id, class_id, students(child_first_name, child_last_name, child_birth_date, family_id, continues_next_year)",
       )
       .eq("school_year_id", source.id)
       .eq("status", "aktiv"),
@@ -156,6 +156,7 @@ export default async function RolloverPage({
           child_last_name: string | null;
           child_birth_date: string | null;
           family_id: string | null;
+          continues_next_year: boolean | null;
         } | null;
       }[]
     | null) ?? []) {
@@ -171,6 +172,7 @@ export default async function RolloverPage({
       currentClassId: row.class_id,
       proposedClassId: nextClassId(classes, row.class_id),
       placedClassId: placedClass.get(row.student_id) ?? null,
+      continues: row.students?.continues_next_year ?? null,
     });
   }
   students.sort(

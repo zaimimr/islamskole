@@ -5,7 +5,9 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Logo } from "@/components/site/Logo";
 import { LocaleSwitcher } from "@/components/site/LocaleSwitcher";
 import { PortalSignOutButton } from "@/components/portal/portal-sign-out-button";
+import { PortalNav } from "@/components/portal/portal-nav";
 import { getIsAdmin, getUser } from "@/lib/auth";
+import { getPortalContext } from "@/lib/portal/data";
 
 export async function generateMetadata({
   params,
@@ -24,10 +26,11 @@ export default async function PortalLayout({
 }: LayoutProps<"/[locale]/min-side">) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const [t, user, isAdmin] = await Promise.all([
+  const [t, user, isAdmin, context] = await Promise.all([
     getTranslations("portal"),
     getUser(),
     getIsAdmin(),
+    getPortalContext(),
   ]);
 
   return (
@@ -61,6 +64,7 @@ export default async function PortalLayout({
             {t("signedInAs")} <span className="font-semibold text-foreground">{user.email}</span>
           </p>
         ) : null}
+        {context.isGuardian ? <PortalNav /> : null}
       </header>
       <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
         {children}

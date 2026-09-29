@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   capacityWarnings,
+  defaultChoice,
   type RolloverClass,
   type RolloverStudent,
 } from "./plan";
@@ -66,10 +67,7 @@ export function RolloverWizard({
 
   const [choices, setChoices] = useState<Record<string, string>>(() =>
     Object.fromEntries(
-      movable.map((student) => [
-        student.studentId,
-        student.proposedClassId ?? "",
-      ]),
+      movable.map((student) => [student.studentId, defaultChoice(student)]),
     ),
   );
 
@@ -232,7 +230,7 @@ export function RolloverWizard({
             <ul className="divide-y divide-[#ECE8DF]">
               {list.map((student) => {
                 const choice = choices[student.studentId] ?? "";
-                const changed = choice !== (student.proposedClassId ?? "");
+                const changed = choice !== defaultChoice(student);
                 return (
                   <li
                     key={student.studentId}
@@ -269,6 +267,22 @@ export function RolloverWizard({
                             Siste klasse, slutter
                           </span>
                         )}
+                        <span
+                          className={
+                            student.continues === false
+                              ? "rounded-full bg-[#FDECEC] px-2 py-0.5 text-xs font-bold text-[#9B2C2C]"
+                              : student.continues
+                                ? "rounded-full bg-[#E8F3E8] px-2 py-0.5 text-xs font-bold text-[#277A31]"
+                                : "rounded-full bg-[#F2F1EB] px-2 py-0.5 text-xs font-bold text-admin-muted"
+                          }
+                        >
+                          Fortsetter:{" "}
+                          {student.continues === false
+                            ? "Nei"
+                            : student.continues
+                              ? "Ja"
+                              : "Ikke svart"}
+                        </span>
                         {changed ? (
                           <span className="rounded-full bg-[#EFF8FD] px-2 py-0.5 text-xs font-bold text-[#245D7C]">
                             Endret

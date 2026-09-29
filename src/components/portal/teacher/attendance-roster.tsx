@@ -3,7 +3,7 @@
 import { useOptimistic, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Check, CheckCheck, Clock, Loader2, MessageSquareText, Phone, X } from "lucide-react";
+import { CameraOff, Check, CheckCheck, Clock, HeartPulse, Loader2, MessageSquareText, Phone, X } from "lucide-react";
 import { markAttendance, markAttendanceMany } from "@/lib/portal/actions";
 import type { AttendanceStatus, PortalRosterRow } from "@/lib/portal/types";
 import { Button } from "@/components/ui/button";
@@ -99,7 +99,31 @@ export function AttendanceRoster({
                 {row.age !== null ? (
                   <p className="text-sm text-muted-foreground">{t("roster.age", { age: row.age })}</p>
                 ) : null}
+                {row.photo_consent === false ? (
+                  <p className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-bold">
+                    <CameraOff aria-hidden="true" className="size-3.5 shrink-0" />
+                    {t("roster.noPhoto")}
+                  </p>
+                ) : null}
               </div>
+
+              {row.allergies || row.medical_notes ? (
+                <p className="flex items-start gap-2 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  <HeartPulse aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                  <span className="grid gap-0.5">
+                    {row.allergies ? (
+                      <span>
+                        <span className="font-bold">{t("roster.allergies")}:</span> {row.allergies}
+                      </span>
+                    ) : null}
+                    {row.medical_notes ? (
+                      <span>
+                        <span className="font-bold">{t("roster.medical")}:</span> {row.medical_notes}
+                      </span>
+                    ) : null}
+                  </span>
+                </p>
+              ) : null}
 
               {reported ? (
                 <p className="flex items-start gap-2 rounded-xl bg-accent px-3 py-2 text-sm text-accent-foreground">
@@ -160,6 +184,42 @@ export function AttendanceRoster({
               ) : (
                 <p className="text-sm text-muted-foreground">{t("roster.noPhone")}</p>
               )}
+
+              {row.pickup.length ? (
+                <div className="grid gap-1.5">
+                  <p className="text-xs font-bold text-muted-foreground">{t("roster.pickup")}</p>
+                  <ul className="flex flex-wrap gap-2">
+                    {row.pickup.map((person) =>
+                      person.phone ? (
+                        <li key={`${person.name}-${person.phone}`}>
+                          <a
+                            href={`tel:${person.phone.replace(/[^\d+]/g, "")}`}
+                            aria-label={t("roster.call", { name: person.name })}
+                            className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-brand-green-dark ring-1 ring-foreground/10 outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+                          >
+                            <Phone aria-hidden="true" className="size-4 shrink-0" />
+                            <span>{person.name}</span>
+                            {person.relation ? (
+                              <span className="font-normal text-muted-foreground">{person.relation}</span>
+                            ) : null}
+                            <span className="font-normal text-muted-foreground tabular-nums">{person.phone}</span>
+                          </a>
+                        </li>
+                      ) : (
+                        <li
+                          key={person.name}
+                          className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold ring-1 ring-foreground/10"
+                        >
+                          {person.name}
+                          {person.relation ? (
+                            <span className="font-normal text-muted-foreground">{person.relation}</span>
+                          ) : null}
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                </div>
+              ) : null}
             </li>
           );
         })}

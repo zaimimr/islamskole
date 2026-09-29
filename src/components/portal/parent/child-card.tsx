@@ -4,7 +4,6 @@ import { Link } from "@/i18n/navigation";
 import { formatNok } from "@/lib/money";
 import type { PortalChild, PortalClassNote } from "@/lib/portal/types";
 import { formatPortalDay, type PortalTerm } from "@/lib/portal/parent-format";
-import { ChildAbsence } from "@/components/portal/parent/child-absence";
 
 export function childName(child: Pick<PortalChild, "first_name" | "last_name">) {
   return [child.first_name, child.last_name].filter(Boolean).join(" ");
@@ -49,9 +48,6 @@ export async function ChildCard({
   noteIsRecent,
   attendance,
   term,
-  days,
-  reports,
-  contactHref,
 }: {
   child: PortalChild;
   locale: string;
@@ -59,9 +55,6 @@ export async function ChildCard({
   noteIsRecent: boolean;
   attendance: { absent: number; late: number; present: number };
   term: PortalTerm;
-  days: { id: string; label: string; reported: boolean }[];
-  reports: { id: string; label: string; reason: string | null }[];
-  contactHref: string;
 }) {
   const t = await getTranslations({ locale, namespace: "portal.parent" });
   const name = childName(child);
@@ -125,7 +118,6 @@ export async function ChildCard({
               : t("attendance.none", { term: termLabel })}
             {attendance.late ? ` ${t("attendance.late", { count: attendance.late })}` : null}
           </p>
-          <ChildAbsence studentId={child.student_id} classId={child.class_id} childName={child.first_name ?? name} days={days} reports={reports} />
         </section>
 
         {remaining != null ? (
@@ -137,12 +129,12 @@ export async function ChildCard({
                   <span className="font-semibold">
                     {t("payment.remaining", { amount: formatNok(remaining), year: child.school_year_label })}
                   </span>{" "}
-                  <a
-                    href={contactHref}
+                  <Link
+                    href="/min-side/okonomi"
                     className="rounded-sm font-semibold text-brand-green-dark underline underline-offset-4 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
                   >
-                    {t("payment.contact")}
-                  </a>
+                    {t("payment.pay")}
+                  </Link>
                 </>
               ) : (
                 t("payment.paid", { year: child.school_year_label })

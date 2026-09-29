@@ -13,6 +13,7 @@ export type RolloverStudent = {
   currentClassId: string;
   proposedClassId: string | null;
   placedClassId: string | null;
+  continues: boolean | null;
 };
 
 export type CapacityWarning = {
@@ -29,6 +30,10 @@ export function nextClassId(
   const index = classes.findIndex((item) => item.id === currentClassId);
   if (index < 0) return null;
   return classes[index + 1]?.id ?? null;
+}
+
+export function defaultChoice(student: RolloverStudent): string {
+  return student.continues === false ? "" : (student.proposedClassId ?? "");
 }
 
 export function capacityWarnings(

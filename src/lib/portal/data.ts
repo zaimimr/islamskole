@@ -15,6 +15,7 @@ import type {
   PortalContext,
   PortalGuardianContact,
   PortalPerson,
+  PortalPickupPerson,
   PortalRosterRow,
   PortalSchoolDay,
   PortalSchoolDays,
@@ -222,6 +223,10 @@ export async function getClassRoster(
     attendance_marked_at: row.attendance_marked_at ?? null,
     absence_report_id: row.absence_report_id ?? null,
     absence_reason: row.absence_reason ?? null,
+    allergies: row.allergies ?? null,
+    medical_notes: row.medical_notes ?? null,
+    photo_consent: row.photo_consent ?? null,
+    pickup: asArray<PortalPickupPerson>(row.pickup),
   }));
 }
 
