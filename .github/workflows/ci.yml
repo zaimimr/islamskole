@@ -23,9 +23,6 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npx playwright test --project=unit
-      - run: npm run build
-        env:
-          NEXT_TELEMETRY_DISABLED: 1
       - run: npm run db:drift
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -55,6 +52,11 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+      - run: |
+          eval "$(supabase status -o env)"
+          NEXT_PUBLIC_SUPABASE_URL="$API_URL" NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" npm run build
         env:
           NEXT_TELEMETRY_DISABLED: 1
       - uses: actions/upload-artifact@v4
