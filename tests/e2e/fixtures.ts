@@ -482,7 +482,9 @@ export async function hasRowAction(page: Page, row: Locator, name: string) {
   const menu = row.getByRole("button", { name: /^Flere valg/ });
   if (!(await menu.count())) return false;
   await menu.first().click();
-  const found = (await page.getByRole("menuitem", { name, exact: true }).count()) > 0;
+  const openMenu = page.locator('[role="menu"][data-open]').last();
+  await openMenu.waitFor();
+  const found = (await openMenu.getByRole("menuitem", { name, exact: true }).count()) > 0;
   await page.keyboard.press("Escape");
   return found;
 }

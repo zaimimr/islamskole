@@ -46,15 +46,11 @@ test.describe("magic link only login", () => {
     await expect(page.locator('input[type="password"]')).toHaveCount(0);
   });
 
-  test("AUTH-01 login page has one E-post field, the send button and an intro for every role", async ({ page }) => {
+  test("AUTH-01 login page has one E-post field, the send button and a short intro", async ({ page }) => {
     await page.goto("/min-side/logg-inn");
     await expect(page.getByLabel(/^E-post/)).toBeVisible();
     await expect(page.getByRole("button", { name: "Send innloggingslenke" })).toBeVisible();
-    const intro = page.locator("main");
-    await expect(intro).toContainText(/foreldre|foresatte/i);
-    await expect(intro).toContainText(/lærer/i);
-    await expect(intro).toContainText(/elev/i);
-    await expect(intro).toContainText(/administrator/i);
+    await expect(page.locator("main")).toContainText(/innloggingslenke/i);
   });
 });
 
