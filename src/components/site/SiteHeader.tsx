@@ -18,7 +18,6 @@ import { LocaleSwitcher } from "./LocaleSwitcher";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/", key: "home" },
   { href: "/klasser", key: "classes" },
   { href: "/aktiviteter", key: "events" },
   { href: "/om-oss", key: "about" },
@@ -42,7 +41,7 @@ export function SiteHeader() {
         <Logo priority className="shrink-0" />
 
         <nav aria-label={t("menu")} className="hidden lg:block">
-          <ul className="flex items-center gap-1">
+          <ul className="flex items-center gap-7 xl:gap-9">
             {navItems.map((item) => {
               const active = isActive(pathname, item.href);
               return (
@@ -51,10 +50,10 @@ export function SiteHeader() {
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "relative rounded-full px-3 py-2 text-[0.95rem] font-semibold whitespace-nowrap xl:px-4 transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                      "relative rounded-sm py-2 text-[0.95rem] font-semibold whitespace-nowrap transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 after:absolute after:inset-x-0 after:-bottom-0.5 after:h-0.5 after:rounded-full after:bg-primary after:transition-opacity",
                       active
-                        ? "bg-primary/12 text-brand-green-dark"
-                        : "text-foreground/75 hover:bg-muted hover:text-foreground",
+                        ? "text-brand-green-dark after:opacity-100"
+                        : "text-foreground/70 after:opacity-0 hover:text-foreground",
                     )}
                   >
                     {t(item.key)}
@@ -65,24 +64,29 @@ export function SiteHeader() {
           </ul>
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 lg:gap-5">
+          <div className="hidden sm:block">
+            <LocaleSwitcher variant="text" />
+          </div>
           <Link
             href="/min-side/logg-inn"
-            title={t("admin")}
-            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-3 text-[0.95rem] font-semibold whitespace-nowrap text-foreground/80 ring-1 ring-foreground/10 transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 lg:max-xl:size-11 lg:max-xl:px-0"
+            className="hidden rounded-sm py-2 text-[0.95rem] font-semibold whitespace-nowrap text-foreground/70 transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 lg:inline-flex"
           >
-            <CircleUserRound aria-hidden="true" className="size-4.5 lg:size-5" />
-            <span className="lg:max-xl:sr-only">{t("admin")}</span>
+            {t("admin")}
+          </Link>
+          <Link
+            href="/min-side/logg-inn"
+            aria-label={t("admin")}
+            className="inline-flex size-11 items-center justify-center rounded-full text-foreground/75 transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 lg:hidden"
+          >
+            <CircleUserRound aria-hidden="true" className="size-5" />
           </Link>
           <Link
             href="/pamelding"
-            className="btn-pill-primary hidden whitespace-nowrap lg:inline-flex"
+            className="hidden min-h-10 items-center rounded-full bg-primary px-5 text-[0.95rem] font-semibold whitespace-nowrap text-primary-foreground transition-colors outline-none hover:bg-brand-green-dark focus-visible:ring-3 focus-visible:ring-ring/50 lg:inline-flex"
           >
-            {t("enrollCta")}
+            {t("enroll")}
           </Link>
-          <div className="hidden sm:block">
-            <LocaleSwitcher />
-          </div>
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger
               render={

@@ -8,9 +8,13 @@ import { cn } from "@/lib/utils";
 
 type LocaleSwitcherProps = {
   tone?: "default" | "light";
+  variant?: "pill" | "text";
 };
 
-export function LocaleSwitcher({ tone = "default" }: LocaleSwitcherProps) {
+export function LocaleSwitcher({
+  tone = "default",
+  variant = "pill",
+}: LocaleSwitcherProps) {
   const t = useTranslations("nav");
   const activeLocale = useLocale();
   const pathname = usePathname();
@@ -22,6 +26,43 @@ export function LocaleSwitcher({ tone = "default" }: LocaleSwitcherProps) {
     startTransition(() => {
       router.replace(pathname, { locale: locale as (typeof routing.locales)[number] });
     });
+  }
+
+  if (variant === "text") {
+    return (
+      <div
+        role="group"
+        aria-label={t("localeLabel")}
+        className="inline-flex items-center text-sm font-bold uppercase"
+      >
+        {routing.locales.map((locale, index) => {
+          const active = locale === activeLocale;
+          return (
+            <span key={locale} className="inline-flex items-center">
+              {index > 0 && (
+                <span aria-hidden="true" className="px-0.5 text-foreground/25">
+                  /
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => onSelect(locale)}
+                disabled={isPending}
+                aria-current={active ? "true" : undefined}
+                className={cn(
+                  "rounded-sm px-1 py-2 uppercase transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:opacity-60",
+                  active
+                    ? "text-foreground"
+                    : "text-foreground/45 hover:text-foreground",
+                )}
+              >
+                {locale}
+              </button>
+            </span>
+          );
+        })}
+      </div>
+    );
   }
 
   return (
