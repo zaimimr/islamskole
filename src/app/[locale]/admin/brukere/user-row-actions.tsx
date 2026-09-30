@@ -1,11 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   GraduationCap,
-  Loader2,
   MoreHorizontal,
   ShieldMinus,
   Trash2,
@@ -35,42 +34,10 @@ import {
 } from "@/components/ui/alert-dialog";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
-
-function useResultToast(state: ActionResult | null, success: string) {
-  const router = useRouter();
-  useEffect(() => {
-    if (!state) return;
-    if (state.ok) toast.success(success);
-    else toast.error(state.error);
-    router.refresh();
-  }, [state, success, router]);
-}
-
-function RowActionForm({
-  userId,
-  action,
-  success,
-  icon,
-  label,
-}: {
-  userId: string;
-  action: (previous: ActionResult | null, formData: FormData) => Promise<ActionResult>;
-  success: string;
-  icon: React.ReactNode;
-  label: string;
-}) {
-  const [state, formAction, pending] = useActionState(action, null);
-  useResultToast(state, success);
-  return (
-    <form action={formAction}>
-      <input type="hidden" name="user_id" value={userId} />
-      <Button type="submit" variant="outline" size="sm" disabled={pending}>
-        {pending ? <Loader2 aria-hidden="true" className="animate-spin" /> : icon}
-        {label}
-      </Button>
-    </form>
-  );
-}
+type RowAction = (
+  previous: ActionResult | null,
+  formData: FormData,
+) => Promise<ActionResult>;
 
 export function UserRowActions({
   userId,
@@ -86,7 +53,20 @@ export function UserRowActions({
   isTeacher: boolean;
 }) {
   const removeRow = useRemoveRow();
+  const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
+
+  function run(action: RowAction, success: string) {
+    const formData = new FormData();
+    formData.set("user_id", userId);
+    startTransition(async () => {
+      const result = await action(null, formData);
+      if (result.ok) toast.success(success);
+      else toast.error(result.error);
+      router.refresh();
+    });
+  }
 
   function handleDelete() {
     setDeleteOpen(false);
@@ -94,42 +74,48 @@ export function UserRowActions({
   }
 
   return (
-    <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-      {isTeacher ? null : (
-        <RowActionForm
-          userId={userId}
-          action={makeUserTeacher}
-          success={`${email} er registrert som lærer`}
-          icon={<GraduationCap aria-hidden="true" />}
-          label="Gjør til lærer"
-        />
-      )}
-      {isAdmin && !isSelf ? (
-        <RowActionForm
-          userId={userId}
-          action={removeAdminAccess}
-          success={`${email} har ikke lenger administratortilgang`}
-          icon={<ShieldMinus aria-hidden="true" />}
-          label="Fjern administratortilgang"
-        />
-      ) : null}
-      {isSelf ? null : (
-        <>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Flere valg for ${email}`}
-                  title={`Flere valg for ${email}`}
-                  className="text-admin-muted hover:text-foreground"
-                />
-              }
-            >
-              <MoreHorizontal aria-hidden="true" className="size-5" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-auto min-w-52">
+    <>
+      {isSelf && isTeacher ? null : (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={pending}
+                aria-label={`Flere valg for ${email}`}
+                title={`Flere valg for ${email}`}
+                className="shrink-0 text-admin-muted hover:text-foreground"
+              />
+            }
+          >
+            <MoreHorizontal aria-hidden="true" className="size-5" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-auto min-w-56">
+            {isTeacher ? null : (
+              <DropdownMenuItem
+                onClick={() =>
+                  run(makeUserTeacher, `${email} er registrert som lærer`)
+                }
+              >
+                <GraduationCap aria-hidden="true" />
+                Gjør til lærer
+              </DropdownMenuItem>
+            )}
+            {isAdmin && !isSelf ? (
+              <DropdownMenuItem
+                onClick={() =>
+                  run(
+                    removeAdminAccess,
+                    `${email} har ikke lenger administratortilgang`,
+                  )
+                }
+              >
+                <ShieldMinus aria-hidden="true" />
+                Fjern administratortilgang
+              </DropdownMenuItem>
+            ) : null}
+            {isSelf ? null : (
               <DropdownMenuItem
                 variant="destructive"
                 onClick={() => setDeleteOpen(true)}
@@ -137,8 +123,11 @@ export function UserRowActions({
                 <Trash2 aria-hidden="true" />
                 Slett bruker
               </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+      {isSelf ? null : (
           <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -156,8 +145,7 @@ export function UserRowActions({
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        </>
       )}
-    </div>
+    </>
   );
 }

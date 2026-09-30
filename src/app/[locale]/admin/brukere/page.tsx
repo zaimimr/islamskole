@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { UserRoundCheck, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { getIsAdmin, getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatOsloDate } from "@/lib/dates";
@@ -100,11 +100,11 @@ async function getUsers(): Promise<
   }
 }
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 10;
 
 const roleFilters = [
-  { value: "", label: "Alle", match: () => true },
   { value: "admin", label: "Admin", match: (user: AdminUser) => user.role === "admin" },
+  { value: "alle", label: "Alle", match: () => true },
   { value: "laerer", label: "Lærere", match: (user: AdminUser) => user.isTeacher },
   { value: "foresatt", label: "Foresatte", match: (user: AdminUser) => user.isGuardian },
   { value: "elev", label: "Elever", match: (user: AdminUser) => user.isStudent },
@@ -151,7 +151,7 @@ export default async function BrukerePage({
   function roleHref(value: string) {
     const params = new URLSearchParams();
     if (typeof sp.q === "string" && sp.q) params.set("q", sp.q);
-    if (value) params.set("rolle", value);
+    if (value !== roleFilters[0].value) params.set("rolle", value);
     const query = params.toString();
     return query ? `${basePath}?${query}` : basePath;
   }
@@ -192,7 +192,7 @@ export default async function BrukerePage({
                 const active = filter.value === activeRole.value;
                 const count = searched.filter(filter.match).length;
                 return (
-                  <li key={filter.value || "alle"}>
+                  <li key={filter.value}>
                     <Link
                       href={roleHref(filter.value)}
                       scroll={false}
@@ -218,7 +218,7 @@ export default async function BrukerePage({
             icon={<Users aria-hidden="true" />}
             title="Ingen brukere funnet"
             description={
-              q || activeRole.value
+              q || activeRole.value !== "alle"
                 ? "Prøv et annet søk eller en annen rolle."
                 : "Gi noen administratortilgang for å komme i gang."
             }
@@ -226,47 +226,40 @@ export default async function BrukerePage({
         ) : (
           <OptimisticRemovalList
             className="divide-y divide-[#ECE8DF]"
-            itemClassName="flex flex-wrap items-start gap-3 px-4 py-4 sm:flex-nowrap sm:items-center sm:px-5"
+            itemClassName="flex items-center gap-3 px-4 py-3 sm:px-5"
             rows={users.map((user) => ({
               id: user.id,
               content: (
                 <>
-                  <span className="hidden size-10 shrink-0 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B] sm:flex">
-                    <UserRoundCheck aria-hidden="true" className="size-5" />
-                  </span>
-                  <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] sm:items-center sm:gap-4">
-                    <div className="min-w-0">
-                      <p className="flex flex-wrap items-center gap-2 font-bold">
-                        {user.fullName ?? user.email}
-                        {user.id === currentId ? (
-                          <StatusPill tone="info">Din konto</StatusPill>
-                        ) : null}
-                      </p>
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-2 font-bold">
+                      <span className="break-all">{user.fullName ?? user.email}</span>
+                      {user.id === currentId ? (
+                        <StatusPill tone="info">Din konto</StatusPill>
+                      ) : null}
+                    </p>
+                    <p className="mt-0.5 text-sm text-admin-muted">
                       {user.fullName ? (
-                        <p className="mt-0.5 text-sm break-all text-admin-muted">
-                          {user.email}
-                        </p>
+                        <span className="break-all">{user.email} · </span>
                       ) : null}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-admin-muted">
-                      {user.role === "admin" ? (
-                        <StatusPill tone="ok">Admin</StatusPill>
-                      ) : null}
-                      {user.isTeacher ? (
-                        <StatusPill tone="info">Lærer</StatusPill>
-                      ) : null}
-                      {user.isGuardian ? (
-                        <StatusPill tone="neutral">Foresatt</StatusPill>
-                      ) : null}
-                      {user.isStudent ? (
-                        <StatusPill tone="neutral">Elev</StatusPill>
-                      ) : null}
-                      <span>
-                        {user.lastSignInAt
-                          ? `Sist innlogget ${formatOsloDate(user.lastSignInAt)}`
-                          : "Har ikke logget inn ennå"}
-                      </span>
-                    </div>
+                      {user.lastSignInAt
+                        ? `Sist inne ${formatOsloDate(user.lastSignInAt)}`
+                        : "Aldri logget inn"}
+                    </p>
+                  </div>
+                  <div className="hidden shrink-0 flex-wrap items-center justify-end gap-1.5 sm:flex">
+                    {user.role === "admin" ? (
+                      <StatusPill tone="ok">Admin</StatusPill>
+                    ) : null}
+                    {user.isTeacher ? (
+                      <StatusPill tone="info">Lærer</StatusPill>
+                    ) : null}
+                    {user.isGuardian ? (
+                      <StatusPill tone="neutral">Foresatt</StatusPill>
+                    ) : null}
+                    {user.isStudent ? (
+                      <StatusPill tone="neutral">Elev</StatusPill>
+                    ) : null}
                   </div>
                   <UserRowActions
                     userId={user.id}
@@ -280,7 +273,7 @@ export default async function BrukerePage({
             }))}
           />
         )}
-        {filtered.length > PAGE_SIZE ? (
+        {filtered.length > 0 ? (
           <Pagination
             page={currentPage}
             pageSize={PAGE_SIZE}
