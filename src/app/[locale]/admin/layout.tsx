@@ -136,7 +136,7 @@ export default async function AdminLayout({
           <Link
             href={basePath}
             aria-label="Gå til arbeidsflaten"
-            className="mb-7 inline-flex w-fit rounded-lg px-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="mb-6 inline-flex w-fit rounded-lg px-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             <Image
               src="/brand/logo.png"
@@ -150,7 +150,7 @@ export default async function AdminLayout({
           <div className="mt-3 border-t border-[#E9E5DC] pt-3">
             <SignOutButton
               loginHref={resolvedLoginPath}
-              className="min-h-11 rounded-xl px-3 text-foreground/72 hover:bg-[#F2F1EB]"
+              className="min-h-10 rounded-lg px-3 font-semibold text-foreground/72 hover:bg-[#F2F1EB]"
             />
           </div>
         </aside>

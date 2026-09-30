@@ -72,7 +72,7 @@ export function AdminMobileNav({
           <div className="mt-3 border-t border-[#E9E5DC] pt-3">
             <SignOutButton
               loginHref={loginHref}
-              className="min-h-11 rounded-xl px-3 text-foreground/72 hover:bg-[#F2F1EB]"
+              className="min-h-10 rounded-lg px-3 font-semibold text-foreground/72 hover:bg-[#F2F1EB]"
             />
           </div>
         </div>

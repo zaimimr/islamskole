@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, createContext, use, useContext } from "react";
+import { Suspense, createContext, use, useContext, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -50,32 +50,43 @@ type NavLink = {
 };
 
 type NavGroup = {
-  label: string;
+  label: string | null;
   links: NavLink[];
 };
 
 function buildNavigation(basePath: string) {
-  const primary: NavLink[] = [
-    { href: basePath, label: "Arbeidsflate", icon: LayoutDashboard },
-    {
-      href: `${basePath}/register`,
-      label: "Opptak",
-      icon: ClipboardCheck,
-      countKey: "applications",
-      countLabel: "nye innmeldinger",
-    },
-    {
-      href: `${basePath}/familier`,
-      label: "Familier",
-      icon: Users,
-      alsoMatches: [`${basePath}/elever`],
-    },
-    { href: `${basePath}/klasser`, label: "Klasser", icon: GraduationCap },
-    { href: `${basePath}/betaling`, label: "Økonomi", icon: Wallet },
-    { href: `${basePath}/skolear`, label: "Skoleår", icon: CalendarRange },
-  ];
-
   const groups: NavGroup[] = [
+    {
+      label: null,
+      links: [{ href: basePath, label: "Arbeidsflate", icon: LayoutDashboard }],
+    },
+    {
+      label: "Skolen",
+      links: [
+        {
+          href: `${basePath}/register`,
+          label: "Opptak",
+          icon: ClipboardCheck,
+          countKey: "applications",
+          countLabel: "nye innmeldinger",
+        },
+        {
+          href: `${basePath}/familier`,
+          label: "Familier",
+          icon: Users,
+          alsoMatches: [`${basePath}/elever`],
+        },
+        { href: `${basePath}/klasser`, label: "Klasser", icon: GraduationCap },
+        {
+          href: `${basePath}/laerere`,
+          label: "Lærere",
+          icon: UserCheck,
+          countKey: "teacherApplications",
+          countLabel: "nye lærersøknader",
+        },
+        { href: `${basePath}/betaling`, label: "Økonomi", icon: Wallet },
+      ],
+    },
     {
       label: "Nettside",
       links: [
@@ -92,15 +103,9 @@ function buildNavigation(basePath: string) {
       ],
     },
     {
-      label: "Administrasjon",
+      label: "Oppsett",
       links: [
-        {
-          href: `${basePath}/laerere`,
-          label: "Lærere",
-          icon: UserCheck,
-          countKey: "teacherApplications",
-          countLabel: "nye lærersøknader",
-        },
+        { href: `${basePath}/skolear`, label: "Skoleår", icon: CalendarRange },
         { href: `${basePath}/brukere`, label: "Brukere", icon: ShieldCheck },
         {
           href: `${basePath}/revisjon`,
@@ -117,7 +122,7 @@ function buildNavigation(basePath: string) {
     icon: CircleUserRound,
   };
 
-  return { primary, groups, account };
+  return { groups, account };
 }
 
 function NavCountBadge({
@@ -138,6 +143,47 @@ function NavCountBadge({
   );
 }
 
+function NavItem({
+  link,
+  active,
+  onSelect,
+}: {
+  link: NavLink;
+  active: boolean;
+  onSelect: (href: string) => void;
+}) {
+  const Icon = link.icon;
+  return (
+    <Link
+      href={link.href}
+      aria-current={active ? "page" : undefined}
+      onClick={() => onSelect(link.href)}
+      className={cn(
+        "group flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm font-semibold outline-none transition-colors duration-100 focus-visible:ring-3 focus-visible:ring-ring/50",
+        active
+          ? "bg-[#DCEDDD] text-[#216A2B]"
+          : "text-foreground/72 hover:bg-[#F2F1EB] hover:text-foreground",
+      )}
+    >
+      <Icon
+        aria-hidden={true}
+        className={cn(
+          "size-[1.125rem] shrink-0 stroke-[1.8]",
+          active
+            ? "text-[#3C8F44]"
+            : "text-admin-muted group-hover:text-foreground/75",
+        )}
+      />
+      <span className="min-w-0 flex-1 truncate">{link.label}</span>
+      {link.countKey ? (
+        <Suspense fallback={null}>
+          <NavCountBadge countKey={link.countKey} label={link.countLabel} />
+        </Suspense>
+      ) : null}
+    </Link>
+  );
+}
+
 export function SidebarNav({
   basePath,
   onNavigate,
@@ -146,11 +192,16 @@ export function SidebarNav({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  const [pending, setPending] = useState<{ href: string; from: string } | null>(
+    null,
+  );
   const navigation = buildNavigation(basePath);
+  const currentPath =
+    pending && pending.from === pathname ? pending.href : pathname;
 
   function matchesPath(href: string) {
-    if (href === basePath) return pathname === basePath;
-    return pathname === href || pathname.startsWith(`${href}/`);
+    if (href === basePath) return currentPath === basePath;
+    return currentPath === href || currentPath.startsWith(`${href}/`);
   }
 
   function isActive(link: NavLink) {
@@ -160,46 +211,9 @@ export function SidebarNav({
     );
   }
 
-  function NavItem({
-    link,
-    compact = false,
-  }: {
-    link: NavLink;
-    compact?: boolean;
-  }) {
-    const active = isActive(link);
-    const Icon = link.icon;
-
-    return (
-      <Link
-        href={link.href}
-        aria-current={active ? "page" : undefined}
-        onClick={onNavigate}
-        className={cn(
-          "group flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50",
-          compact ? "text-[0.8125rem]" : "text-sm",
-          active
-            ? "bg-[#DCEDDD] text-[#216A2B]"
-            : "text-foreground/72 hover:bg-[#F2F1EB] hover:text-foreground",
-        )}
-      >
-        <Icon
-          aria-hidden={true}
-          className={cn(
-            "size-[1.125rem] shrink-0 stroke-[1.8]",
-            active
-              ? "text-[#3C8F44]"
-              : "text-admin-muted group-hover:text-foreground/75",
-          )}
-        />
-        <span className="min-w-0 flex-1">{link.label}</span>
-        {link.countKey ? (
-          <Suspense fallback={null}>
-            <NavCountBadge countKey={link.countKey} label={link.countLabel} />
-          </Suspense>
-        ) : null}
-      </Link>
-    );
+  function select(href: string) {
+    setPending({ href, from: pathname });
+    onNavigate?.();
   }
 
   return (
@@ -207,29 +221,28 @@ export function SidebarNav({
       aria-label="Administrasjon"
       className="flex min-h-0 flex-1 flex-col overflow-y-auto pr-1"
     >
-      <ul className="grid gap-1">
-        {navigation.primary.map((link) => (
-          <li key={link.href}>
-            <NavItem link={link} />
-          </li>
-        ))}
-      </ul>
-
-      <div className="my-5 h-px bg-[#E9E5DC]" />
-
       <div className="grid gap-5">
         {navigation.groups.map((group) => (
-          <section key={group.label} aria-labelledby={`nav-${group.label}`}>
-            <h2
-              id={`nav-${group.label}`}
-              className="mb-1 px-3 font-sans text-[0.6875rem] font-bold tracking-[0.08em] text-admin-muted uppercase"
-            >
-              {group.label}
-            </h2>
+          <section
+            key={group.label ?? "start"}
+            aria-labelledby={group.label ? `nav-${group.label}` : undefined}
+          >
+            {group.label ? (
+              <h2
+                id={`nav-${group.label}`}
+                className="mb-1.5 px-3 font-sans text-[0.6875rem] font-bold tracking-[0.08em] text-admin-muted uppercase"
+              >
+                {group.label}
+              </h2>
+            ) : null}
             <ul className="grid gap-0.5">
               {group.links.map((link) => (
                 <li key={link.href}>
-                  <NavItem link={link} compact />
+                  <NavItem
+                    link={link}
+                    active={isActive(link)}
+                    onSelect={select}
+                  />
                 </li>
               ))}
             </ul>
@@ -237,20 +250,12 @@ export function SidebarNav({
         ))}
       </div>
 
-      <div className="mt-auto pt-5">
-        <div className="mb-3 h-px bg-[#E9E5DC]" />
-        <Link
-          href={navigation.account.href}
-          aria-current={isActive(navigation.account) ? "page" : undefined}
-          onClick={onNavigate}
-          className="group flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-foreground/72 outline-none transition-colors hover:bg-[#F2F1EB] hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 aria-[current=page]:bg-[#DCEDDD] aria-[current=page]:text-[#216A2B]"
-        >
-          <CircleUserRound
-            aria-hidden="true"
-            className="size-[1.125rem] shrink-0 stroke-[1.8] text-admin-muted group-aria-[current=page]:text-[#3C8F44]"
-          />
-          {navigation.account.label}
-        </Link>
+      <div className="mt-auto pt-5 lg:hidden">
+        <NavItem
+          link={navigation.account}
+          active={isActive(navigation.account)}
+          onSelect={select}
+        />
       </div>
     </nav>
   );
