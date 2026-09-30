@@ -605,7 +605,7 @@
     "signedInAs": "Signed in as",
     "login": {
       "title": "Sign in to My page",
-      "intro": "For parents and guardians, teachers, students and administrators. Enter the email address the school has registered for you and we will send you a sign-in link. No password needed. Children without their own email sign in with a parent's email.",
+      "intro": "Enter your email and we will send you a sign-in link.",
       "emailLabel": "Email",
       "submit": "Send sign-in link",
       "sentTitle": "Check your email",

@@ -605,7 +605,7 @@
     "signedInAs": "Innlogget som",
     "login": {
       "title": "Logg inn på Min side",
-      "intro": "For foreldre og foresatte, lærere, elever og administratorer. Skriv e-postadressen skolen har registrert på deg, så sender vi deg en innloggingslenke. Du trenger ikke passord. Barn uten egen e-post logger inn med e-posten til mor eller far.",
+      "intro": "Skriv e-posten din, så sender vi deg en innloggingslenke.",
       "emailLabel": "E-post",
       "submit": "Send innloggingslenke",
       "sentTitle": "Sjekk e-posten din",
