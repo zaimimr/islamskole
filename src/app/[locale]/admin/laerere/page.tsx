@@ -253,6 +253,15 @@ export default async function LaererePage({
       : Promise.resolve({ rows: [] as TeacherApplicationRow[], total: 0 }),
   ]);
   const pageIds = applications.map((a) => a.id);
+  const teacherPageCount = Math.max(
+    1,
+    Math.ceil(registry.teachers.length / PAGE_SIZE),
+  );
+  const teacherPage = Math.min(page, teacherPageCount);
+  const visibleTeachers = registry.teachers.slice(
+    (teacherPage - 1) * PAGE_SIZE,
+    teacherPage * PAGE_SIZE,
+  );
   const filtered = Boolean(q || status);
   const tabs = [
     {
@@ -337,7 +346,7 @@ export default async function LaererePage({
             <OptimisticRemovalList
               className="divide-y divide-[#ECE8DF]"
               itemClassName="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-5"
-              rows={registry.teachers.map((teacher) => {
+              rows={visibleTeachers.map((teacher) => {
                 const name =
                   [teacher.first_name, teacher.last_name]
                     .filter(Boolean)
@@ -441,6 +450,15 @@ export default async function LaererePage({
               headingLevel="h3"
             />
           )}
+          {registry.teachers.length > 0 ? (
+            <Pagination
+              page={teacherPage}
+              pageSize={PAGE_SIZE}
+              total={registry.teachers.length}
+              basePath={`${basePath}/laerere`}
+              searchParams={sp}
+            />
+          ) : null}
         </section>
       ) : (
         <>
@@ -640,7 +658,7 @@ export default async function LaererePage({
                 </ul>
               </BulkActions>
             )}
-            {total > PAGE_SIZE ? (
+            {total > 0 ? (
               <Pagination
                 page={page}
                 pageSize={PAGE_SIZE}

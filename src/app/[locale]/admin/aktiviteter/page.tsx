@@ -11,10 +11,13 @@ import { CopyLinkButton } from "@/components/admin/copy-link-button";
 import { EmptyState } from "@/components/admin/empty-state";
 import { LoadError } from "@/components/admin/load-error";
 import { StatusPill } from "@/components/admin/status-pill";
+import { Pagination } from "@/components/admin/pagination";
 import { buttonVariants } from "@/components/ui/button";
 import { RowActions } from "@/components/ui/row-actions";
 
 export const metadata: Metadata = { title: "Aktiviteter" };
+
+const PAGE_SIZE = 25;
 
 type EventRow = {
   id: string;
@@ -161,8 +164,11 @@ function EventList({
 
 export default async function AktiviteterPage({
   params,
+  searchParams,
 }: PageProps<"/[locale]/admin/aktiviteter">) {
   const { locale } = await params;
+  const sp = await searchParams;
+  const requestedPage = Math.max(1, Number(sp.page) || 1);
   const basePath = adminBasePath(locale);
   const result = await getEvents();
   if (!result.ok) {
@@ -188,6 +194,15 @@ export default async function AktiviteterPage({
     const date = eventDate(event.starts_at);
     return date ? date.getTime() < requestedAt : false;
   });
+  const previousPageCount = Math.max(
+    1,
+    Math.ceil(previousEvents.length / PAGE_SIZE),
+  );
+  const previousPage = Math.min(requestedPage, previousPageCount);
+  const visiblePreviousEvents = previousEvents.slice(
+    (previousPage - 1) * PAGE_SIZE,
+    previousPage * PAGE_SIZE,
+  );
 
   return (
     <div className="grid gap-6 lg:gap-7">
@@ -255,11 +270,20 @@ export default async function AktiviteterPage({
               </p>
             </div>
             <EventList
-              events={previousEvents}
+              events={visiblePreviousEvents}
               basePath={basePath}
               locale={locale as Locale}
               emptyMessage="Ingen tidligere aktiviteter."
             />
+            {previousEvents.length > 0 ? (
+              <Pagination
+                page={previousPage}
+                pageSize={PAGE_SIZE}
+                total={previousEvents.length}
+                basePath={`${basePath}/aktiviteter`}
+                searchParams={sp}
+              />
+            ) : null}
           </section>
         </>
       )}

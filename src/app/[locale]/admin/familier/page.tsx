@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { adminBasePath } from "@/components/admin/paths";
+import { Pagination } from "@/components/admin/pagination";
 import { getAdminFamilies } from "@/lib/families/service";
 import type { FamilyDetails } from "@/lib/families/repository";
 import { createClient } from "@/lib/supabase/server";
@@ -28,7 +29,7 @@ function guardianName(firstName: string | null, lastName: string | null) {
   return [firstName, lastName].filter(Boolean).join(" ") || "Navn mangler";
 }
 
-const PAGE_SIZE = 40;
+const PAGE_SIZE = 25;
 
 const queues = [
   { id: "", label: "Alle" },
@@ -195,12 +196,10 @@ export default async function FamiliesPage({
     (page - 1) * PAGE_SIZE,
     page * PAGE_SIZE,
   );
-  const hrefFor = (next: { page?: number; vis?: string }) => {
+  const hrefFor = (next: { vis: string }) => {
     const nextQuery = new URLSearchParams();
     if (q) nextQuery.set("q", q);
-    const vis = next.vis ?? queue;
-    if (vis) nextQuery.set("vis", vis);
-    if (next.page && next.page > 1) nextQuery.set("page", String(next.page));
+    if (next.vis) nextQuery.set("vis", next.vis);
     const suffix = nextQuery.toString();
     return `${basePath}/familier${suffix ? `?${suffix}` : ""}`;
   };
@@ -278,7 +277,7 @@ export default async function FamiliesPage({
               return (
                 <li key={item.id || "alle"}>
                   <Link
-                    href={hrefFor({ vis: item.id, page: 1 })}
+                    href={hrefFor({ vis: item.id })}
                     aria-current={current ? "page" : undefined}
                     className={cn(
                       "inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-bold outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50",
@@ -440,35 +439,15 @@ export default async function FamiliesPage({
         </ul>
       )}
 
-      {pageCount > 1 ? (
-        <nav
-          aria-label="Sider med familier"
-          className="flex items-center justify-between gap-4 rounded-2xl bg-white px-4 py-3 ring-1 ring-[#E3DED3]"
-        >
-          {page > 1 ? (
-            <Link
-              href={hrefFor({ page: page - 1 })}
-              className="inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-bold text-[#216A2B] outline-none hover:bg-[#F2F7F2] focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              Forrige side
-            </Link>
-          ) : (
-            <span />
-          )}
-          <span className="text-sm text-admin-muted">
-            Side {page} av {pageCount}
-          </span>
-          {page < pageCount ? (
-            <Link
-              href={hrefFor({ page: page + 1 })}
-              className="inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-bold text-[#216A2B] outline-none hover:bg-[#F2F7F2] focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              Neste side
-            </Link>
-          ) : (
-            <span />
-          )}
-        </nav>
+      {families.length > 0 ? (
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={families.length}
+          basePath={`${basePath}/familier`}
+          searchParams={query}
+          className="rounded-2xl border-t-0 bg-white ring-1 ring-[#E3DED3]"
+        />
       ) : null}
     </div>
   );

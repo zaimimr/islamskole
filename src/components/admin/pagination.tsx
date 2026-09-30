@@ -9,12 +9,14 @@ export function Pagination({
   total,
   basePath,
   searchParams,
+  className,
 }: {
   page: number;
   pageSize: number;
   total: number;
   basePath: string;
   searchParams: { [key: string]: string | string[] | undefined };
+  className?: string;
 }) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const currentPage = Math.min(Math.max(1, page), totalPages);
@@ -38,7 +40,7 @@ export function Pagination({
   const nextDisabled = currentPage >= totalPages;
 
   return (
-    <div className="flex items-center justify-between gap-3 border-t p-4">
+    <div className={cn("flex items-center justify-between gap-3 border-t p-4", className)}>
       <p className="text-sm text-muted-foreground">
         Side {currentPage} av {totalPages} · {total} totalt
       </p>
