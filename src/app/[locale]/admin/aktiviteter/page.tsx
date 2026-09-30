@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
 import { CalendarDays, Clock3, MapPin, Pencil, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -12,6 +13,7 @@ import { EmptyState } from "@/components/admin/empty-state";
 import { LoadError } from "@/components/admin/load-error";
 import { StatusPill } from "@/components/admin/status-pill";
 import { Pagination } from "@/components/admin/pagination";
+import { ListCardSkeleton } from "@/components/admin/admin-skeletons";
 import { buttonVariants } from "@/components/ui/button";
 import { RowActions } from "@/components/ui/row-actions";
 
@@ -162,14 +164,16 @@ function EventList({
   );
 }
 
-export default async function AktiviteterPage({
-  params,
-  searchParams,
-}: PageProps<"/[locale]/admin/aktiviteter">) {
-  const { locale } = await params;
-  const sp = await searchParams;
+async function EventSections({
+  basePath,
+  locale,
+  sp,
+}: {
+  basePath: string;
+  locale: Locale;
+  sp: { [key: string]: string | string[] | undefined };
+}) {
   const requestedPage = Math.max(1, Number(sp.page) || 1);
-  const basePath = adminBasePath(locale);
   const result = await getEvents();
   if (!result.ok) {
     return (
@@ -204,6 +208,77 @@ export default async function AktiviteterPage({
     previousPage * PAGE_SIZE,
   );
 
+  return events.length === 0 ? (
+    <section className="rounded-2xl bg-white ring-1 ring-[#E3DED3]">
+      <EmptyState
+        icon={<CalendarDays aria-hidden="true" />}
+        title="Ingen aktiviteter ennå"
+        description="Opprett en aktivitet og publiser den når innholdet er klart."
+        action={
+          <Link
+            href={`${basePath}/aktiviteter/ny`}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#CFC8BA] px-4 text-sm font-bold text-[#277A31] outline-none transition-colors hover:bg-[#F7FBF7] focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <Plus aria-hidden="true" className="size-4" />
+            Opprett aktivitet
+          </Link>
+        }
+      />
+    </section>
+  ) : (
+    <>
+      <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
+        <div className="border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
+          <h2 className="font-heading text-xl font-bold">
+            Kommende og uten dato
+          </h2>
+          <p className="mt-0.5 text-sm text-admin-muted">
+            Innhold som fortsatt skal følges opp eller deles.
+          </p>
+        </div>
+        <EventList
+          events={upcomingEvents}
+          basePath={basePath}
+          locale={locale as Locale}
+          emptyMessage="Ingen kommende aktiviteter."
+        />
+      </section>
+
+      <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
+        <div className="border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
+          <h2 className="font-heading text-xl font-bold">
+            Tidligere aktiviteter
+          </h2>
+          <p className="mt-0.5 text-sm text-admin-muted">
+            Publisert innhold og utkast fra tidligere datoer.
+          </p>
+        </div>
+        <EventList
+          events={visiblePreviousEvents}
+          basePath={basePath}
+          locale={locale as Locale}
+          emptyMessage="Ingen tidligere aktiviteter."
+        />
+        {previousEvents.length > 0 ? (
+          <Pagination
+            page={previousPage}
+            pageSize={PAGE_SIZE}
+            total={previousEvents.length}
+            basePath={`${basePath}/aktiviteter`}
+            searchParams={sp}
+          />
+        ) : null}
+      </section>
+    </>
+  );
+}
+
+export default async function AktiviteterPage({
+  params,
+  searchParams,
+}: PageProps<"/[locale]/admin/aktiviteter">) {
+  const [{ locale }, sp] = await Promise.all([params, searchParams]);
+  const basePath = adminBasePath(locale);
   return (
     <div className="grid gap-6 lg:gap-7">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -224,69 +299,16 @@ export default async function AktiviteterPage({
         </Link>
       </header>
 
-      {events.length === 0 ? (
-        <section className="rounded-2xl bg-white ring-1 ring-[#E3DED3]">
-          <EmptyState
-            icon={<CalendarDays aria-hidden="true" />}
-            title="Ingen aktiviteter ennå"
-            description="Opprett en aktivitet og publiser den når innholdet er klart."
-            action={
-              <Link
-                href={`${basePath}/aktiviteter/ny`}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#CFC8BA] px-4 text-sm font-bold text-[#277A31] outline-none transition-colors hover:bg-[#F7FBF7] focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <Plus aria-hidden="true" className="size-4" />
-                Opprett aktivitet
-              </Link>
-            }
-          />
-        </section>
-      ) : (
-        <>
-          <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
-            <div className="border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
-              <h2 className="font-heading text-xl font-bold">
-                Kommende og uten dato
-              </h2>
-              <p className="mt-0.5 text-sm text-admin-muted">
-                Innhold som fortsatt skal følges opp eller deles.
-              </p>
-            </div>
-            <EventList
-              events={upcomingEvents}
-              basePath={basePath}
-              locale={locale as Locale}
-              emptyMessage="Ingen kommende aktiviteter."
-            />
-          </section>
-
-          <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
-            <div className="border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
-              <h2 className="font-heading text-xl font-bold">
-                Tidligere aktiviteter
-              </h2>
-              <p className="mt-0.5 text-sm text-admin-muted">
-                Publisert innhold og utkast fra tidligere datoer.
-              </p>
-            </div>
-            <EventList
-              events={visiblePreviousEvents}
-              basePath={basePath}
-              locale={locale as Locale}
-              emptyMessage="Ingen tidligere aktiviteter."
-            />
-            {previousEvents.length > 0 ? (
-              <Pagination
-                page={previousPage}
-                pageSize={PAGE_SIZE}
-                total={previousEvents.length}
-                basePath={`${basePath}/aktiviteter`}
-                searchParams={sp}
-              />
-            ) : null}
-          </section>
-        </>
-      )}
+      <Suspense
+        fallback={
+          <>
+            <ListCardSkeleton rows={2} lead="tile" />
+            <ListCardSkeleton rows={3} lead="tile" />
+          </>
+        }
+      >
+        <EventSections basePath={basePath} locale={locale as Locale} sp={sp} />
+      </Suspense>
     </div>
   );
 }

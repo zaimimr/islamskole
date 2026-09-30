@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense, cache } from "react";
 import Link from "next/link";
 import {
   CalendarClock,
@@ -16,6 +17,10 @@ import { formatOsloDateTime } from "@/lib/dates";
 import { adminBasePath } from "@/components/admin/paths";
 import { StudentStatusMenu } from "@/components/admin/student-status-select";
 import { Pagination } from "@/components/admin/pagination";
+import {
+  ListCardSkeleton,
+  StatStripSkeleton,
+} from "@/components/admin/admin-skeletons";
 import { ExportButton } from "@/components/admin/export-button";
 import {
   BulkActions,
@@ -307,37 +312,13 @@ function Field({
 
 const PAGE_SIZE = 25;
 
-export default async function OpptakPage({
-  params,
-  searchParams,
-}: PageProps<"/[locale]/admin/register">) {
-  const { locale } = await params;
-  const basePath = adminBasePath(locale);
-  const sp = await searchParams;
-  const q = typeof sp.q === "string" ? sp.q : "";
-  const status = typeof sp.status === "string" ? sp.status : "";
-  const page = Math.max(1, Number(sp.page) || 1);
+const loadOpptak = cache(async (q: string, status: string, page: number) => {
   const [allApplications, registered, placement] = await Promise.all([
     getApplications(q, status),
     getRegisteredMap(),
     getPlacementOptions(),
   ]);
-
-  if (!allApplications || !registered) {
-    return (
-      <section className="mx-auto max-w-2xl rounded-2xl bg-white p-6 ring-1 ring-[#E3DED3]">
-        <span className="mb-4 flex size-11 items-center justify-center rounded-full bg-[#F9DEDB] text-[#8B2F2B]">
-          <CircleAlert aria-hidden="true" className="size-5" />
-        </span>
-        <h1 className="font-heading text-2xl font-bold">
-          Opptak kunne ikke lastes
-        </h1>
-        <p className="mt-2 text-admin-muted">
-          Ingen innmeldinger er skjult med vilje. Last siden på nytt om litt.
-        </p>
-      </section>
-    );
-  }
+  if (!allApplications || !registered) return null;
 
   const unregistered = allApplications.filter((a) => !registered.has(a.id));
   const total = unregistered.length;
@@ -369,6 +350,382 @@ export default async function OpptakPage({
     ),
   ]);
   const candidateById = new Map(candidates.map((c) => [c.id, c]));
+  return {
+    total,
+    applications,
+    activeYear,
+    placement,
+    filtered,
+    pageIds,
+    newCount,
+    paidCount,
+    candidates,
+    suggestions,
+    familyGuardians,
+    candidateById,
+  };
+});
+
+type OpptakQuery = { q: string; status: string; page: number };
+
+async function OpptakStats({ q, status, page }: OpptakQuery) {
+  const data = await loadOpptak(q, status, page);
+  if (!data) return null;
+  const { newCount, paidCount, total, filtered } = data;
+  return (
+  <section
+    aria-label="Status for innmeldinger"
+    className="grid grid-cols-3 divide-x divide-[#ECE8DF] overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]"
+  >
+    {[
+      {
+        value: newCount,
+        label: "Nye",
+        icon: CalendarClock,
+        tone: "bg-[#FEEDCA] text-[#775108]",
+      },
+      {
+        value: paidCount,
+        label: "Har betalt",
+        icon: CreditCard,
+        tone: "bg-[#DCEDDD] text-[#216A2B]",
+      },
+      {
+        value: total,
+        label: filtered ? "I utvalget" : "Til behandling",
+        icon: Users,
+        tone: "bg-[#EFF8FD] text-[#245D7C]",
+      },
+    ].map((stat) => {
+      const Icon = stat.icon;
+      return (
+        <div
+          key={stat.label}
+          className="flex items-center gap-3 px-3 py-3 sm:min-h-24 sm:px-5 sm:py-4"
+        >
+          <span
+            className={`hidden size-10 shrink-0 items-center justify-center rounded-full sm:flex ${stat.tone}`}
+          >
+            <Icon aria-hidden="true" className="size-5" />
+          </span>
+          <div>
+            <p className="font-heading text-xl font-bold tabular-nums sm:text-2xl">
+              {stat.value}
+            </p>
+            <p className="text-xs text-admin-muted sm:text-sm">
+              {stat.label}
+            </p>
+          </div>
+        </div>
+      );
+    })}
+  </section>
+  );
+}
+
+async function OpptakList({
+  q,
+  status,
+  page,
+  basePath,
+  sp,
+}: OpptakQuery & {
+  basePath: string;
+  sp: { [key: string]: string | string[] | undefined };
+}) {
+  const data = await loadOpptak(q, status, page);
+  if (!data) {
+    return (
+      <section className="mx-auto max-w-2xl rounded-2xl bg-white p-6 ring-1 ring-[#E3DED3]">
+        <span className="mb-4 flex size-11 items-center justify-center rounded-full bg-[#F9DEDB] text-[#8B2F2B]">
+          <CircleAlert aria-hidden="true" className="size-5" />
+        </span>
+        <h1 className="font-heading text-2xl font-bold">
+          Opptak kunne ikke lastes
+        </h1>
+        <p className="mt-2 text-admin-muted">
+          Ingen innmeldinger er skjult med vilje. Last siden på nytt om litt.
+        </p>
+      </section>
+    );
+  }
+  const {
+    total,
+    applications,
+    activeYear,
+    placement,
+    filtered,
+    pageIds,
+    candidates,
+    suggestions,
+    familyGuardians,
+    candidateById,
+  } = data;
+  return (
+  <section
+    aria-labelledby="applications-list-title"
+    className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]"
+  >
+    <div className="border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
+      <h2
+        id="applications-list-title"
+        className="font-heading text-xl font-bold"
+      >
+        Innmeldinger
+      </h2>
+      <p className="mt-0.5 text-sm text-admin-muted" aria-live="polite">
+        {total} {total === 1 ? "innmelding" : "innmeldinger"}
+        {filtered ? " passer valgte filtre" : " venter på opptak"}
+      </p>
+    </div>
+    {applications.length === 0 ? (
+      <div className="flex min-h-56 flex-col items-center justify-center px-6 py-10 text-center">
+        <span className="flex size-12 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B]">
+          <CircleCheck aria-hidden="true" className="size-6" />
+        </span>
+        <p className="mt-4 font-heading text-xl font-bold">
+          {filtered ? "Ingen innmeldinger passer" : "Ingen venter på opptak"}
+        </p>
+        <p className="mt-1 max-w-md text-sm text-admin-muted">
+          {filtered
+            ? "Prøv et annet søk eller velg en annen visning."
+            : "Nye innmeldinger vises her når foresatte har sendt dem inn."}
+        </p>
+      </div>
+    ) : (
+      <BulkActions
+        entity="applications"
+        ids={pageIds}
+        admit={{
+          classes: placement.classes,
+          schoolYear: activeYear,
+          candidates,
+        }}
+      >
+        <label className="flex min-h-12 cursor-pointer items-center gap-3 border-b border-[#ECE8DF] bg-[#FBFAF6] px-4 text-sm text-admin-muted sm:px-5">
+          <BulkSelectAll />
+          <span>Velg alle på denne siden</span>
+        </label>
+        <ul className="divide-y divide-[#ECE8DF]">
+          {applications.map((application) => {
+            const payment = paymentLabel(application);
+            const candidate = candidateById.get(application.id);
+            const name = candidate?.name ?? "Navn mangler";
+            const appStatus = application.status ?? "ny";
+            const statusChip = statusLabels[appStatus] ?? statusLabels.arkivert;
+            const guardians = (
+              (application.family_id &&
+                familyGuardians.get(application.family_id)) || [
+                {
+                  name: fullName(
+                    application.mother_first_name,
+                    application.mother_last_name,
+                  ),
+                  phone: application.mother_phone,
+                  email: application.mother_email,
+                },
+                {
+                  name: fullName(
+                    application.father_first_name,
+                    application.father_last_name,
+                  ),
+                  phone: application.father_phone,
+                  email: application.father_email,
+                },
+              ]
+            ).filter((guardian) => guardian.name || guardian.phone);
+            const canAdmit = !["avslatt", "arkivert"].includes(appStatus);
+            return (
+              <li key={application.id} className="p-4 sm:p-5">
+                <div className="grid gap-4 lg:grid-cols-[minmax(14rem,1fr)_minmax(22rem,1.45fr)] lg:items-start">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <label className="-m-2.5 flex size-11 shrink-0 cursor-pointer items-center justify-center">
+                      <BulkRowCheckbox id={application.id} />
+                      <span className="sr-only">Velg {name}</span>
+                    </label>
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-center gap-2">
+                        <span className="font-heading text-lg font-bold">
+                          {name}
+                        </span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-bold ${statusChip.className}`}
+                        >
+                          {statusChip.label}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 text-sm text-admin-muted">
+                        {candidate?.age != null ? `${candidate.age} år` : "Alder mangler"}
+                        , {genderLabel(application.child_gender)}
+                      </p>
+                      {appStatus === "akseptert" ? (
+                        <p className="mt-2 flex items-start gap-1.5 text-sm font-bold text-[#775108]">
+                          <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                          Merket som tatt opp, men ikke registrert som elev.
+                        </p>
+                      ) : null}
+                      {guardians.length > 0 ? (
+                        <ul className="mt-2 grid gap-1 text-sm">
+                          {guardians.map((guardian, index) => (
+                            <li
+                              key={index}
+                              className="flex flex-wrap items-center gap-x-2"
+                            >
+                              <span className="text-admin-muted">
+                                {guardian.name || "Foresatt"}
+                              </span>
+                              {guardian.phone ? (
+                                <a
+                                  href={telHref(guardian.phone)}
+                                  className="inline-flex min-h-11 items-center gap-1.5 rounded font-bold text-[#277A31] underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-8"
+                                >
+                                  <Phone aria-hidden="true" className="size-3.5" />
+                                  {guardian.phone}
+                                </a>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-2 text-sm text-admin-muted">
+                          Ingen foresatt registrert
+                        </p>
+                      )}
+                      {application.family_id ? (
+                        <Link
+                          href={`${basePath}/familier/${application.family_id}`}
+                          className="mt-1 inline-flex min-h-11 items-center text-sm font-bold text-[#277A31] underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+                        >
+                          Åpne familie
+                        </Link>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3">
+                    <dl className="grid grid-cols-3 gap-2 rounded-xl bg-[#F8F6F0] p-3">
+                      <div>
+                        <dt className="text-xs font-bold text-admin-muted">
+                          Betaling
+                        </dt>
+                        <dd className="mt-1">
+                          <span
+                            className={`inline-flex min-h-7 items-center rounded-full px-2.5 text-xs font-bold ${
+                              payment.paid
+                                ? "bg-[#DCEDDD] text-[#216A2B]"
+                                : "bg-[#FEEDCA] text-[#775108]"
+                            }`}
+                          >
+                            {payment.label}
+                          </span>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-bold text-admin-muted">
+                          Mottatt
+                        </dt>
+                        <dd className="mt-1 text-sm font-bold">
+                          {formatDate(application.created_at)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-bold text-admin-muted">
+                          Ønsket klasse
+                        </dt>
+                        <dd className="mt-1 text-sm font-bold">
+                          {application.desired_class ?? "Ikke oppgitt"}
+                        </dd>
+                      </div>
+                    </dl>
+                    <div className="flex items-center gap-2 sm:justify-end">
+                      {canAdmit ? (
+                        <AdmitDialog
+                          applicationId={application.id}
+                          childName={name}
+                          childAge={candidate?.age ?? null}
+                          desiredClass={application.desired_class}
+                          classes={placement.classes}
+                          suggestedClassId={suggestions.get(application.id) ?? null}
+                          schoolYear={activeYear}
+                          basePath={basePath}
+                        />
+                      ) : null}
+                      <StudentStatusMenu
+                        id={application.id}
+                        name={name}
+                        status={appStatus}
+                        paid={payment.paid}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <details className="group mt-3 border-t border-[#ECE8DF] pt-2">
+                  <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-2 text-sm font-bold text-admin-muted outline-none hover:bg-[#F2F1EB] hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+                    Detaljer
+                    <ChevronDown
+                      aria-hidden="true"
+                      className="size-4 transition-transform group-open:rotate-180"
+                    />
+                  </summary>
+                  <dl className="mt-2 grid gap-x-8 gap-y-4 rounded-xl bg-[#F8F6F0] p-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                    <Field
+                      label="Adresse"
+                      value={addressLine(application)}
+                    />
+                    <Field
+                      label="E-post barn"
+                      value={application.child_email}
+                      href={application.child_email ? `mailto:${application.child_email}` : undefined}
+                    />
+                    <Field
+                      label="Telefon barn"
+                      value={application.child_phone}
+                      href={application.child_phone ? telHref(application.child_phone) : undefined}
+                    />
+                    {guardians.map((guardian, index) => (
+                      <Field
+                        key={index}
+                        label={`E-post ${guardian.name || `foresatt ${index + 1}`}`}
+                        value={guardian.email}
+                        href={guardian.email ? `mailto:${guardian.email}` : undefined}
+                      />
+                    ))}
+                    <Field
+                      label="Nivå (Koran / Arabisk / Islam)"
+                      value={`${levelLabel(application.child_level_quran)} / ${levelLabel(application.child_level_arabic)} / ${levelLabel(application.child_level_islam)}`}
+                    />
+                    <Field label="Melding" value={application.message} />
+                  </dl>
+                </details>
+              </li>
+            );
+          })}
+        </ul>
+      </BulkActions>
+    )}
+    {total > PAGE_SIZE ? (
+      <Pagination
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={total}
+        basePath={`${basePath}/register`}
+        searchParams={sp}
+      />
+    ) : null}
+  </section>
+  );
+}
+
+export default async function OpptakPage({
+  params,
+  searchParams,
+}: PageProps<"/[locale]/admin/register">) {
+  const [{ locale }, sp] = await Promise.all([params, searchParams]);
+  const basePath = adminBasePath(locale);
+  const q = typeof sp.q === "string" ? sp.q : "";
+  const status = typeof sp.status === "string" ? sp.status : "";
+  const page = Math.max(1, Number(sp.page) || 1);
 
   return (
     <div className="grid gap-4 sm:gap-6">
@@ -386,310 +743,23 @@ export default async function OpptakPage({
         </div>
       </header>
 
-      <section
-        aria-label="Status for innmeldinger"
-        className="grid grid-cols-3 divide-x divide-[#ECE8DF] overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]"
-      >
-        {[
-          {
-            value: newCount,
-            label: "Nye",
-            icon: CalendarClock,
-            tone: "bg-[#FEEDCA] text-[#775108]",
-          },
-          {
-            value: paidCount,
-            label: "Har betalt",
-            icon: CreditCard,
-            tone: "bg-[#DCEDDD] text-[#216A2B]",
-          },
-          {
-            value: total,
-            label: filtered ? "I utvalget" : "Til behandling",
-            icon: Users,
-            tone: "bg-[#EFF8FD] text-[#245D7C]",
-          },
-        ].map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div
-              key={stat.label}
-              className="flex items-center gap-3 px-3 py-3 sm:min-h-24 sm:px-5 sm:py-4"
-            >
-              <span
-                className={`hidden size-10 shrink-0 items-center justify-center rounded-full sm:flex ${stat.tone}`}
-              >
-                <Icon aria-hidden="true" className="size-5" />
-              </span>
-              <div>
-                <p className="font-heading text-xl font-bold tabular-nums sm:text-2xl">
-                  {stat.value}
-                </p>
-                <p className="text-xs text-admin-muted sm:text-sm">
-                  {stat.label}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </section>
+      <Suspense fallback={<StatStripSkeleton />}>
+        <OpptakStats q={q} status={status} page={page} />
+      </Suspense>
 
       <section className="rounded-2xl bg-white px-4 py-2 ring-1 ring-[#E3DED3] sm:p-5">
         <ApplicationFilters />
       </section>
 
-      <section
-        aria-labelledby="applications-list-title"
-        className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]"
-      >
-        <div className="border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
-          <h2
-            id="applications-list-title"
-            className="font-heading text-xl font-bold"
-          >
-            Innmeldinger
-          </h2>
-          <p className="mt-0.5 text-sm text-admin-muted" aria-live="polite">
-            {total} {total === 1 ? "innmelding" : "innmeldinger"}
-            {filtered ? " passer valgte filtre" : " venter på opptak"}
-          </p>
-        </div>
-        {applications.length === 0 ? (
-          <div className="flex min-h-56 flex-col items-center justify-center px-6 py-10 text-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-[#DCEDDD] text-[#216A2B]">
-              <CircleCheck aria-hidden="true" className="size-6" />
-            </span>
-            <p className="mt-4 font-heading text-xl font-bold">
-              {filtered ? "Ingen innmeldinger passer" : "Ingen venter på opptak"}
-            </p>
-            <p className="mt-1 max-w-md text-sm text-admin-muted">
-              {filtered
-                ? "Prøv et annet søk eller velg en annen visning."
-                : "Nye innmeldinger vises her når foresatte har sendt dem inn."}
-            </p>
-          </div>
-        ) : (
-          <BulkActions
-            entity="applications"
-            ids={pageIds}
-            admit={{
-              classes: placement.classes,
-              schoolYear: activeYear,
-              candidates,
-            }}
-          >
-            <label className="flex min-h-12 cursor-pointer items-center gap-3 border-b border-[#ECE8DF] bg-[#FBFAF6] px-4 text-sm text-admin-muted sm:px-5">
-              <BulkSelectAll />
-              <span>Velg alle på denne siden</span>
-            </label>
-            <ul className="divide-y divide-[#ECE8DF]">
-              {applications.map((application) => {
-                const payment = paymentLabel(application);
-                const candidate = candidateById.get(application.id);
-                const name = candidate?.name ?? "Navn mangler";
-                const appStatus = application.status ?? "ny";
-                const statusChip = statusLabels[appStatus] ?? statusLabels.arkivert;
-                const guardians = (
-                  (application.family_id &&
-                    familyGuardians.get(application.family_id)) || [
-                    {
-                      name: fullName(
-                        application.mother_first_name,
-                        application.mother_last_name,
-                      ),
-                      phone: application.mother_phone,
-                      email: application.mother_email,
-                    },
-                    {
-                      name: fullName(
-                        application.father_first_name,
-                        application.father_last_name,
-                      ),
-                      phone: application.father_phone,
-                      email: application.father_email,
-                    },
-                  ]
-                ).filter((guardian) => guardian.name || guardian.phone);
-                const canAdmit = !["avslatt", "arkivert"].includes(appStatus);
-                return (
-                  <li key={application.id} className="p-4 sm:p-5">
-                    <div className="grid gap-4 lg:grid-cols-[minmax(14rem,1fr)_minmax(22rem,1.45fr)] lg:items-start">
-                      <div className="flex min-w-0 items-start gap-3">
-                        <label className="-m-2.5 flex size-11 shrink-0 cursor-pointer items-center justify-center">
-                          <BulkRowCheckbox id={application.id} />
-                          <span className="sr-only">Velg {name}</span>
-                        </label>
-                        <div className="min-w-0 flex-1">
-                          <p className="flex flex-wrap items-center gap-2">
-                            <span className="font-heading text-lg font-bold">
-                              {name}
-                            </span>
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-xs font-bold ${statusChip.className}`}
-                            >
-                              {statusChip.label}
-                            </span>
-                          </p>
-                          <p className="mt-0.5 text-sm text-admin-muted">
-                            {candidate?.age != null ? `${candidate.age} år` : "Alder mangler"}
-                            , {genderLabel(application.child_gender)}
-                          </p>
-                          {appStatus === "akseptert" ? (
-                            <p className="mt-2 flex items-start gap-1.5 text-sm font-bold text-[#775108]">
-                              <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-                              Merket som tatt opp, men ikke registrert som elev.
-                            </p>
-                          ) : null}
-                          {guardians.length > 0 ? (
-                            <ul className="mt-2 grid gap-1 text-sm">
-                              {guardians.map((guardian, index) => (
-                                <li
-                                  key={index}
-                                  className="flex flex-wrap items-center gap-x-2"
-                                >
-                                  <span className="text-admin-muted">
-                                    {guardian.name || "Foresatt"}
-                                  </span>
-                                  {guardian.phone ? (
-                                    <a
-                                      href={telHref(guardian.phone)}
-                                      className="inline-flex min-h-11 items-center gap-1.5 rounded font-bold text-[#277A31] underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-8"
-                                    >
-                                      <Phone aria-hidden="true" className="size-3.5" />
-                                      {guardian.phone}
-                                    </a>
-                                  ) : null}
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="mt-2 text-sm text-admin-muted">
-                              Ingen foresatt registrert
-                            </p>
-                          )}
-                          {application.family_id ? (
-                            <Link
-                              href={`${basePath}/familier/${application.family_id}`}
-                              className="mt-1 inline-flex min-h-11 items-center text-sm font-bold text-[#277A31] underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
-                            >
-                              Åpne familie
-                            </Link>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      <div className="grid gap-3">
-                        <dl className="grid grid-cols-3 gap-2 rounded-xl bg-[#F8F6F0] p-3">
-                          <div>
-                            <dt className="text-xs font-bold text-admin-muted">
-                              Betaling
-                            </dt>
-                            <dd className="mt-1">
-                              <span
-                                className={`inline-flex min-h-7 items-center rounded-full px-2.5 text-xs font-bold ${
-                                  payment.paid
-                                    ? "bg-[#DCEDDD] text-[#216A2B]"
-                                    : "bg-[#FEEDCA] text-[#775108]"
-                                }`}
-                              >
-                                {payment.label}
-                              </span>
-                            </dd>
-                          </div>
-                          <div>
-                            <dt className="text-xs font-bold text-admin-muted">
-                              Mottatt
-                            </dt>
-                            <dd className="mt-1 text-sm font-bold">
-                              {formatDate(application.created_at)}
-                            </dd>
-                          </div>
-                          <div>
-                            <dt className="text-xs font-bold text-admin-muted">
-                              Ønsket klasse
-                            </dt>
-                            <dd className="mt-1 text-sm font-bold">
-                              {application.desired_class ?? "Ikke oppgitt"}
-                            </dd>
-                          </div>
-                        </dl>
-                        <div className="flex items-center gap-2 sm:justify-end">
-                          {canAdmit ? (
-                            <AdmitDialog
-                              applicationId={application.id}
-                              childName={name}
-                              childAge={candidate?.age ?? null}
-                              desiredClass={application.desired_class}
-                              classes={placement.classes}
-                              suggestedClassId={suggestions.get(application.id) ?? null}
-                              schoolYear={activeYear}
-                              basePath={basePath}
-                            />
-                          ) : null}
-                          <StudentStatusMenu
-                            id={application.id}
-                            name={name}
-                            status={appStatus}
-                            paid={payment.paid}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <details className="group mt-3 border-t border-[#ECE8DF] pt-2">
-                      <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-2 text-sm font-bold text-admin-muted outline-none hover:bg-[#F2F1EB] hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
-                        Detaljer
-                        <ChevronDown
-                          aria-hidden="true"
-                          className="size-4 transition-transform group-open:rotate-180"
-                        />
-                      </summary>
-                      <dl className="mt-2 grid gap-x-8 gap-y-4 rounded-xl bg-[#F8F6F0] p-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                        <Field
-                          label="Adresse"
-                          value={addressLine(application)}
-                        />
-                        <Field
-                          label="E-post barn"
-                          value={application.child_email}
-                          href={application.child_email ? `mailto:${application.child_email}` : undefined}
-                        />
-                        <Field
-                          label="Telefon barn"
-                          value={application.child_phone}
-                          href={application.child_phone ? telHref(application.child_phone) : undefined}
-                        />
-                        {guardians.map((guardian, index) => (
-                          <Field
-                            key={index}
-                            label={`E-post ${guardian.name || `foresatt ${index + 1}`}`}
-                            value={guardian.email}
-                            href={guardian.email ? `mailto:${guardian.email}` : undefined}
-                          />
-                        ))}
-                        <Field
-                          label="Nivå (Koran / Arabisk / Islam)"
-                          value={`${levelLabel(application.child_level_quran)} / ${levelLabel(application.child_level_arabic)} / ${levelLabel(application.child_level_islam)}`}
-                        />
-                        <Field label="Melding" value={application.message} />
-                      </dl>
-                    </details>
-                  </li>
-                );
-              })}
-            </ul>
-          </BulkActions>
-        )}
-        {total > PAGE_SIZE ? (
-          <Pagination
-            page={page}
-            pageSize={PAGE_SIZE}
-            total={total}
-            basePath={`${basePath}/register`}
-            searchParams={sp}
-          />
-        ) : null}
-      </section>
+      <Suspense fallback={<ListCardSkeleton rows={4} tall />}>
+        <OpptakList
+          q={q}
+          status={status}
+          page={page}
+          basePath={basePath}
+          sp={sp}
+        />
+      </Suspense>
     </div>
   );
 }

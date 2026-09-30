@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
 import {
   ChevronDown,
@@ -19,6 +20,10 @@ import { isPlaceholderEmail } from "@/lib/portal/emails";
 import { formatNok } from "@/lib/money";
 import { formatOsloDateTime } from "@/lib/dates";
 import { Pagination } from "@/components/admin/pagination";
+import {
+  FilterSkeleton,
+  ListCardSkeleton,
+} from "@/components/admin/admin-skeletons";
 import { ExportButton } from "@/components/admin/export-button";
 import { EmptyState } from "@/components/admin/empty-state";
 import { OptimisticRemovalList } from "@/components/admin/optimistic-removal-list";
@@ -222,13 +227,15 @@ async function getRegisteredTeachers(): Promise<{
   }
 }
 
-export default async function LaererePage({
-  params,
-  searchParams,
-}: PageProps<"/[locale]/admin/laerere">) {
-  const { locale } = await params;
-  const basePath = adminBasePath(locale);
-  const sp = await searchParams;
+async function TeacherContent({
+  basePath,
+  sp,
+  counts,
+}: {
+  basePath: string;
+  sp: { [key: string]: string | string[] | undefined };
+  counts: Awaited<ReturnType<typeof getApplicationCounts>>;
+}) {
   const tab = sp.tab === "soknader" ? "soknader" : "laerere";
   const page = Math.max(1, Number(sp.page) || 1);
   const q = typeof sp.q === "string" ? sp.q : "";
@@ -238,8 +245,7 @@ export default async function LaererePage({
   )
     ? rawStatus
     : "";
-  const [counts, registry, { rows: applications, total }] = await Promise.all([
-    getApplicationCounts(),
+  const [registry, { rows: applications, total }] = await Promise.all([
     tab === "laerere"
       ? getRegisteredTeachers()
       : Promise.resolve({
@@ -263,6 +269,366 @@ export default async function LaererePage({
     teacherPage * PAGE_SIZE,
   );
   const filtered = Boolean(q || status);
+
+  return tab === "laerere" ? (
+    <section
+      aria-labelledby="teacher-registry"
+      className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]"
+    >
+      <div className="border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
+        <h2
+          id="teacher-registry"
+          className="font-heading text-xl font-bold"
+        >
+          Registrerte lærere
+        </h2>
+        <p className="mt-0.5 text-sm text-admin-muted">
+          {registry.teachers.length}{" "}
+          {registry.teachers.length === 1 ? "lærer" : "lærere"}. Lærere med
+          barn på skolen kan få fritak for skolepenger.
+        </p>
+      </div>
+      {registry.teachers.length > 0 ? (
+        <OptimisticRemovalList
+          className="divide-y divide-[#ECE8DF]"
+          itemClassName="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-5"
+          rows={visibleTeachers.map((teacher) => {
+            const name =
+              [teacher.first_name, teacher.last_name]
+                .filter(Boolean)
+                .join(" ") || "(uten navn)";
+            const familyId = registry.familyByGuardian.get(teacher.id);
+            const gift = registry.giftTotals.get(teacher.id);
+            const assigned = registry.classesByGuardian.get(teacher.id) ?? [];
+            return {
+              id: teacher.id,
+              content: (
+                <>
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-2 font-bold">
+                      {name}
+                      {familyId ? (
+                        <Link
+                          href={`${basePath}/familier/${familyId}`}
+                          className="rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                        >
+                          <StatusPill tone="ok" className="hover:underline">
+                            Har barn på skolen
+                          </StatusPill>
+                        </Link>
+                      ) : (
+                        <StatusPill tone="neutral">
+                          Ikke koblet til familie
+                        </StatusPill>
+                      )}
+                    </p>
+                    <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-admin-muted">
+                      {teacher.phone ? (
+                        <a
+                          href={`tel:${teacher.phone}`}
+                          className="inline-flex min-h-11 items-center gap-1.5 font-bold text-[#277A31] underline-offset-2 hover:underline sm:min-h-0"
+                        >
+                          <Phone aria-hidden="true" className="size-3.5" />
+                          {teacher.phone}
+                        </a>
+                      ) : null}
+                      {teacher.email ? (
+                        <a
+                          href={`mailto:${teacher.email}`}
+                          className="inline-flex min-h-11 items-center gap-1.5 break-all text-[#277A31] underline-offset-2 hover:underline sm:min-h-0"
+                        >
+                          <Mail aria-hidden="true" className="size-3.5" />
+                          {teacher.email}
+                        </a>
+                      ) : null}
+                      {teacher.teacher_note ? (
+                        <span>{teacher.teacher_note}</span>
+                      ) : null}
+                    </p>
+                    <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                      <GraduationCap
+                        aria-hidden="true"
+                        className="size-4 text-admin-muted"
+                      />
+                      {assigned.length ? (
+                        assigned.map((item) => (
+                          <Link
+                            key={item.id}
+                            href={`${basePath}/klasser/${item.id}`}
+                            className="inline-flex min-h-11 items-center rounded font-bold text-[#277A31] underline-offset-2 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-0"
+                          >
+                            {item.name}
+                          </Link>
+                        ))
+                      ) : (
+                        <span className="text-admin-muted">
+                          Ingen klasse i år
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
+                    {gift ? (
+                      <span className="text-sm text-admin-muted">
+                        Fritatt{" "}
+                        <span className="font-bold text-foreground tabular-nums">
+                          {formatNok(gift.amount)}
+                        </span>{" "}
+                        ({gift.students} barn)
+                      </span>
+                    ) : null}
+                    <TeacherRowMenu
+                      teacher={teacher}
+                      name={name}
+                      canSendLink={Boolean(teacher.email) && !isPlaceholderEmail(teacher.email)}
+                    />
+                  </div>
+                </>
+              ),
+            };
+          })}
+        />
+      ) : (
+        <EmptyState
+          icon={<UserCheck aria-hidden="true" />}
+          title="Ingen lærere er registrert ennå"
+          description="Legg til en lærer med knappen over, eller registrer en lærer fra en søknad."
+          headingLevel="h3"
+        />
+      )}
+      {registry.teachers.length > 0 ? (
+        <Pagination
+          page={teacherPage}
+          pageSize={PAGE_SIZE}
+          total={registry.teachers.length}
+          basePath={`${basePath}/laerere`}
+          searchParams={sp}
+        />
+      ) : null}
+    </section>
+  ) : (
+    <>
+      <section className="rounded-2xl bg-white p-4 ring-1 ring-[#E3DED3] sm:p-5">
+        <form
+          action={`${basePath}/laerere`}
+          role="search"
+          className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_14rem_auto] sm:items-end"
+        >
+          <input type="hidden" name="tab" value="soknader" />
+          <div className="grid gap-1.5">
+            <label htmlFor="teacher-search" className="text-sm font-bold">
+              Søk i søknader
+            </label>
+            <div className="relative">
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#2F7938]"
+              />
+              <input
+                id="teacher-search"
+                name="q"
+                type="search"
+                defaultValue={q}
+                placeholder="Navn, e-post, telefon eller fag"
+                className="min-h-11 w-full rounded-xl border border-[#CFC9BD] bg-white pr-4 pl-10 text-sm outline-none placeholder:text-admin-muted focus-visible:border-[#2F7938] focus-visible:ring-3 focus-visible:ring-[#2F7938]/20"
+              />
+            </div>
+          </div>
+          <div className="grid gap-1.5">
+            <span id="teacher-status-label" className="text-sm font-bold">
+              Vis status
+            </span>
+            <Select
+              name="status"
+              defaultValue={status || "alle"}
+              items={statusItems}
+            >
+              <SelectTrigger
+                aria-labelledby="teacher-status-label"
+                className="w-full border-[#CFC9BD] bg-white"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {statusItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-admin-action px-4 text-sm font-bold text-white outline-none hover:bg-[#245E2B] focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              Finn
+            </button>
+            {filtered ? (
+              <Link
+                href={`${basePath}/laerere?tab=soknader`}
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#CFC9BD] px-3 text-sm font-bold outline-none hover:bg-[#F2F1EB] focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                Nullstill
+              </Link>
+            ) : null}
+          </div>
+        </form>
+      </section>
+
+      <section
+        aria-labelledby="teacher-inbox-title"
+        className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]"
+      >
+        <div className="border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
+          <h2
+            id="teacher-inbox-title"
+            className="font-heading text-xl font-bold"
+          >
+            Søknader
+          </h2>
+          <p className="mt-0.5 text-sm text-admin-muted" aria-live="polite">
+            {filtered
+              ? `${total} ${total === 1 ? "søknad passer" : "søknader passer"} valgte filtre`
+              : `${counts.fresh} nye · ${counts.contacted} kontaktet · ${counts.all} totalt`}
+          </p>
+        </div>
+        {applications.length === 0 ? (
+          <EmptyState
+            icon={<CircleCheck aria-hidden="true" />}
+            title={
+              filtered
+                ? "Ingen søknader passer filtrene"
+                : "Ingen søknader ennå"
+            }
+            description={
+              filtered
+                ? "Prøv et annet søk eller velg en annen status."
+                : "Søknader fra skjemaet Bli lærer på nettsiden vises her."
+            }
+            headingLevel="h3"
+          />
+        ) : (
+          <BulkActions entity="teachers" ids={pageIds}>
+            <div className="flex min-h-12 items-center gap-3 border-b border-[#ECE8DF] bg-[#FBFAF6] px-4 text-sm text-admin-muted sm:px-5">
+              <BulkSelectAll />
+              <span>Velg alle på denne siden</span>
+            </div>
+            <ul className="divide-y divide-[#ECE8DF]">
+              {applications.map((application) => (
+                <li key={application.id} className="p-4 sm:px-5">
+                  <div className="flex items-start gap-3">
+                    <div className="pt-1">
+                      <BulkRowCheckbox id={application.id} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-heading text-lg font-bold">
+                            {application.full_name ?? "Navn mangler"}
+                          </p>
+                          <p className="mt-0.5 text-sm text-admin-muted">
+                            {application.subjects ?? "Fag ikke oppgitt"} ·
+                            Mottatt {formatDate(application.created_at)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <TeacherStatusSelect
+                            id={application.id}
+                            status={application.status ?? "ny"}
+                          />
+                          <RowActions
+                            label={`Flere valg for søknaden fra ${application.full_name ?? "ukjent"}`}
+                            destructive={{
+                              id: application.id,
+                              label: "Slett søknad",
+                              title: "Slette søknaden?",
+                              description:
+                                "Søknaden fjernes for godt. Vil du bare rydde i listen, sett status til Arkivert i stedet.",
+                              successMessage: "Søknaden er slettet",
+                              action: deleteTeacherApplication,
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {application.email ? (
+                          <a
+                            href={`mailto:${application.email}`}
+                            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#F2F7F2] px-3 text-sm font-bold text-[#277A31] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                          >
+                            <Mail aria-hidden="true" className="size-4" />
+                            {application.email}
+                          </a>
+                        ) : null}
+                        {application.phone ? (
+                          <a
+                            href={`tel:${application.phone}`}
+                            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#F2F7F2] px-3 text-sm font-bold text-[#277A31] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                          >
+                            <Phone aria-hidden="true" className="size-4" />
+                            {application.phone}
+                          </a>
+                        ) : null}
+                        <TeacherRegisterDialog
+                          compact
+                          sourceApplicationId={application.id}
+                          defaultName={application.full_name}
+                          defaultEmail={application.email}
+                          defaultPhone={application.phone}
+                        />
+                      </div>
+                      {application.message ? (
+                        <details className="group mt-3 rounded-xl bg-[#F8F6F0] px-3">
+                          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-bold outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+                            <MessageSquareText
+                              aria-hidden="true"
+                              className="size-4 text-[#2F7938]"
+                            />
+                            Les melding
+                            <ChevronDown
+                              aria-hidden="true"
+                              className="ml-auto size-4 transition-transform group-open:rotate-180"
+                            />
+                          </summary>
+                          <p className="pb-3 text-sm whitespace-pre-line">
+                            {application.message}
+                          </p>
+                        </details>
+                      ) : null}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </BulkActions>
+        )}
+        {total > 0 ? (
+          <Pagination
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            basePath={`${basePath}/laerere`}
+            searchParams={sp}
+          />
+        ) : null}
+      </section>
+    </>
+  );
+}
+
+export default async function LaererePage({
+  params,
+  searchParams,
+}: PageProps<"/[locale]/admin/laerere">) {
+  const [{ locale }, sp, counts] = await Promise.all([
+    params,
+    searchParams,
+    getApplicationCounts(),
+  ]);
+  const basePath = adminBasePath(locale);
+  const tab = sp.tab === "soknader" ? "soknader" : "laerere";
   const tabs = [
     {
       key: "laerere",
@@ -324,352 +690,21 @@ export default async function LaererePage({
         })}
       </nav>
 
-      {tab === "laerere" ? (
-        <section
-          aria-labelledby="teacher-registry"
-          className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]"
-        >
-          <div className="border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
-            <h2
-              id="teacher-registry"
-              className="font-heading text-xl font-bold"
-            >
-              Registrerte lærere
-            </h2>
-            <p className="mt-0.5 text-sm text-admin-muted">
-              {registry.teachers.length}{" "}
-              {registry.teachers.length === 1 ? "lærer" : "lærere"}. Lærere med
-              barn på skolen kan få fritak for skolepenger.
-            </p>
-          </div>
-          {registry.teachers.length > 0 ? (
-            <OptimisticRemovalList
-              className="divide-y divide-[#ECE8DF]"
-              itemClassName="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-5"
-              rows={visibleTeachers.map((teacher) => {
-                const name =
-                  [teacher.first_name, teacher.last_name]
-                    .filter(Boolean)
-                    .join(" ") || "(uten navn)";
-                const familyId = registry.familyByGuardian.get(teacher.id);
-                const gift = registry.giftTotals.get(teacher.id);
-                const assigned = registry.classesByGuardian.get(teacher.id) ?? [];
-                return {
-                  id: teacher.id,
-                  content: (
-                    <>
-                      <div className="min-w-0 flex-1">
-                        <p className="flex flex-wrap items-center gap-2 font-bold">
-                          {name}
-                          {familyId ? (
-                            <Link
-                              href={`${basePath}/familier/${familyId}`}
-                              className="rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                            >
-                              <StatusPill tone="ok" className="hover:underline">
-                                Har barn på skolen
-                              </StatusPill>
-                            </Link>
-                          ) : (
-                            <StatusPill tone="neutral">
-                              Ikke koblet til familie
-                            </StatusPill>
-                          )}
-                        </p>
-                        <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-admin-muted">
-                          {teacher.phone ? (
-                            <a
-                              href={`tel:${teacher.phone}`}
-                              className="inline-flex min-h-11 items-center gap-1.5 font-bold text-[#277A31] underline-offset-2 hover:underline sm:min-h-0"
-                            >
-                              <Phone aria-hidden="true" className="size-3.5" />
-                              {teacher.phone}
-                            </a>
-                          ) : null}
-                          {teacher.email ? (
-                            <a
-                              href={`mailto:${teacher.email}`}
-                              className="inline-flex min-h-11 items-center gap-1.5 break-all text-[#277A31] underline-offset-2 hover:underline sm:min-h-0"
-                            >
-                              <Mail aria-hidden="true" className="size-3.5" />
-                              {teacher.email}
-                            </a>
-                          ) : null}
-                          {teacher.teacher_note ? (
-                            <span>{teacher.teacher_note}</span>
-                          ) : null}
-                        </p>
-                        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                          <GraduationCap
-                            aria-hidden="true"
-                            className="size-4 text-admin-muted"
-                          />
-                          {assigned.length ? (
-                            assigned.map((item) => (
-                              <Link
-                                key={item.id}
-                                href={`${basePath}/klasser/${item.id}`}
-                                className="inline-flex min-h-11 items-center rounded font-bold text-[#277A31] underline-offset-2 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-0"
-                              >
-                                {item.name}
-                              </Link>
-                            ))
-                          ) : (
-                            <span className="text-admin-muted">
-                              Ingen klasse i år
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
-                        {gift ? (
-                          <span className="text-sm text-admin-muted">
-                            Fritatt{" "}
-                            <span className="font-bold text-foreground tabular-nums">
-                              {formatNok(gift.amount)}
-                            </span>{" "}
-                            ({gift.students} barn)
-                          </span>
-                        ) : null}
-                        <TeacherRowMenu
-                          teacher={teacher}
-                          name={name}
-                          canSendLink={Boolean(teacher.email) && !isPlaceholderEmail(teacher.email)}
-                        />
-                      </div>
-                    </>
-                  ),
-                };
-              })}
-            />
+      <Suspense
+        key={tab}
+        fallback={
+          tab === "laerere" ? (
+            <ListCardSkeleton rows={4} />
           ) : (
-            <EmptyState
-              icon={<UserCheck aria-hidden="true" />}
-              title="Ingen lærere er registrert ennå"
-              description="Legg til en lærer med knappen over, eller registrer en lærer fra en søknad."
-              headingLevel="h3"
-            />
-          )}
-          {registry.teachers.length > 0 ? (
-            <Pagination
-              page={teacherPage}
-              pageSize={PAGE_SIZE}
-              total={registry.teachers.length}
-              basePath={`${basePath}/laerere`}
-              searchParams={sp}
-            />
-          ) : null}
-        </section>
-      ) : (
-        <>
-          <section className="rounded-2xl bg-white p-4 ring-1 ring-[#E3DED3] sm:p-5">
-            <form
-              action={`${basePath}/laerere`}
-              role="search"
-              className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_14rem_auto] sm:items-end"
-            >
-              <input type="hidden" name="tab" value="soknader" />
-              <div className="grid gap-1.5">
-                <label htmlFor="teacher-search" className="text-sm font-bold">
-                  Søk i søknader
-                </label>
-                <div className="relative">
-                  <Search
-                    aria-hidden="true"
-                    className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#2F7938]"
-                  />
-                  <input
-                    id="teacher-search"
-                    name="q"
-                    type="search"
-                    defaultValue={q}
-                    placeholder="Navn, e-post, telefon eller fag"
-                    className="min-h-11 w-full rounded-xl border border-[#CFC9BD] bg-white pr-4 pl-10 text-sm outline-none placeholder:text-admin-muted focus-visible:border-[#2F7938] focus-visible:ring-3 focus-visible:ring-[#2F7938]/20"
-                  />
-                </div>
-              </div>
-              <div className="grid gap-1.5">
-                <span id="teacher-status-label" className="text-sm font-bold">
-                  Vis status
-                </span>
-                <Select
-                  name="status"
-                  defaultValue={status || "alle"}
-                  items={statusItems}
-                >
-                  <SelectTrigger
-                    aria-labelledby="teacher-status-label"
-                    className="w-full border-[#CFC9BD] bg-white"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusItems.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-admin-action px-4 text-sm font-bold text-white outline-none hover:bg-[#245E2B] focus-visible:ring-3 focus-visible:ring-ring/50"
-                >
-                  Finn
-                </button>
-                {filtered ? (
-                  <Link
-                    href={`${basePath}/laerere?tab=soknader`}
-                    className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#CFC9BD] px-3 text-sm font-bold outline-none hover:bg-[#F2F1EB] focus-visible:ring-3 focus-visible:ring-ring/50"
-                  >
-                    Nullstill
-                  </Link>
-                ) : null}
-              </div>
-            </form>
-          </section>
-
-          <section
-            aria-labelledby="teacher-inbox-title"
-            className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]"
-          >
-            <div className="border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
-              <h2
-                id="teacher-inbox-title"
-                className="font-heading text-xl font-bold"
-              >
-                Søknader
-              </h2>
-              <p className="mt-0.5 text-sm text-admin-muted" aria-live="polite">
-                {filtered
-                  ? `${total} ${total === 1 ? "søknad passer" : "søknader passer"} valgte filtre`
-                  : `${counts.fresh} nye · ${counts.contacted} kontaktet · ${counts.all} totalt`}
-              </p>
-            </div>
-            {applications.length === 0 ? (
-              <EmptyState
-                icon={<CircleCheck aria-hidden="true" />}
-                title={
-                  filtered
-                    ? "Ingen søknader passer filtrene"
-                    : "Ingen søknader ennå"
-                }
-                description={
-                  filtered
-                    ? "Prøv et annet søk eller velg en annen status."
-                    : "Søknader fra skjemaet Bli lærer på nettsiden vises her."
-                }
-                headingLevel="h3"
-              />
-            ) : (
-              <BulkActions entity="teachers" ids={pageIds}>
-                <div className="flex min-h-12 items-center gap-3 border-b border-[#ECE8DF] bg-[#FBFAF6] px-4 text-sm text-admin-muted sm:px-5">
-                  <BulkSelectAll />
-                  <span>Velg alle på denne siden</span>
-                </div>
-                <ul className="divide-y divide-[#ECE8DF]">
-                  {applications.map((application) => (
-                    <li key={application.id} className="p-4 sm:px-5">
-                      <div className="flex items-start gap-3">
-                        <div className="pt-1">
-                          <BulkRowCheckbox id={application.id} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="font-heading text-lg font-bold">
-                                {application.full_name ?? "Navn mangler"}
-                              </p>
-                              <p className="mt-0.5 text-sm text-admin-muted">
-                                {application.subjects ?? "Fag ikke oppgitt"} ·
-                                Mottatt {formatDate(application.created_at)}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <TeacherStatusSelect
-                                id={application.id}
-                                status={application.status ?? "ny"}
-                              />
-                              <RowActions
-                                label={`Flere valg for søknaden fra ${application.full_name ?? "ukjent"}`}
-                                destructive={{
-                                  id: application.id,
-                                  label: "Slett søknad",
-                                  title: "Slette søknaden?",
-                                  description:
-                                    "Søknaden fjernes for godt. Vil du bare rydde i listen, sett status til Arkivert i stedet.",
-                                  successMessage: "Søknaden er slettet",
-                                  action: deleteTeacherApplication,
-                                }}
-                              />
-                            </div>
-                          </div>
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {application.email ? (
-                              <a
-                                href={`mailto:${application.email}`}
-                                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#F2F7F2] px-3 text-sm font-bold text-[#277A31] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                              >
-                                <Mail aria-hidden="true" className="size-4" />
-                                {application.email}
-                              </a>
-                            ) : null}
-                            {application.phone ? (
-                              <a
-                                href={`tel:${application.phone}`}
-                                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#F2F7F2] px-3 text-sm font-bold text-[#277A31] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                              >
-                                <Phone aria-hidden="true" className="size-4" />
-                                {application.phone}
-                              </a>
-                            ) : null}
-                            <TeacherRegisterDialog
-                              compact
-                              sourceApplicationId={application.id}
-                              defaultName={application.full_name}
-                              defaultEmail={application.email}
-                              defaultPhone={application.phone}
-                            />
-                          </div>
-                          {application.message ? (
-                            <details className="group mt-3 rounded-xl bg-[#F8F6F0] px-3">
-                              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-bold outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
-                                <MessageSquareText
-                                  aria-hidden="true"
-                                  className="size-4 text-[#2F7938]"
-                                />
-                                Les melding
-                                <ChevronDown
-                                  aria-hidden="true"
-                                  className="ml-auto size-4 transition-transform group-open:rotate-180"
-                                />
-                              </summary>
-                              <p className="pb-3 text-sm whitespace-pre-line">
-                                {application.message}
-                              </p>
-                            </details>
-                          ) : null}
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </BulkActions>
-            )}
-            {total > 0 ? (
-              <Pagination
-                page={page}
-                pageSize={PAGE_SIZE}
-                total={total}
-                basePath={`${basePath}/laerere`}
-                searchParams={sp}
-              />
-            ) : null}
-          </section>
-        </>
-      )}
+            <>
+              <FilterSkeleton />
+              <ListCardSkeleton rows={4} tall />
+            </>
+          )
+        }
+      >
+        <TeacherContent basePath={basePath} sp={sp} counts={counts} />
+      </Suspense>
     </div>
   );
 }
