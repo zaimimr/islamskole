@@ -1,33 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Users } from "lucide-react";
 import { getIsAdmin, getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { formatOsloDate } from "@/lib/dates";
 import { adminBasePath } from "@/components/admin/paths";
-import { EmptyState } from "@/components/admin/empty-state";
 import { LoadError } from "@/components/admin/load-error";
-import { StatusPill } from "@/components/admin/status-pill";
-import { OptimisticRemovalList } from "@/components/admin/optimistic-removal-list";
-import { Pagination } from "@/components/admin/pagination";
-import { cn } from "@/lib/utils";
 import { GrantAdminForm } from "./grant-admin-form";
-import { UserRowActions } from "./user-row-actions";
-import { UserSearch } from "./user-search";
+import { UserList, type AdminUser } from "./user-list";
 
 export const metadata: Metadata = { title: "Brukere og tilganger" };
-
-type AdminUser = {
-  id: string;
-  email: string;
-  fullName: string | null;
-  role: string;
-  isTeacher: boolean;
-  isGuardian: boolean;
-  isStudent: boolean;
-  lastSignInAt: string | null;
-};
 
 async function listAllUsers() {
   const admin = createAdminClient();
@@ -100,28 +80,12 @@ async function getUsers(): Promise<
   }
 }
 
-const PAGE_SIZE = 25;
-
-const roleFilters = [
-  { value: "admin", label: "Admin", match: (user: AdminUser) => user.role === "admin" },
-  { value: "alle", label: "Alle", match: () => true },
-  { value: "laerer", label: "Lærere", match: (user: AdminUser) => user.isTeacher },
-  { value: "foresatt", label: "Foresatte", match: (user: AdminUser) => user.isGuardian },
-  { value: "elev", label: "Elever", match: (user: AdminUser) => user.isStudent },
-];
-
 export default async function BrukerePage({
   params,
   searchParams,
 }: PageProps<"/[locale]/admin/brukere">) {
   const { locale } = await params;
   const sp = await searchParams;
-  const q = typeof sp.q === "string" ? sp.q.trim().toLowerCase() : "";
-  const roleParam = typeof sp.rolle === "string" ? sp.rolle : "";
-  const activeRole =
-    roleFilters.find((filter) => filter.value === roleParam) ?? roleFilters[0];
-  const page = Math.max(1, Number(sp.page) || 1);
-  const basePath = `${adminBasePath(locale)}/brukere`;
   if (!(await getIsAdmin())) notFound();
 
   const [result, currentUser] = await Promise.all([getUsers(), getUser()]);
@@ -133,29 +97,6 @@ export default async function BrukerePage({
       />
     );
   }
-  const allUsers = result.users;
-  const currentId = currentUser?.id ?? null;
-  const searched = q
-    ? allUsers.filter((user) =>
-        `${user.fullName ?? ""} ${user.email}`.toLowerCase().includes(q),
-      )
-    : allUsers;
-  const filtered = searched.filter(activeRole.match);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const users = filtered.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
-  );
-
-  function roleHref(value: string) {
-    const params = new URLSearchParams();
-    if (typeof sp.q === "string" && sp.q) params.set("q", sp.q);
-    if (value !== roleFilters[0].value) params.set("rolle", value);
-    const query = params.toString();
-    return query ? `${basePath}?${query}` : basePath;
-  }
-
   return (
     <div className="grid gap-5 sm:gap-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -173,116 +114,13 @@ export default async function BrukerePage({
 
       <GrantAdminForm />
 
-      <section
-        aria-labelledby="user-access-title"
-        className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]"
-      >
-        <div className="grid gap-4 border-b border-[#ECE8DF] px-4 py-4 sm:px-5">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <h2 id="user-access-title" className="font-heading text-xl font-bold">
-              Innlogginger
-            </h2>
-            <div className="w-full lg:max-w-sm">
-              <UserSearch />
-            </div>
-          </div>
-          <nav aria-label="Filtrer på rolle" className="-mx-1 overflow-x-auto">
-            <ul className="flex gap-1 px-1">
-              {roleFilters.map((filter) => {
-                const active = filter.value === activeRole.value;
-                const count = searched.filter(filter.match).length;
-                return (
-                  <li key={filter.value}>
-                    <Link
-                      href={roleHref(filter.value)}
-                      scroll={false}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "inline-flex min-h-10 items-center gap-1.5 rounded-full px-3.5 text-sm font-bold whitespace-nowrap transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-                        active
-                          ? "bg-[#DCEDDD] text-[#216A2B]"
-                          : "text-admin-muted hover:bg-[#F4F1EA] hover:text-foreground",
-                      )}
-                    >
-                      {filter.label}
-                      <span className="tabular-nums opacity-70">{count}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-        </div>
-        {users.length === 0 ? (
-          <EmptyState
-            icon={<Users aria-hidden="true" />}
-            title="Ingen brukere funnet"
-            description={
-              q || activeRole.value !== "alle"
-                ? "Prøv et annet søk eller en annen rolle."
-                : "Gi noen administratortilgang for å komme i gang."
-            }
-          />
-        ) : (
-          <OptimisticRemovalList
-            className="divide-y divide-[#ECE8DF]"
-            itemClassName="flex items-center gap-3 px-4 py-3 sm:px-5"
-            rows={users.map((user) => ({
-              id: user.id,
-              content: (
-                <>
-                  <div className="min-w-0 flex-1">
-                    <p className="flex flex-wrap items-center gap-2 font-bold">
-                      <span className="break-all">{user.fullName ?? user.email}</span>
-                      {user.id === currentId ? (
-                        <StatusPill tone="info">Din konto</StatusPill>
-                      ) : null}
-                    </p>
-                    <p className="mt-0.5 text-sm text-admin-muted">
-                      {user.fullName ? (
-                        <span className="break-all">{user.email} · </span>
-                      ) : null}
-                      {user.lastSignInAt
-                        ? `Sist inne ${formatOsloDate(user.lastSignInAt)}`
-                        : "Aldri logget inn"}
-                    </p>
-                  </div>
-                  <div className="hidden shrink-0 flex-wrap items-center justify-end gap-1.5 sm:flex">
-                    {user.role === "admin" ? (
-                      <StatusPill tone="ok">Admin</StatusPill>
-                    ) : null}
-                    {user.isTeacher ? (
-                      <StatusPill tone="info">Lærer</StatusPill>
-                    ) : null}
-                    {user.isGuardian ? (
-                      <StatusPill tone="neutral">Foresatt</StatusPill>
-                    ) : null}
-                    {user.isStudent ? (
-                      <StatusPill tone="neutral">Elev</StatusPill>
-                    ) : null}
-                  </div>
-                  <UserRowActions
-                    userId={user.id}
-                    email={user.email}
-                    isSelf={user.id === currentId}
-                    isAdmin={user.role === "admin"}
-                    isTeacher={user.isTeacher}
-                  />
-                </>
-              ),
-            }))}
-          />
-        )}
-        {filtered.length > 0 ? (
-          <Pagination
-            page={currentPage}
-            pageSize={PAGE_SIZE}
-            total={filtered.length}
-            basePath={basePath}
-            searchParams={sp}
-          />
-        ) : null}
-      </section>
+      <UserList
+        allUsers={result.users}
+        currentId={currentUser?.id ?? null}
+        initialRole={typeof sp.rolle === "string" ? sp.rolle : ""}
+        initialQuery={typeof sp.q === "string" ? sp.q : ""}
+        initialPage={Math.max(1, Number(sp.page) || 1)}
+      />
     </div>
   );
 }
