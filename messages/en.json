@@ -14,7 +14,8 @@
     "menuDescription": "Navigate the site",
     "localeLabel": "Language",
     "skipToContent": "Skip to content",
-    "close": "Close"
+    "close": "Close",
+    "donate": "Donate"
   },
   "notFound": {
     "eyebrow": "Error 404",
@@ -32,7 +33,8 @@
     "ctaSecondary": "See the classes",
     "badgeAge": "Ages 6-18",
     "badgeWhen": "Sundays 10-14",
-    "badgeWhere": "Vøyenenga, Bærum"
+    "badgeWhere": "Vøyenenga, Bærum",
+    "ctaDonate": "Support the school with a gift"
   },
   "vision": {
     "title": "Our vision",
@@ -866,6 +868,48 @@
       "title": "Page not found",
       "text": "The page does not exist, or you do not have access to it.",
       "back": "Back to My page"
+    }
+  },
+  "donate": {
+    "eyebrow": "Donation",
+    "title": "Support Islamskole Bærum",
+    "subtitle": "Your support contributes to well-being, learning and a strong identity.",
+    "metaDescription": "Give a gift to Islamskole Bærum with Vipps. Support Quran and Islamic teaching, activities and community for the children.",
+    "vippsCta": "Donate with Vipps",
+    "newTab": "(opens in a new tab)",
+    "vippsNote": "On your phone the Vipps app opens directly. On a computer Vipps opens in a new tab.",
+    "numberLabel": "Vipps number",
+    "numberBody": "You can also search for 24279 in the Vipps app and give any amount you like.",
+    "giveTitle": "Give with Vipps",
+    "giveBody": "Choose the amount yourself. Every gift, big or small, makes a difference for the children.",
+    "monthlyTitle": "Monthly gift",
+    "monthlyBody": "You can also give a fixed amount every month. There is no commitment, and you can stop at any time by emailing {email}.",
+    "fundsTitle": "What your gift supports",
+    "funds": [
+      {
+        "title": "Quran and Islamic teaching",
+        "body": "Good teachers and materials, so the children learn the Quran, prayer and our religion."
+      },
+      {
+        "title": "Activities and community for the children",
+        "body": "Trips, celebrations and gatherings where the children make friends and good memories together."
+      },
+      {
+        "title": "Running costs, including premises",
+        "body": "Rent for the premises and everything practical needed to keep the school open every Sunday."
+      }
+    ],
+    "termsTitle": "Terms for gifts",
+    "terms": [
+      "A donation is a voluntary gift. You receive no goods or services in return.",
+      "Payment happens in Vipps, and your personal data is handled according to the Vipps terms.",
+      "If something went wrong, such as a wrong amount, contact us at {email} and we will correct it."
+    ],
+    "home": {
+      "eyebrow": "Sadaqa jariyah",
+      "title": "A gift that keeps on giving",
+      "body": "What a child learns about the Quran and prayer stays with them for life. Your gift keeps the teaching open to every family and can become a sadaqa jariyah, a charity that keeps on giving.",
+      "more": "Read more about giving"
     }
   }
 }

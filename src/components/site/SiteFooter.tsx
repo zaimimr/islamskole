@@ -13,6 +13,7 @@ const exploreLinks = [
   { href: "/om-oss", key: "about" },
   { href: "/bli-laerer", key: "teacher" },
   { href: "/kontakt", key: "contact" },
+  { href: "/donasjon", key: "donate" },
 ] as const;
 
 export async function SiteFooter() {

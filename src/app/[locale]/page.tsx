@@ -9,6 +9,7 @@ import { VisionPillars } from "@/components/site/VisionPillars";
 import { ValuesStrip } from "@/components/site/ValuesStrip";
 import { InfoSection } from "@/components/site/InfoSection";
 import { EnrollCta } from "@/components/site/EnrollCta";
+import { DonateCta } from "@/components/site/DonateCta";
 import { ContactCard } from "@/components/site/ContactCard";
 import { ClassCard } from "@/components/site/ClassCard";
 import { EventCard } from "@/components/site/EventCard";
@@ -134,6 +135,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
 
       <InfoSection />
       <EnrollCta />
+      <DonateCta />
 
       <Section ariaLabelledby="home-contact-heading">
         <div className="grid items-center gap-10 lg:grid-cols-2">

@@ -23,6 +23,7 @@ const navItems = [
   { href: "/om-oss", key: "about" },
   { href: "/bli-laerer", key: "teacher" },
   { href: "/kontakt", key: "contact" },
+  { href: "/donasjon", key: "donate" },
 ] as const;
 
 function isActive(pathname: string, href: string) {
@@ -41,7 +42,7 @@ export function SiteHeader() {
         <Logo priority className="shrink-0" />
 
         <nav aria-label={t("menu")} className="hidden lg:block">
-          <ul className="flex items-center gap-7 xl:gap-9">
+          <ul className="flex items-center gap-5 xl:gap-9">
             {navItems.map((item) => {
               const active = isActive(pathname, item.href);
               return (
