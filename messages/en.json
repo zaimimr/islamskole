@@ -611,7 +611,25 @@
       "sentTitle": "Check your email",
       "sent": "If the email is registered with us, you will receive a link within a few minutes. Also check your spam folder.",
       "again": "Use a different email",
-      "invalidLink": "The link has been used or has expired. Request a new link below."
+      "invalidLink": "The link has been used or has expired. Request a new link below.",
+      "introSms": "Sign in with your email or mobile number. We will send you a link or a code.",
+      "sms": {
+        "tabEmail": "Email",
+        "tabSms": "SMS",
+        "phoneLabel": "Mobile number",
+        "phoneHint": "Norwegian mobile number, for example 912 34 567.",
+        "sendCode": "Send code by SMS",
+        "sentTitle": "Check your text messages",
+        "sent": "If {phone} is registered with us, you will receive a code by SMS shortly. The code is valid for 10 minutes.",
+        "codeLabel": "Code from SMS",
+        "verify": "Sign in",
+        "resend": "Send a new code",
+        "otherNumber": "Use a different number",
+        "invalidPhone": "Enter a Norwegian mobile number with 8 digits.",
+        "invalidCode": "The code has 6 digits.",
+        "wrongCode": "The code is wrong or has expired. Try again, or request a new code.",
+        "disabled": "Signing in with SMS is not available right now. Use email instead."
+      }
     },
     "adminLink": "Administration",
     "errors": {
