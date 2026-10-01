@@ -67,7 +67,7 @@ export function PortalSmsLoginForm({ next }: { next?: string }) {
   }
 
   const errorBox = error ? (
-    <p role="alert" className="flex gap-2 rounded-xl bg-destructive/10 p-3 text-sm font-semibold text-destructive">
+    <p id="portal-sms-error" role="alert" className="flex gap-2 rounded-xl bg-destructive/10 p-3 text-sm font-semibold text-destructive">
       <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
       {errorText(error)}
     </p>
@@ -100,6 +100,7 @@ export function PortalSmsLoginForm({ next }: { next?: string }) {
             value={code}
             onChange={(event) => setCode(event.target.value)}
             aria-invalid={error === "invalid" || error === "wrong_code" || undefined}
+            aria-describedby={error ? "portal-sms-error" : undefined}
             className="text-lg tracking-[0.3em]"
           />
         </div>
@@ -153,7 +154,7 @@ export function PortalSmsLoginForm({ next }: { next?: string }) {
           value={phone}
           onChange={(event) => setPhone(event.target.value)}
           aria-invalid={error === "invalid" || undefined}
-          aria-describedby="portal-phone-hint"
+          aria-describedby={error ? "portal-phone-hint portal-sms-error" : "portal-phone-hint"}
         />
         <p id="portal-phone-hint" className="text-sm text-muted-foreground">
           {t("login.sms.phoneHint")}

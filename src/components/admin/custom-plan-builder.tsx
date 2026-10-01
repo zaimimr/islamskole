@@ -99,9 +99,6 @@ export function CustomPlanBuilder({
     (sum, child) => sum + child.remainingOre,
     0,
   );
-  const nameById = new Map(
-    familyChildren.map((child) => [child.id, child.name]),
-  );
 
   const built = buildCustomConfig(fields);
   const result = built.ok
@@ -263,7 +260,6 @@ export function CustomPlanBuilder({
                     <td
                       key={part.studentId}
                       className="py-1.5 pr-3 text-right tabular-nums"
-                      aria-label={nameById.get(part.studentId)}
                     >
                       {formatNok(part.amount)}
                     </td>
