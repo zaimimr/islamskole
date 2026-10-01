@@ -1057,6 +1057,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          custom_config: Json | null
           family_id: string
           id: string
           monthly_amount: number | null
@@ -1070,6 +1071,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          custom_config?: Json | null
           family_id: string
           id?: string
           monthly_amount?: number | null
@@ -1083,6 +1085,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          custom_config?: Json | null
           family_id?: string
           id?: string
           monthly_amount?: number | null

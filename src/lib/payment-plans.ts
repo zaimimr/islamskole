@@ -17,6 +17,14 @@ export {
 } from "@/lib/installment-schedule";
 import { layoutSlots } from "@/lib/installment-schedule";
 import type { PlanType } from "@/lib/installment-schedule";
+import {
+  computeCustomSchedule,
+  layoutCustomPlan,
+  type ChildTarget,
+  type CustomPlanConfig,
+} from "@/lib/custom-payment-plan";
+
+export type PaymentPlanType = PlanType | "egendefinert";
 
 function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -58,8 +66,9 @@ type PlanRow = {
   id: string;
   family_id: string;
   school_year_id: string;
-  plan_type: PlanType;
+  plan_type: PaymentPlanType;
   monthly_amount: number | null;
+  custom_config: CustomPlanConfig | null;
   status: string;
   paused_at: string | null;
 };
@@ -68,14 +77,14 @@ async function fetchPlan(client: Client, planId: string): Promise<PlanRow> {
   const { data, error } = await client
     .from("payment_plans")
     .select(
-      "id, family_id, school_year_id, plan_type, monthly_amount, status, paused_at",
+      "id, family_id, school_year_id, plan_type, monthly_amount, custom_config, status, paused_at",
     )
     .eq("id", planId)
     .maybeSingle();
 
   if (error) throw new Error(toUserError(error), { cause: error });
   if (!data) throw new Error("Fant ikke betalingsplanen");
-  return data as PlanRow;
+  return data as unknown as PlanRow;
 }
 
 async function fetchYearSchedule(client: Client, schoolYearId: string) {
@@ -109,6 +118,46 @@ async function outstandingHeldAmount(
   return (data ?? []).reduce((sum, row) => sum + (row.amount ?? 0), 0);
 }
 
+async function consumedPlanDates(
+  client: Client,
+  planId: string,
+): Promise<string[]> {
+  const { data, error } = await client
+    .from("installments")
+    .select("due_date")
+    .eq("plan_id", planId)
+    .in("status", ["sendt", "betalt", "stoppet"]);
+
+  if (error) throw new Error(toUserError(error), { cause: error });
+  return [...new Set((data ?? []).map((row) => row.due_date))];
+}
+
+async function familyPlanTargets(
+  client: Client,
+  familyId: string,
+  schoolYearId: string,
+  planId: string | null,
+): Promise<ChildTarget[]> {
+  const students = await getFamilyEnrolledStudents(
+    client,
+    familyId,
+    schoolYearId,
+  );
+  const targets: ChildTarget[] = [];
+  for (const studentId of students) {
+    await ensureStudentFee(client, studentId, schoolYearId);
+    const balance = await fetchBalance(client, studentId, schoolYearId);
+    const heldOutstanding = planId
+      ? await outstandingHeldAmount(client, planId, studentId)
+      : 0;
+    targets.push({
+      studentId,
+      amount: Math.max(balance.remaining - heldOutstanding, 0),
+    });
+  }
+  return targets;
+}
+
 export async function generateInstallments(
   client: Client,
   planId: string,
@@ -117,11 +166,6 @@ export async function generateInstallments(
   if (plan.status !== "aktiv") return 0;
 
   const year = await fetchYearSchedule(client, plan.school_year_id);
-  const students = await getFamilyEnrolledStudents(
-    client,
-    plan.family_id,
-    plan.school_year_id,
-  );
 
   const { error: deleteError } = await client
     .from("installments")
@@ -130,30 +174,38 @@ export async function generateInstallments(
     .eq("status", "planlagt");
   if (deleteError) throw new Error(toUserError(deleteError), { cause: deleteError });
 
-  const rows: Database["public"]["Tables"]["installments"]["Insert"][] = [];
+  const targets = await familyPlanTargets(
+    client,
+    plan.family_id,
+    plan.school_year_id,
+    plan.id,
+  );
+  const slots =
+    plan.plan_type === "egendefinert" && plan.custom_config
+      ? layoutCustomPlan(
+          plan.custom_config,
+          targets,
+          await consumedPlanDates(client, plan.id),
+          osloToday(),
+        )
+      : targets.flatMap((target) =>
+          layoutSlots(
+            plan.plan_type as PlanType,
+            target.amount,
+            year,
+            plan.monthly_amount,
+          ).map((slot) => ({ ...slot, studentId: target.studentId })),
+        );
 
-  for (const studentId of students) {
-    await ensureStudentFee(client, studentId, plan.school_year_id);
-    const balance = await fetchBalance(client, studentId, plan.school_year_id);
-    const heldOutstanding = await outstandingHeldAmount(
-      client,
-      plan.id,
-      studentId,
-    );
-    const target = Math.max(balance.remaining - heldOutstanding, 0);
-    const slots = layoutSlots(plan.plan_type, target, year, plan.monthly_amount);
-
-    for (const slot of slots) {
-      rows.push({
-        plan_id: plan.id,
-        student_id: studentId,
-        school_year_id: plan.school_year_id,
-        due_date: slot.dueDate,
-        amount: slot.amount,
-        status: "planlagt",
-      });
-    }
-  }
+  const rows: Database["public"]["Tables"]["installments"]["Insert"][] =
+    slots.map((slot) => ({
+      plan_id: plan.id,
+      student_id: slot.studentId,
+      school_year_id: plan.school_year_id,
+      due_date: slot.dueDate,
+      amount: slot.amount,
+      status: "planlagt",
+    }));
 
   if (rows.length > 0) {
     const { error } = await client.from("installments").insert(rows);
@@ -168,12 +220,29 @@ export async function assignPaymentPlan(
   input: {
     familyId: string;
     schoolYearId: string;
-    planType: PlanType;
+    planType: PaymentPlanType;
     monthlyAmount?: number | null;
+    customConfig?: CustomPlanConfig | null;
     createdBy: string;
     note?: string | null;
   },
 ): Promise<string> {
+  const customConfig =
+    input.planType === "egendefinert" ? input.customConfig ?? null : null;
+  if (input.planType === "egendefinert") {
+    if (!customConfig) throw new Error("Mangler oppsett for planen");
+    const preview = computeCustomSchedule(
+      customConfig,
+      await familyPlanTargets(
+        client,
+        input.familyId,
+        input.schoolYearId,
+        null,
+      ),
+    );
+    if (!preview.ok) throw new Error(preview.error);
+  }
+
   const { data: existing, error: existingError } = await client
     .from("payment_plans")
     .select("id")
@@ -206,6 +275,7 @@ export async function assignPaymentPlan(
       plan_type: input.planType,
       monthly_amount:
         input.planType === "maanedlig" ? input.monthlyAmount ?? null : null,
+      custom_config: customConfig,
       created_by: input.createdBy,
       note: input.note ?? null,
     })
