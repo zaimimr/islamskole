@@ -56,6 +56,36 @@ test.describe("parent edits family on Min familie", () => {
       .toEqual([{ name: "ZZTEST Bestemor" }]);
   });
 
+  test("edit child details and remove a co-guardian", async ({ context, page }) => {
+    const family = await seedFamily({ guardians: [{}, {}] });
+    const [guardian, other] = family.guardians;
+    const [child] = family.students;
+    await loginAs(context, guardian.email);
+    await page.goto("/min-side/familie");
+
+    await page.getByRole("button", { name: `Endre opplysninger om ${child.firstName}` }).click();
+    const childDialog = page.getByRole("dialog");
+    await childDialog.getByLabel("Etternavn").fill("ZZTEST Nytt");
+    await childDialog.getByLabel("Fødselsdato").fill("2016-02-03");
+    await childDialog.getByLabel("Jente").check();
+    await childDialog.getByRole("button", { name: "Lagre" }).click();
+    await expect(toast(page, `Opplysningene om ${child.firstName} er lagret.`)).toBeVisible();
+    await expect
+      .poll(async () => await one<{ child_last_name: string; child_birth_date: string; child_gender: string }>(db().from("students").select("child_last_name, child_birth_date, child_gender").eq("id", child.id).single()))
+      .toEqual({ child_last_name: "ZZTEST Nytt", child_birth_date: "2016-02-03", child_gender: "jente" });
+    await expect
+      .poll(async () => (await one<{ action: string }[]>(db().from("audit_log").select("action").eq("entity_id", child.id).eq("action", "portal.child.update"))).length)
+      .toBe(1);
+
+    await expect(page.getByRole("button", { name: `Fjern ${guardian.name} fra familien` })).toHaveCount(0);
+    await page.getByRole("button", { name: `Fjern ${other.name} fra familien` }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Ja, fjern" }).click();
+    await expect(toast(page, `${other.name} er fjernet fra familien.`)).toBeVisible();
+    await expect
+      .poll(async () => (await one<{ guardian_id: string }[]>(db().from("family_guardians").select("guardian_id").eq("family_id", family.id))).length)
+      .toBe(1);
+  });
+
   test("email change is confirmed through a link sent to the new address", async ({ context, page }) => {
     const family = await seedFamily();
     const [guardian] = family.guardians;

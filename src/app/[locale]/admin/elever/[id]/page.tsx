@@ -28,7 +28,8 @@ import { getStudentDeleteBlockers } from "@/app/[locale]/admin/students-actions"
 import { suggestPlacements } from "@/app/[locale]/admin/register/placement";
 import { studentDisplayName } from "@/lib/student-name";
 import { ageInYear, formatAge, schoolYearStart } from "@/lib/age";
-import { formatOsloDate } from "@/lib/dates";
+import { formatOsloDate, formatOsloDateTime } from "@/lib/dates";
+import { getLastParentChange } from "@/lib/parent-changes";
 import { formatNok } from "@/lib/money";
 import { StudentExitPanel } from "./student-exit-panel";
 import { StudentLoginEmail } from "./student-login-email";
@@ -136,6 +137,7 @@ export default async function ElevDetailPage({
     { data: feeData },
     { data: adjustmentData },
     { data: teacherData },
+    lastParentChange,
   ] = await Promise.all([
     supabase
       .from("students")
@@ -184,6 +186,7 @@ export default async function ElevDetailPage({
       .select("id, first_name, last_name")
       .eq("is_teacher", true)
       .order("first_name", { ascending: true }),
+    getLastParentChange({ studentId: id }),
   ]);
 
   const student = studentData as StudentData | null;
@@ -583,6 +586,13 @@ export default async function ElevDetailPage({
             <span className="text-base font-bold text-admin-muted">
               {formatAge(student.child_birth_date, ageYear)} år
             </span>
+          ) : null}
+          {lastParentChange ? (
+            <p className="basis-full text-sm text-admin-muted">
+              Sist endret av forelder {formatOsloDateTime(lastParentChange.createdAt)}
+              {lastParentChange.actorEmail ? ` (${lastParentChange.actorEmail})` : ""}:{" "}
+              {lastParentChange.summary}
+            </p>
           ) : null}
         </div>
         {!editing ? (

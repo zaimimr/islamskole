@@ -3032,6 +3032,46 @@ export type Database = {
         Args: { p_first_name: string; p_guardian_id: string; p_last_name: string; p_phone: string }
         Returns: undefined
       }
+      portal_update_family_guardian: {
+        Args: {
+          p_family_id: string
+          p_first_name: string
+          p_guardian_id: string
+          p_last_name: string
+          p_phone: string | null
+          p_receives_communication: boolean
+          p_relationship_label: string
+        }
+        Returns: undefined
+      }
+      portal_remove_guardian: {
+        Args: { p_family_id: string; p_guardian_id: string }
+        Returns: string
+      }
+      portal_update_family_preferences: {
+        Args: { p_family_id: string; p_preferred_language: string }
+        Returns: undefined
+      }
+      portal_update_child: {
+        Args: {
+          p_birth_date: string
+          p_email: string | null
+          p_first_name: string
+          p_gender: string
+          p_last_name: string
+          p_level_arabic: string | null
+          p_level_islam: string | null
+          p_level_quran: string | null
+          p_phone: string | null
+          p_student_id: string
+        }
+        Returns: undefined
+      }
+      portal_update_pickup: {
+        Args: { p_id: string; p_name: string; p_phone: string | null; p_relation: string | null }
+        Returns: undefined
+      }
+      portal_sync_family_contacts: { Args: { p_family_id: string }; Returns: undefined }
       portal_class_roster: {
         Args: { p_class_id: string; p_school_day_id: string }
         Returns: {

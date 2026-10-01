@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/admin/empty-state";
 import { LoadError } from "@/components/admin/load-error";
 import { formatOsloDateTime, osloLocalToIso } from "@/lib/dates";
 import { formatNok } from "@/lib/money";
+import { describeParentChange } from "@/lib/parent-change-summary";
 import {
   Select,
   SelectContent,
@@ -71,7 +72,11 @@ const entityFilters: { key: string; label: string; types: string[] }[] = [
     label: "Betalingskrav og rabatter",
     types: ["student_fees", "student_fee"],
   },
-  { key: "families", label: "Familier", types: ["families", "family"] },
+  {
+    key: "families",
+    label: "Familier",
+    types: ["families", "family", "family_pickup_person"],
+  },
   {
     key: "guardians",
     label: "Foresatte og lærere",
@@ -125,6 +130,18 @@ const actionLabels: Record<string, string> = {
   "class_teacher.assign": "Knyttet en lærer til en klasse",
   "class_teacher.remove": "Fjernet en lærer fra en klasse",
   "portal.login_link_sent": "Sendte innloggingslenke",
+  "portal.family.address": "Forelder endret adressen",
+  "portal.family.preferences": "Forelder endret språk for beskjeder",
+  "portal.guardian.update": "Forelder endret en foresatt",
+  "portal.guardian.add": "Forelder la til en foresatt",
+  "portal.guardian.remove": "Forelder fjernet en foresatt",
+  "portal.guardian.email_change_requested": "Forelder ba om ny e-post",
+  "portal.guardian.email_changed": "Forelder bekreftet ny e-post",
+  "portal.child.update": "Forelder endret barnets opplysninger",
+  "portal.child.health": "Forelder endret helse og samtykke",
+  "portal.pickup.add": "Forelder la til en henteperson",
+  "portal.pickup.update": "Forelder endret en henteperson",
+  "portal.pickup.remove": "Forelder fjernet en henteperson",
   "application.status": "Endret opptaksstatus",
   "application.delete": "Slettet en innmelding",
   "application.bulk_status": "Endret status på flere innmeldinger",
@@ -331,6 +348,9 @@ function extraLine(row: AuditRow): string | null {
       : {};
   const note = text(meta.note);
   if (note) return `Notat: ${note}`;
+  if (meta.source === "parent") {
+    return `Gjelder ${describeParentChange(row.action, meta)}`;
+  }
   if (row.action === "event.update" || row.action === "event.create") {
     return meta.published === true
       ? "Publisert på nettsiden"

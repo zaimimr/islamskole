@@ -4,6 +4,7 @@ import { Link, redirect } from "@/i18n/navigation";
 import { AddressSection } from "@/components/portal/family/address-section";
 import { ChildHealthForm } from "@/components/portal/family/child-health-form";
 import { GuardianSection } from "@/components/portal/family/guardian-section";
+import { LanguageSection } from "@/components/portal/family/language-section";
 import { PickupSection } from "@/components/portal/family/pickup-section";
 import { getSiteSettings } from "@/lib/data";
 import { getPortalContext } from "@/lib/portal/data";
@@ -74,6 +75,7 @@ export default async function FamilyPage({ params }: PageProps<"/[locale]/min-si
               <AddressSection family={family} />
               <GuardianSection family={family} />
               <PickupSection family={family} />
+              <LanguageSection family={family} />
             </div>
             <section
               aria-labelledby={`children-${family.id}`}

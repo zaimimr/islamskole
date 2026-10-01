@@ -12,7 +12,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { isPlaceholderEmail } from "@/lib/portal/emails";
 import { getEmailChangeByToken, hashEmailToken, isEmailChangeOpen } from "@/lib/portal/family-data";
-import { RELATIONSHIP_LABELS } from "@/lib/portal/family-types";
+import {
+  GENDERS,
+  LANGUAGES,
+  LEVELS,
+  RELATIONSHIP_LABELS,
+  isValidPhone,
+} from "@/lib/portal/family-types";
 import type { PortalActionResult, PortalErrorCode } from "@/lib/portal/types";
 
 const EMAIL_CHANGE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -27,6 +33,11 @@ const optionalText = (max: number) =>
     .nullable()
     .transform((value) => (value ? value : null));
 const emailSchema = z.string().trim().toLowerCase().email().max(254);
+const phoneText = optionalText(40).refine((value) => value == null || isValidPhone(value));
+const levelSchema = z
+  .union([z.literal(""), z.enum(LEVELS)])
+  .nullable()
+  .transform((value) => value || null);
 
 function dbError(error: { code?: string } | null | undefined): PortalErrorCode {
   switch (error?.code) {
@@ -99,55 +110,96 @@ export async function updateFamilyAddress(
   });
   if (error) return { ok: false, error: dbError(error) };
 
-  await writeAudit({
-    action: "portal.family.address",
-    entityType: "family",
-    entityId: parsed.data.familyId,
-    metadata: { postal_code: parsed.data.postalCode, city: parsed.data.city },
+  refreshPortal();
+  return { ok: true };
+}
+
+const preferencesSchema = z.object({
+  familyId: uuid,
+  preferredLanguage: z.enum(LANGUAGES),
+});
+
+export async function updateFamilyPreferences(
+  familyId: string,
+  input: { preferredLanguage: string },
+): Promise<PortalActionResult> {
+  const parsed = preferencesSchema.safeParse({ familyId, ...input });
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  if (!(await getUser())) return { ok: false, error: "unauthenticated" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("portal_update_family_preferences", {
+    p_family_id: parsed.data.familyId,
+    p_preferred_language: parsed.data.preferredLanguage,
   });
+  if (error) return { ok: false, error: dbError(error) };
+
   refreshPortal();
   return { ok: true };
 }
 
 const guardianSchema = z.object({
+  familyId: uuid,
   guardianId: uuid,
   firstName: requiredText(80),
   lastName: requiredText(80),
-  phone: optionalText(40),
+  phone: phoneText,
+  relationship: z.enum(RELATIONSHIP_LABELS),
+  receivesCommunication: z.boolean(),
 });
 
-export async function updateGuardian(
+export async function updateFamilyGuardian(
+  familyId: string,
   guardianId: string,
-  input: { firstName: string; lastName: string; phone: string },
+  input: {
+    firstName: string;
+    lastName: string;
+    phone: string;
+    relationship: string;
+    receivesCommunication: boolean;
+  },
 ): Promise<PortalActionResult> {
-  const parsed = guardianSchema.safeParse({ guardianId, ...input });
+  const parsed = guardianSchema.safeParse({ familyId, guardianId, ...input });
   if (!parsed.success) return { ok: false, error: "invalid" };
   if (!(await getUser())) return { ok: false, error: "unauthenticated" };
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("portal_update_guardian", {
+  const { error } = await supabase.rpc("portal_update_family_guardian", {
+    p_family_id: parsed.data.familyId,
     p_guardian_id: parsed.data.guardianId,
     p_first_name: parsed.data.firstName,
     p_last_name: parsed.data.lastName,
-    p_phone: parsed.data.phone ?? "",
+    p_phone: parsed.data.phone,
+    p_relationship_label: parsed.data.relationship,
+    p_receives_communication: parsed.data.receivesCommunication,
   });
   if (error) return { ok: false, error: dbError(error) };
 
-  await writeAudit({
-    action: "portal.guardian.update",
-    entityType: "guardian",
-    entityId: parsed.data.guardianId,
-    metadata: { fields: ["first_name", "last_name", "phone"] },
-  });
   refreshPortal();
   return { ok: true, id: parsed.data.guardianId };
+}
+
+export async function removeGuardian(familyId: string, guardianId: string): Promise<PortalActionResult> {
+  const parsed = z.object({ familyId: uuid, guardianId: uuid }).safeParse({ familyId, guardianId });
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  if (!(await getUser())) return { ok: false, error: "unauthenticated" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("portal_remove_guardian", {
+    p_family_id: parsed.data.familyId,
+    p_guardian_id: parsed.data.guardianId,
+  });
+  if (error) return { ok: false, error: dbError(error) };
+
+  refreshPortal();
+  return { ok: true };
 }
 
 const addGuardianSchema = z.object({
   familyId: uuid,
   firstName: requiredText(80),
   lastName: requiredText(80),
-  phone: optionalText(40),
+  phone: phoneText,
   relationship: z.enum(RELATIONSHIP_LABELS),
 });
 
@@ -169,12 +221,6 @@ export async function addGuardian(
   });
   if (error || !data) return { ok: false, error: dbError(error) };
 
-  await writeAudit({
-    action: "portal.guardian.add",
-    entityType: "guardian",
-    entityId: data,
-    metadata: { family_id: parsed.data.familyId, relationship_label: parsed.data.relationship },
-  });
   refreshPortal();
   return { ok: true, id: data };
 }
@@ -203,26 +249,68 @@ export async function updateChildHealth(
   });
   if (error) return { ok: false, error: dbError(error) };
 
-  await writeAudit({
-    action: "portal.child.health",
-    entityType: "student",
-    entityId: parsed.data.studentId,
-    metadata: {
-      has_allergies: parsed.data.allergies != null,
-      has_medical_notes: parsed.data.medicalNotes != null,
-      photo_consent: parsed.data.photoConsent,
-    },
-  });
   refreshPortal();
   return { ok: true, id: parsed.data.studentId };
 }
 
-const pickupSchema = z.object({
-  familyId: uuid,
-  name: requiredText(120),
-  phone: optionalText(40),
-  relation: optionalText(60),
+const childSchema = z.object({
+  studentId: uuid,
+  firstName: requiredText(80),
+  lastName: requiredText(80),
+  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  gender: z.enum(GENDERS),
+  email: z.union([z.literal(""), emailSchema]).transform((value) => value || null),
+  phone: phoneText,
+  levelQuran: levelSchema,
+  levelArabic: levelSchema,
+  levelIslam: levelSchema,
 });
+
+export async function updateChild(
+  studentId: string,
+  input: {
+    firstName: string;
+    lastName: string;
+    birthDate: string;
+    gender: string;
+    email: string;
+    phone: string;
+    levelQuran: string;
+    levelArabic: string;
+    levelIslam: string;
+  },
+): Promise<PortalActionResult> {
+  const parsed = childSchema.safeParse({ studentId, ...input });
+  if (!parsed.success || (parsed.data.email && isPlaceholderEmail(parsed.data.email))) {
+    return { ok: false, error: "invalid" };
+  }
+  if (!(await getUser())) return { ok: false, error: "unauthenticated" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("portal_update_child", {
+    p_student_id: parsed.data.studentId,
+    p_first_name: parsed.data.firstName,
+    p_last_name: parsed.data.lastName,
+    p_birth_date: parsed.data.birthDate,
+    p_gender: parsed.data.gender,
+    p_email: parsed.data.email,
+    p_phone: parsed.data.phone,
+    p_level_quran: parsed.data.levelQuran,
+    p_level_arabic: parsed.data.levelArabic,
+    p_level_islam: parsed.data.levelIslam,
+  });
+  if (error) return { ok: false, error: dbError(error) };
+
+  refreshPortal();
+  return { ok: true, id: parsed.data.studentId };
+}
+
+const pickupFields = {
+  name: requiredText(120),
+  phone: phoneText,
+  relation: optionalText(60),
+};
+const pickupSchema = z.object({ familyId: uuid, ...pickupFields });
 
 export async function addPickupPerson(
   familyId: string,
@@ -241,14 +329,29 @@ export async function addPickupPerson(
   });
   if (error || !data) return { ok: false, error: dbError(error) };
 
-  await writeAudit({
-    action: "portal.pickup.add",
-    entityType: "family_pickup_person",
-    entityId: data,
-    metadata: { family_id: parsed.data.familyId, relation: parsed.data.relation },
-  });
   refreshPortal();
   return { ok: true, id: data };
+}
+
+export async function updatePickupPerson(
+  id: string,
+  input: { name: string; phone: string; relation: string },
+): Promise<PortalActionResult> {
+  const parsed = z.object({ id: uuid, ...pickupFields }).safeParse({ id, ...input });
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  if (!(await getUser())) return { ok: false, error: "unauthenticated" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("portal_update_pickup", {
+    p_id: parsed.data.id,
+    p_name: parsed.data.name,
+    p_phone: parsed.data.phone,
+    p_relation: parsed.data.relation,
+  });
+  if (error) return { ok: false, error: dbError(error) };
+
+  refreshPortal();
+  return { ok: true, id: parsed.data.id };
 }
 
 export async function removePickupPerson(id: string): Promise<PortalActionResult> {
@@ -260,11 +363,6 @@ export async function removePickupPerson(id: string): Promise<PortalActionResult
   const { error } = await supabase.rpc("portal_remove_pickup", { p_id: parsed.data });
   if (error) return { ok: false, error: dbError(error) };
 
-  await writeAudit({
-    action: "portal.pickup.remove",
-    entityType: "family_pickup_person",
-    entityId: parsed.data,
-  });
   refreshPortal();
   return { ok: true };
 }
@@ -416,6 +514,15 @@ export async function confirmEmailChange(token: string, locale: string): Promise
     console.error("email change update failed", updateError);
     await admin.from("guardian_email_changes").update({ confirmed_at: null }).eq("id", change.id);
     return { ok: false, error: "unknown" };
+  }
+
+  const { data: links } = await admin
+    .from("family_guardians")
+    .select("family_id")
+    .eq("guardian_id", change.guardian_id);
+  for (const link of links ?? []) {
+    const { error: syncError } = await admin.rpc("portal_sync_family_contacts", { p_family_id: link.family_id });
+    if (syncError) console.error("email change contact sync failed", syncError);
   }
 
   await writeAudit({

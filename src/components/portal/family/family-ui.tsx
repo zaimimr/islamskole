@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 export function ErrorNote({ message }: { message: string }) {
   return (
@@ -63,6 +64,8 @@ export function FormDialog({
   submitLabel,
   onSubmit,
   errorText,
+  wide,
+  destructive,
   children,
 }: {
   trigger: React.ReactElement;
@@ -71,7 +74,9 @@ export function FormDialog({
   submitLabel: string;
   onSubmit: (form: FormData) => Promise<PortalActionResult>;
   errorText?: (code: PortalErrorCode) => string;
-  children: React.ReactNode;
+  wide?: boolean;
+  destructive?: boolean;
+  children?: React.ReactNode;
 }) {
   const t = useTranslations("portal.family");
   const defaultErrorText = useErrorText();
@@ -101,7 +106,13 @@ export function FormDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={trigger} />
-      <DialogContent closeLabel={t("close")} className="gap-5 rounded-3xl p-5 sm:max-w-md">
+      <DialogContent
+        closeLabel={t("close")}
+        className={cn(
+          "max-h-[calc(100dvh-2rem)] gap-5 overflow-y-auto rounded-3xl p-5 sm:max-w-md",
+          wide && "sm:max-w-xl",
+        )}
+      >
         <DialogHeader>
           <DialogTitle className="pr-8 font-heading text-xl font-semibold">{title}</DialogTitle>
           {description ? <DialogDescription className="text-pretty">{description}</DialogDescription> : null}
@@ -113,7 +124,7 @@ export function FormDialog({
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               {t("cancel")}
             </Button>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" variant={destructive ? "destructive" : "default"} disabled={pending}>
               {pending ? <Loader2 aria-hidden="true" className="animate-spin" /> : null}
               {submitLabel}
             </Button>
@@ -127,3 +138,45 @@ export function FormDialog({
 export function formText(form: FormData, key: string) {
   return String(form.get(key) ?? "").trim();
 }
+
+export function RadioPills({
+  name,
+  legend,
+  options,
+  defaultValue,
+  columns = 2,
+  required,
+}: {
+  name: string;
+  legend: string;
+  options: readonly { value: string; label: string }[];
+  defaultValue?: string | null;
+  columns?: 2 | 3;
+  required?: boolean;
+}) {
+  return (
+    <fieldset className="grid gap-2">
+      <legend className="mb-2 text-sm font-medium">{legend}</legend>
+      <div className={cn("grid gap-2", columns === 3 ? "grid-cols-3" : "grid-cols-2")}>
+        {options.map((option) => (
+          <label
+            key={option.value}
+            className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-3 py-2 ring-1 ring-foreground/10 transition-colors has-checked:bg-primary/10 has-checked:ring-2 has-checked:ring-primary has-focus-visible:ring-3 has-focus-visible:ring-ring/50"
+          >
+            <input
+              type="radio"
+              name={name}
+              value={option.value}
+              required={required}
+              defaultChecked={defaultValue === option.value}
+              className="size-4 shrink-0 accent-[var(--brand-green-dark)]"
+            />
+            {option.label}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+export const PHONE_PATTERN = "\\+?[0-9 \\-]{8,20}";

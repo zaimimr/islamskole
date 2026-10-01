@@ -443,7 +443,7 @@
   "portal": {
     "family": {
       "title": "My family",
-      "intro": "Keep your details up to date so the school knows who to contact. Changes are saved right away.",
+      "intro": "Change details about yourself, the other guardians and the children. Changes are saved right away, and the school can see what was changed.",
       "back": "Back",
       "familyLabel": "Family",
       "edit": "Edit",
@@ -486,7 +486,18 @@
           "steforelder": "Step-parent",
           "verge": "Legal guardian",
           "annet": "Other"
-        }
+        },
+        "phoneHint": "8 digits, or with country code, for example +47 912 34 567.",
+        "noMessages": "Does not get messages from the school",
+        "receivesMessages": "Gets messages from the school",
+        "receivesMessagesHint": "Invoices, reminders and other messages by email. At least one guardian must get messages.",
+        "editInvalid": "Check the name and phone number. At least one guardian must get messages from the school.",
+        "remove": "Remove",
+        "removeLabel": "Remove {name} from the family",
+        "removeTitle": "Remove {name}?",
+        "removeIntro": "{name} is removed from the family and can no longer see the children on My page. The school can add them again.",
+        "removeConfirm": "Yes, remove",
+        "removed": "{name} has been removed from the family."
       },
       "emailChange": {
         "open": "Change email",
@@ -503,7 +514,6 @@
         "title": "Children",
         "none": "No children are registered in the family.",
         "born": "Born {date}",
-        "wrongInfo": "Wrong name or date of birth? Contact the school.",
         "healthTitle": "Health",
         "allergies": "Allergies",
         "allergiesHint": "For example nuts or gluten. Leave empty if none.",
@@ -516,7 +526,31 @@
         "photoUnanswered": "Not answered",
         "teachersSee": "The teachers of {name} can see this information.",
         "updated": "Last updated {date}",
-        "saved": "The details for {name} have been saved."
+        "saved": "The details for {name} have been saved.",
+        "editTitle": "Edit details for {name}",
+        "editIntro": "Class and payment are changed by the school. Contact the school if something there is wrong.",
+        "firstName": "First name",
+        "lastName": "Last name",
+        "birthDate": "Date of birth",
+        "gender": "Gender",
+        "genders": {
+          "gutt": "Boy",
+          "jente": "Girl"
+        },
+        "email": "Child's email",
+        "emailHint": "The child can log in to My page with this address.",
+        "phone": "Child's phone",
+        "levelsTitle": "Level",
+        "levelQuran": "Quran",
+        "levelArabic": "Arabic",
+        "levelIslam": "Islam",
+        "levelNone": "Not chosen",
+        "levels": {
+          "nybegynner": "Beginner",
+          "litt": "Some experience",
+          "middels": "Intermediate",
+          "god": "Good"
+        }
       },
       "pickup": {
         "title": "Who can pick up",
@@ -531,7 +565,12 @@
         "added": "{name} has been added.",
         "remove": "Remove",
         "removeLabel": "Remove {name}",
-        "removed": "{name} has been removed."
+        "removed": "{name} has been removed.",
+        "edit": "Edit",
+        "editLabel": "Edit {name}",
+        "editTitle": "Edit {name}",
+        "save": "Save",
+        "saved": "{name} has been saved."
       },
       "confirm": {
         "title": "Confirm new email",
@@ -545,6 +584,13 @@
         "duplicate": "This email address is already used by another guardian. Please contact the school.",
         "unknown": "Something went wrong. Please try again.",
         "home": "Go to My page"
+      },
+      "language": {
+        "title": "Language for messages",
+        "intro": "The language the school uses in emails and invoices to the family.",
+        "no": "Norwegian",
+        "en": "English",
+        "saved": "The language has been saved."
       }
     },
     "economy": {
@@ -879,7 +925,8 @@
         "teacher": "Teacher: {name}",
         "substitute": "Substitute",
         "cancelled": "Cancelled"
-      }
+      },
+      "editInfo": "Edit details"
     },
     "notFound": {
       "title": "Page not found",

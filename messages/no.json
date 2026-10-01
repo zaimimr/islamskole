@@ -443,7 +443,7 @@
   "portal": {
     "family": {
       "title": "Min familie",
-      "intro": "Hold opplysningene oppdatert, så vet skolen hvem vi skal kontakte. Endringer lagres med en gang.",
+      "intro": "Her endrer du opplysninger om deg, de andre foresatte og barna. Endringer lagres med en gang, og skolen ser hva som er endret.",
       "back": "Tilbake",
       "familyLabel": "Familie",
       "edit": "Endre",
@@ -486,7 +486,18 @@
           "steforelder": "Steforelder",
           "verge": "Verge",
           "annet": "Annet"
-        }
+        },
+        "phoneHint": "8 sifre, eller med landskode, for eksempel +47 912 34 567.",
+        "noMessages": "Får ikke beskjeder fra skolen",
+        "receivesMessages": "Får beskjeder fra skolen",
+        "receivesMessagesHint": "Fakturaer, påminnelser og andre beskjeder på e-post. Minst én foresatt må få beskjeder.",
+        "editInvalid": "Sjekk navn og telefonnummer. Minst én foresatt må få beskjeder fra skolen.",
+        "remove": "Fjern",
+        "removeLabel": "Fjern {name} fra familien",
+        "removeTitle": "Fjerne {name}?",
+        "removeIntro": "{name} fjernes fra familien og kan ikke lenger se barna på Min side. Skolen kan legge personen til igjen.",
+        "removeConfirm": "Ja, fjern",
+        "removed": "{name} er fjernet fra familien."
       },
       "emailChange": {
         "open": "Endre e-post",
@@ -503,7 +514,6 @@
         "title": "Barn",
         "none": "Ingen barn er registrert i familien.",
         "born": "Født {date}",
-        "wrongInfo": "Feil navn eller fødselsdato? Kontakt skolen.",
         "healthTitle": "Helse",
         "allergies": "Allergier",
         "allergiesHint": "For eksempel nøtter eller gluten. La feltet stå tomt hvis ingen.",
@@ -516,7 +526,31 @@
         "photoUnanswered": "Ikke svart",
         "teachersSee": "Lærerne til {name} ser disse opplysningene.",
         "updated": "Sist oppdatert {date}",
-        "saved": "Opplysningene om {name} er lagret."
+        "saved": "Opplysningene om {name} er lagret.",
+        "editTitle": "Endre opplysninger om {name}",
+        "editIntro": "Klasse og betaling endres av skolen. Kontakt skolen hvis noe der er feil.",
+        "firstName": "Fornavn",
+        "lastName": "Etternavn",
+        "birthDate": "Fødselsdato",
+        "gender": "Kjønn",
+        "genders": {
+          "gutt": "Gutt",
+          "jente": "Jente"
+        },
+        "email": "Barnets e-post",
+        "emailHint": "Barnet kan logge inn på Min side med denne adressen.",
+        "phone": "Barnets telefon",
+        "levelsTitle": "Nivå",
+        "levelQuran": "Koran",
+        "levelArabic": "Arabisk",
+        "levelIslam": "Islam",
+        "levelNone": "Ikke valgt",
+        "levels": {
+          "nybegynner": "Nybegynner",
+          "litt": "Litt erfaring",
+          "middels": "Middels",
+          "god": "God"
+        }
       },
       "pickup": {
         "title": "Hvem kan hente",
@@ -531,7 +565,12 @@
         "added": "{name} er lagt til.",
         "remove": "Fjern",
         "removeLabel": "Fjern {name}",
-        "removed": "{name} er fjernet."
+        "removed": "{name} er fjernet.",
+        "edit": "Endre",
+        "editLabel": "Endre {name}",
+        "editTitle": "Endre {name}",
+        "save": "Lagre",
+        "saved": "{name} er lagret."
       },
       "confirm": {
         "title": "Bekreft ny e-post",
@@ -545,6 +584,13 @@
         "duplicate": "Denne e-postadressen brukes allerede av en annen foresatt. Ta kontakt med skolen.",
         "unknown": "Noe gikk galt. Prøv igjen.",
         "home": "Til Min side"
+      },
+      "language": {
+        "title": "Språk for beskjeder",
+        "intro": "Språket skolen bruker i e-post og fakturaer til familien.",
+        "no": "Norsk",
+        "en": "Engelsk",
+        "saved": "Språket er lagret."
       }
     },
     "economy": {
@@ -879,7 +925,8 @@
         "teacher": "Lærer: {name}",
         "substitute": "Vikar",
         "cancelled": "Avlyst"
-      }
+      },
+      "editInfo": "Endre opplysninger"
     },
     "notFound": {
       "title": "Fant ikke siden",
