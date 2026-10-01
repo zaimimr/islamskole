@@ -262,7 +262,7 @@ test("matchAll never uses one payment twice", () => {
 test("phone comparison and MSN list parsing", () => {
   assert.equal(phonesMatch("4791234567", "91234567"), true);
   assert.equal(phonesMatch("xx", "91234567"), false);
-  assert.deepEqual(parseMsnList(""), ["60206", "610090", "1111805"]);
+  assert.deepEqual(parseMsnList(""), ["60206", "1111805"]);
   assert.deepEqual(parseMsnList(" 60206; 610090,60206 "), ["60206", "610090"]);
 });
 

@@ -5,14 +5,53 @@ import {
   type ParsedTransaction,
   type VippsFundsItem,
 } from "@/lib/bank-statement";
-import { parseMsnList } from "@/lib/reconciliation-match";
+import { DONATIONS_API_MSN, parseMsnList } from "@/lib/reconciliation-match";
 import { mapInChunks } from "@/lib/payment-integrity";
 
 export function vippsReportMsns(): string[] {
   return parseMsnList(process.env.VIPPS_REPORT_MSNS);
 }
 
-export function vippsReportCredentials(msn: string): VippsCredentials | null {
+type ReportCredentials =
+  | (VippsCredentials & { kind: "merchant" })
+  | { kind: "donations"; baseUrl: string; clientId: string; clientSecret: string };
+
+const donationTokens = new Map<string, { token: string; expiresAt: number }>();
+
+async function donationsToken(credentials: { baseUrl: string; clientId: string; clientSecret: string }) {
+  const cached = donationTokens.get(credentials.clientId);
+  if (cached && cached.expiresAt > Date.now() + 60_000) return cached.token;
+  const response = await fetch(`${credentials.baseUrl}/miami/v1/token`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${credentials.clientId}:${credentials.clientSecret}`).toString("base64")}`,
+      "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
+      "Vipps-System-Name": process.env.VIPPS_SYSTEM_NAME ?? "islamskole",
+    },
+    body: "grant_type=client_credentials",
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new VippsHttpError(
+      `Vipps token-feil (${response.status}): ${(await response.text()).slice(0, 300)}`,
+      response.status,
+    );
+  }
+  const data = (await response.json()) as { access_token: string; expires_in: number | string };
+  donationTokens.set(credentials.clientId, {
+    token: data.access_token,
+    expiresAt: Date.now() + Number(data.expires_in) * 1000,
+  });
+  return data.access_token;
+}
+
+export function vippsReportCredentials(msn: string): ReportCredentials | null {
+  const baseUrl = (process.env.VIPPS_BASE_URL ?? "https://apitest.vipps.no").replace(/\/$/, "");
+  const donationsId = process.env.VIPPS_DONATIONS_CLIENT_ID;
+  const donationsSecret = process.env.VIPPS_DONATIONS_CLIENT_SECRET;
+  if (msn === DONATIONS_API_MSN && donationsId && donationsSecret) {
+    return { kind: "donations", baseUrl, clientId: donationsId, clientSecret: donationsSecret };
+  }
   const clientId = process.env[`VIPPS_CLIENT_ID_${msn}`] ?? process.env.VIPPS_CLIENT_ID;
   const clientSecret =
     process.env[`VIPPS_CLIENT_SECRET_${msn}`] ?? process.env.VIPPS_CLIENT_SECRET;
@@ -20,7 +59,8 @@ export function vippsReportCredentials(msn: string): VippsCredentials | null {
     process.env[`VIPPS_SUBSCRIPTION_KEY_${msn}`] ?? process.env.VIPPS_SUBSCRIPTION_KEY;
   if (!clientId || !clientSecret || !subscriptionKey) return null;
   return {
-    baseUrl: (process.env.VIPPS_BASE_URL ?? "https://apitest.vipps.no").replace(/\/$/, ""),
+    kind: "merchant",
+    baseUrl,
     clientId,
     clientSecret,
     subscriptionKey,
@@ -36,18 +76,22 @@ type FundsPage = {
 };
 
 async function reportGet<T>(
-  credentials: VippsCredentials,
+  credentials: ReportCredentials,
   path: string,
 ): Promise<T> {
-  const token = await getAccessToken(credentials);
+  const headers: Record<string, string> = {
+    "Vipps-System-Name": process.env.VIPPS_SYSTEM_NAME ?? "islamskole",
+    "Content-Type": "application/json",
+  };
+  if (credentials.kind === "donations") {
+    headers.Authorization = `Bearer ${await donationsToken(credentials)}`;
+  } else {
+    headers.Authorization = `Bearer ${await getAccessToken(credentials)}`;
+    headers["Ocp-Apim-Subscription-Key"] = credentials.subscriptionKey;
+    headers["Merchant-Serial-Number"] = credentials.merchantSerialNumber;
+  }
   const response = await fetch(`${credentials.baseUrl}${path}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Ocp-Apim-Subscription-Key": credentials.subscriptionKey,
-      "Merchant-Serial-Number": credentials.merchantSerialNumber,
-      "Vipps-System-Name": process.env.VIPPS_SYSTEM_NAME ?? "islamskole",
-      "Content-Type": "application/json",
-    },
+    headers,
     cache: "no-store",
   });
   if (!response.ok) {
@@ -60,7 +104,7 @@ async function reportGet<T>(
   return (await response.json()) as T;
 }
 
-async function findLedgerId(credentials: VippsCredentials, msn: string): Promise<string | null> {
+async function findLedgerId(credentials: ReportCredentials, msn: string): Promise<string | null> {
   const data = await reportGet<{
     items?: { ledgerId?: string; settlesForRecipientHandles?: string[] }[];
   }>(credentials, `/settlement/v1/ledgers?settlesForRecipientHandles=${encodeURIComponent(`NO:${msn}`)}`);
