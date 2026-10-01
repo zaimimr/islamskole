@@ -361,7 +361,8 @@ export async function getClassNotes(
     .eq("class_id", classId);
   if (until) query = query.lte("school_days.date", until);
   const { data, error } = await query
-    .order("date", { referencedTable: "school_days", ascending: false })
+    .order("school_days(date)", { ascending: false })
+    .order("id", { ascending: true })
     .limit(limit);
   if (error) {
     console.error("class_notes failed", error);
