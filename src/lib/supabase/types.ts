@@ -308,6 +308,72 @@ export type Database = {
           },
         ]
       }
+      class_week_plans: {
+        Row: {
+          class_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_position: number | null
+          id: string
+          resource_url: string | null
+          school_year_id: string
+          sort_order: number
+          start_position: number | null
+          subject: string | null
+          title: string
+          updated_at: string
+          week_start: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_position?: number | null
+          id?: string
+          resource_url?: string | null
+          school_year_id: string
+          sort_order?: number
+          start_position?: number | null
+          subject?: string | null
+          title: string
+          updated_at?: string
+          week_start: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_position?: number | null
+          id?: string
+          resource_url?: string | null
+          school_year_id?: string
+          sort_order?: number
+          start_position?: number | null
+          subject?: string | null
+          title?: string
+          updated_at?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_week_plans_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_week_plans_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_substitutes: {
         Row: {
           class_id: string
@@ -2632,11 +2698,19 @@ export type Database = {
         Args: { p_school_year_id: string }
         Returns: number
       }
+      portal_can_edit_week_plan: {
+        Args: { p_class_id: string; p_school_year_id: string }
+        Returns: boolean
+      }
       portal_can_mark_lesson: {
         Args: { p_lesson_id: string; p_student_id: string }
         Returns: boolean
       }
       portal_can_read_lesson: { Args: { p_lesson_id: string }; Returns: boolean }
+      portal_can_read_week_plan: {
+        Args: { p_class_id: string; p_school_year_id: string }
+        Returns: boolean
+      }
       portal_can_write_lesson_attendance: {
         Args: { p_lesson_id: string; p_student_id: string }
         Returns: boolean
