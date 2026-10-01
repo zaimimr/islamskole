@@ -16,6 +16,7 @@ import { RosterTools, type RosterCsvRow } from "./roster-tools";
 import { ClassTeachers, type ClassTeacher } from "./class-teachers";
 import { ClassDayOverview, type DayOverview } from "./day-overview";
 import { SlotPlanEditor } from "./slot-plan-editor";
+import { WeekPlanSection } from "@/components/semester-plan/week-plan-section";
 import { collapseDayStatus, lessonTitle, type DayStatus, type SlotPlan, type TimeSlot } from "@/lib/lessons";
 
 export const metadata: Metadata = { title: "Klasse" };
@@ -604,6 +605,16 @@ export default async function KlassePage({
               assigned={classTeachers}
               candidates={teacherCandidates}
               teachersHref={`${basePath}/laerere`}
+            />
+          ) : null}
+          {activeYear ? (
+            <WeekPlanSection
+              classId={classRecord.id}
+              schoolYearId={activeYear.id}
+              slots={data.slots}
+              blocks={data.plans}
+              locale={locale}
+              admin
             />
           ) : null}
           <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3] print:ring-0">

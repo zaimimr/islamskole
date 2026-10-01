@@ -885,6 +885,38 @@
       "title": "Fant ikke siden",
       "text": "Siden finnes ikke, eller du har ikke tilgang til den.",
       "back": "Tilbake til Min side"
+    },
+    "semesterPlan": {
+      "title": "Semesterplan",
+      "intro": "Hva klassen skal lære uke for uke.",
+      "introEdit": "Skriv hva klassen skal lære hver uke. Foresatte og elever ser planen på Min side.",
+      "week": "Uke {number}",
+      "current": "Denne uken",
+      "next": "Neste",
+      "noSchool": "Ingen skoledag",
+      "past": "{count, plural, one {# tidligere uke} other {# tidligere uker}}",
+      "empty": "Ingen plan er lagt inn ennå.",
+      "weekEmpty": "Ingen tema for denne uken ennå.",
+      "general": "Hele uken",
+      "resource": "Åpne ressurs",
+      "add": "Legg til tema",
+      "edit": "Endre {title}",
+      "delete": "Slett {title}",
+      "copyPrevious": "Kopier forrige uke",
+      "copied": "{count, plural, =0 {Ingenting nytt å kopiere} one {# tema kopiert} other {# temaer kopiert}}",
+      "saved": "{count, plural, one {Lagret} other {Lagret i # uker}}",
+      "deleted": "Tema slettet",
+      "form": {
+        "block": "Time",
+        "title": "Tema",
+        "titlePlaceholder": "For eksempel: Sura Al-Fatiha",
+        "description": "Læringsmål",
+        "descriptionPlaceholder": "Hva skal elevene kunne etter denne uken?",
+        "link": "Lenke til ressurs (valgfritt)",
+        "allWeeks": "Legg også inn i alle kommende uker",
+        "save": "Lagre",
+        "cancel": "Avbryt"
+      }
     }
   },
   "donate": {

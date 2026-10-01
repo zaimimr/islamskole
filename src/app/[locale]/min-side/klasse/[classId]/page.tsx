@@ -9,6 +9,8 @@ import { ClassNoteEditor } from "@/components/portal/teacher/class-note-editor";
 import { DaySwitcher } from "@/components/portal/teacher/day-switcher";
 import { EndSubstituteButton } from "@/components/portal/teacher/end-substitute-button";
 import { LessonTabs } from "@/components/portal/teacher/lesson-tabs";
+import { WeekPlanSection } from "@/components/semester-plan/week-plan-section";
+import { WeekPlanView } from "@/components/semester-plan/week-plan-view";
 import { osloToday } from "@/lib/dates";
 import { lessonTitle } from "@/lib/lessons";
 import {
@@ -31,6 +33,7 @@ import {
   formatSchoolDay,
 } from "@/lib/portal/teacher-days";
 import { getLessonNote } from "@/lib/portal/teacher-notes";
+import { getClassBlocks, getWeekPlans } from "@/lib/portal/week-plan-data";
 
 const backLinkClass =
   "inline-flex min-h-11 w-fit items-center gap-1.5 rounded-lg pr-2 text-sm font-semibold text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -84,10 +87,12 @@ export default async function TeacherClassPage({
     lessons[0] ??
     null;
 
-  const [roster, note, notes] = await Promise.all([
+  const [roster, note, notes, blocks, weekPlans] = await Promise.all([
     lesson ? getLessonRoster(lesson.lesson_id, current.school_year_label) : Promise.resolve([]),
     lesson ? getLessonNote(lesson.lesson_id) : Promise.resolve(null),
     getClassNotes(classId, 12, day?.date ?? today),
+    lessonAccess ? Promise.resolve([]) : getClassBlocks(classId, current.school_year_id),
+    lessonAccess ? getWeekPlans(classId, current.school_year_id) : Promise.resolve([]),
   ]);
   const previousNotes = notes
     .filter((row) => !day || (row.date !== null && row.date < day.date))
@@ -264,6 +269,25 @@ export default async function TeacherClassPage({
           </section>
         </aside>
       </div>
+
+      {lessonAccess ? (
+        <WeekPlanView
+          id="semester-plan-title"
+          entries={weekPlans}
+          days={allSchoolDays(days)}
+          slots={slots}
+          locale={locale}
+          today={today}
+        />
+      ) : (
+        <WeekPlanSection
+          classId={classId}
+          schoolYearId={current.school_year_id}
+          slots={slots}
+          blocks={blocks}
+          locale={locale}
+        />
+      )}
     </div>
   );
 }

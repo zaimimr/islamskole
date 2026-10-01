@@ -5,6 +5,7 @@ import { Link, redirect } from "@/i18n/navigation";
 import { ChildAbsence } from "@/components/portal/parent/child-absence";
 import { childName, joinNames, noteLessonLabel } from "@/components/portal/parent/child-card";
 import { ChildLessons } from "@/components/portal/parent/child-lessons";
+import { WeekPlanView } from "@/components/semester-plan/week-plan-view";
 import { statusByDay } from "@/lib/lessons";
 import { formatPortalDay } from "@/lib/portal/parent-format";
 import { AttendanceYear, NotesYear } from "@/components/portal/year-overview";
@@ -12,6 +13,7 @@ import { getPortalContext } from "@/lib/portal/data";
 import { absenceOptions, getParentData } from "@/lib/portal/parent-data";
 import { currentTerm, summarizeAttendance } from "@/lib/portal/parent-format";
 import { allSchoolDays } from "@/lib/portal/teacher-days";
+import { getWeekPlans } from "@/lib/portal/week-plan-data";
 
 export default async function ChildDetailPage({
   params,
@@ -39,6 +41,7 @@ export default async function ChildDetailPage({
   const yearDays = allSchoolDays(data.schoolDays).filter((day) => !day.cancelled);
   const dayLessons = data.lessons.filter((lesson) => lesson.class_id === child.class_id);
   const classNotes = data.notesByClass.get(child.class_id) ?? [];
+  const weekPlans = await getWeekPlans(child.class_id, child.school_year_id);
 
   return (
     <div className="grid gap-8">
@@ -78,6 +81,15 @@ export default async function ChildDetailPage({
           />
         </section>
       ) : null}
+
+      <WeekPlanView
+        id="detail-semester-plan"
+        entries={weekPlans}
+        days={allSchoolDays(data.schoolDays)}
+        slots={data.slots}
+        locale={locale}
+        today={data.today}
+      />
 
       <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
         <AttendanceYear
