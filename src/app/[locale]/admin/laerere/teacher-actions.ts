@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getIsAdmin } from "@/lib/auth";
+import { getIsAdmin, getUser } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -122,6 +122,51 @@ export async function updateTeacher(formData: FormData): Promise<ActionResult> {
     entityType: "guardians",
     entityId: guardianId,
     metadata: { fields: changed },
+  });
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function setTeacherSuspended(
+  guardianId: string,
+  suspended: boolean,
+  reason?: string,
+): Promise<ActionResult> {
+  if (!(await getIsAdmin())) return { ok: false, error: "Ikke autorisert" };
+  if (!guardianId) return { ok: false, error: "Mangler lærer" };
+  const trimmedReason = reason?.trim() ?? "";
+  if (suspended && !trimmedReason) {
+    return { ok: false, error: "Skriv en grunn for suspensjonen" };
+  }
+
+  const user = await getUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("guardians")
+    .update(
+      suspended
+        ? {
+            teacher_suspended_at: new Date().toISOString(),
+            teacher_suspended_reason: trimmedReason,
+            teacher_suspended_by: user?.email ?? null,
+          }
+        : {
+            teacher_suspended_at: null,
+            teacher_suspended_reason: null,
+            teacher_suspended_by: null,
+          },
+    )
+    .eq("id", guardianId)
+    .eq("is_teacher", true)
+    .select("id");
+  if (error) return { ok: false, error: toUserError(error) };
+  if (!data?.length) return { ok: false, error: "Fant ikke læreren" };
+
+  await writeAudit({
+    action: suspended ? "teacher.suspended" : "teacher.unsuspended",
+    entityType: "guardians",
+    entityId: guardianId,
+    metadata: suspended ? { reason: trimmedReason } : {},
   });
   revalidatePath("/", "layout");
   return { ok: true };

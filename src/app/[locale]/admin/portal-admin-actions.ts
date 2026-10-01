@@ -59,11 +59,14 @@ export async function assignTeacher(
   const supabase = await createClient();
   const { data: guardian } = await supabase
     .from("guardians")
-    .select("id, is_teacher")
+    .select("id, is_teacher, teacher_suspended_at")
     .eq("id", guardianId)
     .maybeSingle();
   if (!guardian?.is_teacher) {
     return { ok: false, error: "Personen er ikke registrert som lærer." };
+  }
+  if (guardian.teacher_suspended_at) {
+    return { ok: false, error: "Læreren er suspendert og kan ikke knyttes til en klasse." };
   }
 
   const { error } = await supabase.from("class_teachers").insert({

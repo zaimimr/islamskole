@@ -14,7 +14,8 @@
     "menuDescription": "Naviger på nettstedet",
     "localeLabel": "Språk",
     "skipToContent": "Hopp til innhold",
-    "close": "Lukk"
+    "close": "Lukk",
+    "donate": "Doner"
   },
   "notFound": {
     "eyebrow": "Feil 404",
@@ -32,7 +33,8 @@
     "ctaSecondary": "Se klassene",
     "badgeAge": "6-18 år",
     "badgeWhen": "Søndager 10-14",
-    "badgeWhere": "Vøyenenga, Bærum"
+    "badgeWhere": "Vøyenenga, Bærum",
+    "ctaDonate": "Støtt skolen med en gave"
   },
   "vision": {
     "title": "Vår visjon",
@@ -783,6 +785,11 @@
         "end": "Avslutt vikartilgang",
         "badge": "Vikar til og med {date}",
         "notice": "Du er vikar i denne klassen til og med {date}."
+      },
+      "suspended": {
+        "title": "Lærertilgangen er satt på pause",
+        "body": "Du har ikke tilgang til Min klasse, oppmøte og klassenotater akkurat nå. Tilgangen som forelder fungerer som vanlig. Ta kontakt med skolen hvis du har spørsmål.",
+        "back": "Til Min side"
       }
     },
     "common": {
@@ -861,6 +868,48 @@
       "title": "Fant ikke siden",
       "text": "Siden finnes ikke, eller du har ikke tilgang til den.",
       "back": "Tilbake til Min side"
+    }
+  },
+  "donate": {
+    "eyebrow": "Donasjon",
+    "title": "Støtt Islamskole Bærum",
+    "subtitle": "Din støtte bidrar til trivsel, læring og en sterk identitet.",
+    "metaDescription": "Gi en gave til Islamskole Bærum med Vipps. Støtt Koran- og islamundervisning, aktiviteter og fellesskap for barna.",
+    "vippsCta": "Doner med Vipps",
+    "newTab": "(åpnes i ny fane)",
+    "vippsNote": "På mobil åpnes Vipps-appen direkte. På PC åpnes Vipps i en ny fane.",
+    "numberLabel": "Vipps-nummer",
+    "numberBody": "Du kan også søke etter 24279 i Vipps-appen og gi beløpet du ønsker.",
+    "giveTitle": "Gi med Vipps",
+    "giveBody": "Velg beløpet selv. Alle gaver, store og små, gjør en forskjell for barna.",
+    "monthlyTitle": "Fast månedlig gave",
+    "monthlyBody": "Du kan også gi et fast beløp hver måned. Det er ingen binding, og du kan avslutte når som helst ved å sende en e-post til {email}.",
+    "fundsTitle": "Dette går gaven din til",
+    "funds": [
+      {
+        "title": "Koran- og islamundervisning",
+        "body": "Gode lærere og læremidler, så barna lærer Koranen, bønnen og vår religion."
+      },
+      {
+        "title": "Aktiviteter og fellesskap for barna",
+        "body": "Turer, feiringer og samlinger der barna blir kjent og får gode minner sammen."
+      },
+      {
+        "title": "Drift, inkludert lokaler",
+        "body": "Leie av lokaler og alt det praktiske som trengs for å holde skolen åpen hver søndag."
+      }
+    ],
+    "termsTitle": "Vilkår for gaver",
+    "terms": [
+      "En donasjon er en frivillig gave. Du får ingen vare eller tjeneste tilbake.",
+      "Betalingen skjer i Vipps, og personopplysningene dine behandles etter Vipps sine vilkår.",
+      "Har noe blitt feil, for eksempel feil beløp, kontakt oss på {email} så retter vi det."
+    ],
+    "home": {
+      "eyebrow": "Sadaqa jariyah",
+      "title": "Gi en gave som fortsetter å gi",
+      "body": "Det et barn lærer om Koranen og bønnen, bærer det med seg hele livet. Din gave holder undervisningen åpen for alle familier og kan bli en sadaqa jariyah, en veldedighet som fortsetter å gi.",
+      "more": "Les mer om å gi"
     }
   }
 }

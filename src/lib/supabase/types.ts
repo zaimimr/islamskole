@@ -696,6 +696,9 @@ export type Database = {
           phone: string | null
           source_application_id: string | null
           teacher_note: string | null
+          teacher_suspended_at: string | null
+          teacher_suspended_by: string | null
+          teacher_suspended_reason: string | null
           updated_at: string
         }
         Insert: {
@@ -709,6 +712,9 @@ export type Database = {
           phone?: string | null
           source_application_id?: string | null
           teacher_note?: string | null
+          teacher_suspended_at?: string | null
+          teacher_suspended_by?: string | null
+          teacher_suspended_reason?: string | null
           updated_at?: string
         }
         Update: {
@@ -722,6 +728,9 @@ export type Database = {
           phone?: string | null
           source_application_id?: string | null
           teacher_note?: string | null
+          teacher_suspended_at?: string | null
+          teacher_suspended_by?: string | null
+          teacher_suspended_reason?: string | null
           updated_at?: string
         }
         Relationships: [

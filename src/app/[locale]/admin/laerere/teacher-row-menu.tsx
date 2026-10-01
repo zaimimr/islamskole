@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useLocale } from "next-intl";
 import { toast } from "sonner";
-import { KeyRound, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Ban, KeyRound, MoreHorizontal, Pencil, ShieldCheck, Trash2 } from "lucide-react";
 import { sendLoginLinkToGuardian } from "@/app/[locale]/admin/portal-admin-actions";
 import { removeTeacher } from "@/app/[locale]/admin/familier/families-actions";
 import { useRemoveRow } from "@/components/admin/optimistic-removal-list";
@@ -25,14 +25,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { TeacherEditDialog, type EditableTeacher } from "./teacher-edit-dialog";
+import { TeacherSuspendDialog } from "./teacher-suspend-dialog";
 
 export function TeacherRowMenu({
   teacher,
   name,
+  suspended,
   canSendLink,
 }: {
   teacher: EditableTeacher;
   name: string;
+  suspended: boolean;
   canSendLink: boolean;
 }) {
   const guardianId = teacher.id;
@@ -40,6 +43,7 @@ export function TeacherRowMenu({
   const removeRow = useRemoveRow();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [suspendOpen, setSuspendOpen] = useState(false);
   const [, startTransition] = useTransition();
 
   function sendLink() {
@@ -86,6 +90,10 @@ export function TeacherRowMenu({
               Send innloggingslenke
             </DropdownMenuItem>
           ) : null}
+          <DropdownMenuItem onClick={() => setSuspendOpen(true)}>
+            {suspended ? <ShieldCheck aria-hidden="true" /> : <Ban aria-hidden="true" />}
+            {suspended ? "Opphev suspensjon" : "Suspender som lærer"}
+          </DropdownMenuItem>
           <DropdownMenuItem
             variant="destructive"
             onClick={() => setConfirmOpen(true)}
@@ -115,6 +123,13 @@ export function TeacherRowMenu({
       </AlertDialog>
 
       <TeacherEditDialog teacher={teacher} open={editOpen} onOpenChange={setEditOpen} />
+      <TeacherSuspendDialog
+        guardianId={guardianId}
+        name={name}
+        suspended={suspended}
+        open={suspendOpen}
+        onOpenChange={setSuspendOpen}
+      />
     </>
   );
 }

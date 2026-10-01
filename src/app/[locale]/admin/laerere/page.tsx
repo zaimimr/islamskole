@@ -135,6 +135,9 @@ type TeacherRow = {
   email: string | null;
   phone: string | null;
   teacher_note: string | null;
+  teacher_suspended_at: string | null;
+  teacher_suspended_reason: string | null;
+  teacher_suspended_by: string | null;
 };
 
 async function getRegisteredTeachers(): Promise<{
@@ -153,7 +156,9 @@ async function getRegisteredTeachers(): Promise<{
     const [teacherResult, linkResult, giftResult, assignmentResult] = await Promise.all([
       supabase
         .from("guardians")
-        .select("id, first_name, last_name, email, phone, teacher_note")
+        .select(
+          "id, first_name, last_name, email, phone, teacher_note, teacher_suspended_at, teacher_suspended_reason, teacher_suspended_by",
+        )
         .eq("is_teacher", true)
         .order("first_name", { ascending: true }),
       supabase.from("family_guardians").select("guardian_id, family_id"),
@@ -307,6 +312,9 @@ async function TeacherContent({
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-2 font-bold">
                       {name}
+                      {teacher.teacher_suspended_at ? (
+                        <StatusPill tone="danger">Suspendert</StatusPill>
+                      ) : null}
                       {familyId ? (
                         <Link
                           href={`${basePath}/familier/${familyId}`}
@@ -345,6 +353,18 @@ async function TeacherContent({
                         <span>{teacher.teacher_note}</span>
                       ) : null}
                     </p>
+                    {teacher.teacher_suspended_at ? (
+                      <p className="mt-1 text-sm text-[#8B2F2B]">
+                        Suspendert {formatDate(teacher.teacher_suspended_at)}
+                        {teacher.teacher_suspended_by
+                          ? ` av ${teacher.teacher_suspended_by}`
+                          : ""}
+                        {teacher.teacher_suspended_reason
+                          ? `: ${teacher.teacher_suspended_reason}`
+                          : ""}
+                        . Har ikke tilgang til Min klasse, men beholder tilgang som forelder.
+                      </p>
+                    ) : null}
                     <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                       <GraduationCap
                         aria-hidden="true"
@@ -380,6 +400,7 @@ async function TeacherContent({
                     <TeacherRowMenu
                       teacher={teacher}
                       name={name}
+                      suspended={Boolean(teacher.teacher_suspended_at)}
                       canSendLink={Boolean(teacher.email) && !isPlaceholderEmail(teacher.email)}
                     />
                   </div>

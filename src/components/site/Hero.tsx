@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { CalendarHeartIcon, ClockIcon, MapPinIcon, SparklesIcon } from "lucide-react";
+import { CalendarHeartIcon, ClockIcon, HeartHandshakeIcon, MapPinIcon, SparklesIcon } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Blob, DottedArc, WaveDivider } from "./decor";
 import { MediaFrame } from "./MediaFrame";
@@ -39,6 +39,13 @@ export async function Hero() {
               {t("ctaSecondary")}
             </Link>
           </div>
+          <Link
+            href="/donasjon"
+            className="inline-flex min-h-11 items-center gap-2 rounded-sm text-base font-bold text-brand-green-dark outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <HeartHandshakeIcon className="size-5" aria-hidden="true" />
+            {t("ctaDonate")}
+          </Link>
           <ul className="flex flex-wrap gap-2.5 pt-4">
             {badges.map(({ icon: Icon, label }) => (
               <li

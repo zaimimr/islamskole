@@ -63,6 +63,7 @@ type TeacherRow = {
     last_name: string | null;
     phone: string | null;
     email: string | null;
+    teacher_suspended_at: string | null;
   } | null;
 };
 
@@ -201,7 +202,7 @@ async function getClassPage(id: string) {
       : Promise.resolve({ data: [], error: null }),
     supabase
       .from("class_teachers")
-      .select("guardian:guardians!inner(id, first_name, last_name, phone, email)")
+      .select("guardian:guardians!inner(id, first_name, last_name, phone, email, teacher_suspended_at)")
       .eq("class_id", id)
       .eq("school_year_id", activeYear.id)
       .eq("guardian.is_teacher", true),
@@ -209,6 +210,7 @@ async function getClassPage(id: string) {
       .from("guardians")
       .select("id, first_name, last_name")
       .eq("is_teacher", true)
+      .is("teacher_suspended_at", null)
       .order("first_name", { ascending: true }),
     supabase
       .from("school_days")
@@ -464,6 +466,7 @@ export default async function KlassePage({
       name: joinName(row.guardian!.first_name, row.guardian!.last_name) || "(uten navn)",
       phone: row.guardian!.phone,
       email: row.guardian!.email,
+      suspended: Boolean(row.guardian!.teacher_suspended_at),
     }))
     .sort((left, right) => left.name.localeCompare(right.name, "nb-NO"));
   const teacherCandidates = data.candidates.map((row) => ({
