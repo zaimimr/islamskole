@@ -1,0 +1,266 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+import { deflateRawSync } from "node:zlib";
+import {
+  decodeText,
+  detectDelimiter,
+  parseAmount,
+  parseDate,
+  parseDelimited,
+  parseDnbRows,
+  parseVippsRows,
+} from "../src/lib/bank-statement.ts";
+import { isZip, readXlsxRows } from "../src/lib/xlsx-rows.ts";
+import {
+  findPaymentMatch,
+  matchAll,
+  parseMsnList,
+  phonesMatch,
+  suggestStatus,
+} from "../src/lib/reconciliation-match.ts";
+
+const fixture = (name) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url));
+
+test("amounts in Norwegian and English formats become signed øre", () => {
+  assert.equal(parseAmount("2 500,00"), 250000);
+  assert.equal(parseAmount("12.340,50"), 1234050);
+  assert.equal(parseAmount("1,234.50"), 123450);
+  assert.equal(parseAmount("-500,00"), -50000);
+  assert.equal(parseAmount("− 75,5"), -7550);
+  assert.equal(parseAmount("(100,00)"), -10000);
+  assert.equal(parseAmount("kr 1 000"), 100000);
+  assert.equal(parseAmount("12.500"), 1250000);
+  assert.equal(parseAmount("249.9"), 24990);
+  assert.equal(parseAmount(""), null);
+  assert.equal(parseAmount("abc"), null);
+});
+
+test("dates in common export formats", () => {
+  assert.equal(parseDate("01.09.2026"), "2026-09-01");
+  assert.equal(parseDate("1.9.26"), "2026-09-01");
+  assert.equal(parseDate("2026-09-07T10:15:00Z"), "2026-09-07");
+  assert.equal(parseDate("07/09/2026 10:15"), "2026-09-07");
+  assert.equal(parseDate("46266"), "2026-09-01");
+  assert.equal(parseDate("31.02.2026"), null);
+  assert.equal(parseDate("Saldo"), null);
+});
+
+test("text decoding handles BOM and Windows-1252", () => {
+  const latin = Uint8Array.from([0x49, 0x6e, 0x6e, 0x20, 0x70, 0xe5, 0x20, 0x6b, 0x6f, 0x6e, 0x74, 0x6f]);
+  assert.equal(decodeText(latin), "Inn på konto");
+  const bom = Uint8Array.from([0xef, 0xbb, 0xbf, ...Buffer.from("Dato;Beløp")]);
+  assert.equal(decodeText(bom), "Dato;Beløp");
+});
+
+test("delimited parser keeps quoted delimiters and newlines", () => {
+  assert.equal(detectDelimiter('a;b;c\n1;2;3'), ";");
+  assert.equal(detectDelimiter('a,b\n"1,5",2'), ",");
+  assert.deepEqual(parseDelimited('a;b\n"x;y";"line\nbreak"\n\n"q""uote";2'), [
+    ["a", "b"],
+    ["x;y", "line\nbreak"],
+    ['q"uote', "2"],
+  ]);
+});
+
+test("DNB export parses in and out lines with stable ids", () => {
+  const rows = parseDelimited(decodeText(fixture("dnb-export.csv")));
+  const result = parseDnbRows(rows, "12345678901");
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.transactions.length, 5);
+  const [school, payout, rent, giftA, giftB] = result.transactions;
+  assert.equal(school.amount, 250000);
+  assert.equal(school.bookedOn, "2026-09-01");
+  assert.equal(school.account, "12345678901");
+  assert.equal(payout.amount, 1234050);
+  assert.equal(rent.amount, -800000);
+  assert.equal(giftA.amount, 50000);
+  assert.notEqual(giftA.externalId, giftB.externalId);
+  assert.match(giftA.externalId, /^dnb:[0-9a-f]{32}$/);
+
+  const again = parseDnbRows(rows, "12345678901");
+  assert.deepEqual(
+    again.transactions.map((row) => row.externalId),
+    result.transactions.map((row) => row.externalId),
+  );
+});
+
+test("DNB export in Windows-1252 with preamble lines still finds the header", () => {
+  const text = `Kontoutskrift\r\nKonto 1234.56.78901\r\n${decodeText(fixture("dnb-export.csv"))}`;
+  const bytes = Uint8Array.from([...text].map((char) => char.charCodeAt(0)));
+  const decoded = decodeText(bytes);
+  assert.match(decoded, /Overføring/);
+  const result = parseDnbRows(parseDelimited(decoded), "12345678901");
+  assert.equal(result.transactions.length, 5);
+});
+
+test("DNB file without known columns gives a clear error", () => {
+  const result = parseDnbRows([["Navn", "Telefon"], ["Ola", "123"]], "12345678901");
+  assert.equal(result.transactions.length, 0);
+  assert.match(result.errors[0], /Fant ikke kolonnene/);
+});
+
+test("Vipps portal export keeps captures and refunds, skips failed and fees", () => {
+  const rows = parseDelimited(decodeText(fixture("vipps-portal-export.csv")));
+  const result = parseVippsRows(rows, null);
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.skipped, 2);
+  assert.equal(result.transactions.length, 4);
+  const [donation, school, web, refund] = result.transactions;
+  assert.equal(donation.account, "60206");
+  assert.equal(donation.amount, 20000);
+  assert.equal(donation.counterpartyName, "Fatima Ali");
+  assert.equal(donation.counterpartyPhone, "xxxx 1234");
+  assert.equal(donation.externalId, "psp:3001000001:capture");
+  assert.equal(school.account, "610090");
+  assert.equal(school.amount, 500000);
+  assert.equal(web.reference, "isk-abc123");
+  assert.equal(refund.amount, -50000);
+  assert.equal(refund.externalId, "psp:3001000004:refund");
+});
+
+test("Vipps export without account column uses the chosen account", () => {
+  const rows = [
+    ["Date", "Name", "Amount", "Message"],
+    ["2026-09-05", "Ali", "150.00", "Gave"],
+  ];
+  assert.equal(parseVippsRows(rows, null).errors.length, 1);
+  const result = parseVippsRows(rows, "60206");
+  assert.equal(result.transactions[0].account, "60206");
+  assert.equal(result.transactions[0].amount, 15000);
+  assert.match(result.transactions[0].externalId, /^hash:/);
+});
+
+function buildXlsx(files) {
+  const locals = [];
+  const centrals = [];
+  let offset = 0;
+  for (const [name, content] of Object.entries(files)) {
+    const data = deflateRawSync(Buffer.from(content));
+    const nameBytes = Buffer.from(name);
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(8, 8);
+    local.writeUInt32LE(data.length, 18);
+    local.writeUInt32LE(content.length, 22);
+    local.writeUInt16LE(nameBytes.length, 26);
+    locals.push(local, nameBytes, data);
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(8, 10);
+    central.writeUInt32LE(data.length, 20);
+    central.writeUInt32LE(content.length, 24);
+    central.writeUInt16LE(nameBytes.length, 28);
+    central.writeUInt32LE(offset, 42);
+    centrals.push(central, nameBytes);
+    offset += local.length + nameBytes.length + data.length;
+  }
+  const centralSize = centrals.reduce((sum, part) => sum + part.length, 0);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(Object.keys(files).length, 8);
+  end.writeUInt16LE(Object.keys(files).length, 10);
+  end.writeUInt32LE(centralSize, 12);
+  end.writeUInt32LE(offset, 16);
+  return new Uint8Array(Buffer.concat([...locals, ...centrals, end]));
+}
+
+test("XLSX export is read with shared strings, inline strings and date serials", () => {
+  const bytes = buildXlsx({
+    "xl/sharedStrings.xml":
+      '<sst><si><t>Dato</t></si><si><t>Forklaring</t></si><si><t>Inn på konto</t></si><si><r><t>Giro </t></r><r><t>Ali &amp; Co</t></r></si></sst>',
+    "xl/worksheets/sheet1.xml":
+      '<worksheet><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row><row r="2"><c r="A2"><v>46266</v></c><c r="B2" t="s"><v>3</v></c><c r="C2"><v>750.5</v></c></row><row r="3"><c r="A3" t="inlineStr"><is><t>02.09.2026</t></is></c><c r="C3"><v>100</v></c></row></sheetData></worksheet>',
+  });
+  assert.equal(isZip(bytes), true);
+  const rows = readXlsxRows(bytes);
+  assert.deepEqual(rows[1], ["46266", "Giro Ali & Co", "750.5"]);
+  assert.deepEqual(rows[2], ["02.09.2026", "", "100"]);
+  const result = parseDnbRows(rows, "12345678901");
+  assert.equal(result.transactions.length, 2);
+  assert.equal(result.transactions[0].bookedOn, "2026-09-01");
+  assert.equal(result.transactions[0].amount, 75050);
+});
+
+const tx = (overrides = {}) => ({
+  source: "vipps",
+  account: "610090",
+  amount: 500000,
+  bookedOn: "2026-09-06",
+  counterpartyPhone: null,
+  message: null,
+  reference: null,
+  pspReference: null,
+  ...overrides,
+});
+
+const payment = (overrides = {}) => ({
+  id: "p1",
+  reference: "isk-abc123",
+  pspReference: null,
+  amount: 500000,
+  paidOn: "2026-09-06",
+  payerPhone: null,
+  ...overrides,
+});
+
+test("suggestions: donation account is sadaqa, Vipps payouts in DNB are ignored", () => {
+  assert.equal(suggestStatus(tx({ account: "60206" }))?.status, "sadaqa");
+  assert.equal(suggestStatus(tx({ account: "610090" })), null);
+  assert.equal(suggestStatus(tx({ amount: -100 }))?.status, "ignorert");
+  assert.equal(
+    suggestStatus(tx({ source: "dnb", account: "12345678901", message: "VIPPS MOBILEPAY AS" }))?.status,
+    "ignorert",
+  );
+  assert.equal(suggestStatus(tx({ source: "dnb", amount: -800000, message: "Husleie" }))?.status, "ignorert");
+  assert.equal(suggestStatus(tx({ source: "dnb", message: "Giro Kari" })), null);
+});
+
+test("match on Vipps reference, then transaction id", () => {
+  assert.deepEqual(findPaymentMatch(tx({ reference: "isk-abc123" }), [payment()]), {
+    paymentId: "p1",
+    reason: "Samme Vipps-referanse",
+  });
+  assert.equal(
+    findPaymentMatch(tx({ pspReference: "999" }), [payment({ pspReference: "999", amount: 1 })])?.paymentId,
+    "p1",
+  );
+  assert.equal(findPaymentMatch(tx({ reference: "isk-abc123", amount: -100 }), [payment()]), null);
+});
+
+test("match on amount, date and phone only when exactly one payment fits", () => {
+  const candidates = [
+    payment({ id: "a", reference: "manual-1", payerPhone: "+47 912 35 678" }),
+    payment({ id: "b", reference: "manual-2", payerPhone: "+47 400 00 000" }),
+  ];
+  assert.equal(findPaymentMatch(tx({ counterpartyPhone: "xxxx 5678" }), candidates)?.paymentId, "a");
+  assert.equal(findPaymentMatch(tx({ counterpartyPhone: "xxxx 5678", bookedOn: "2026-09-07" }), candidates), null);
+  assert.equal(
+    findPaymentMatch(tx({ counterpartyPhone: "xxxx 5678" }), [
+      ...candidates,
+      payment({ id: "c", reference: "manual-3", payerPhone: "4791235678" }),
+    ]),
+    null,
+  );
+  assert.equal(findPaymentMatch(tx({ counterpartyPhone: "xxxx 5678" }), candidates, new Set(["a"])), null);
+});
+
+test("matchAll never uses one payment twice", () => {
+  const result = matchAll(
+    [
+      { id: "t1", ...tx({ reference: "isk-abc123" }) },
+      { id: "t2", ...tx({ reference: "isk-abc123" }) },
+    ],
+    [payment()],
+  );
+  assert.equal(result.size, 1);
+  assert.equal(result.get("t1")?.paymentId, "p1");
+  assert.equal(matchAll([{ id: "t1", ...tx({ reference: "isk-abc123" }) }], [payment()], ["p1"]).size, 0);
+});
+
+test("phone comparison and MSN list parsing", () => {
+  assert.equal(phonesMatch("4791234567", "91234567"), true);
+  assert.equal(phonesMatch("xx", "91234567"), false);
+  assert.deepEqual(parseMsnList(""), ["60206", "610090", "1111805"]);
+  assert.deepEqual(parseMsnList(" 60206; 610090,60206 "), ["60206", "610090"]);
+});
