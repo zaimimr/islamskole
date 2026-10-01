@@ -288,7 +288,7 @@ export async function markAttendance(studentId: string, schoolDayId: string, sta
   must(
     await db()
       .from("attendance")
-      .upsert({ student_id: studentId, school_day_id: schoolDayId, status }, { onConflict: "student_id,school_day_id" })
+      .upsert({ student_id: studentId, school_day_id: schoolDayId, status }, { onConflict: "student_id,lesson_id" })
       .select("student_id"),
     "insert attendance",
   );
