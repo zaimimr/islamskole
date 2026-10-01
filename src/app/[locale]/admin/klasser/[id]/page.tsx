@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils";
 import { RosterTools, type RosterCsvRow } from "./roster-tools";
 import { ClassTeachers, type ClassTeacher } from "./class-teachers";
 import { ClassDayOverview, type DayOverview } from "./day-overview";
+import { SlotPlanEditor } from "./slot-plan-editor";
+import { collapseDayStatus, lessonTitle, type DayStatus, type SlotPlan, type TimeSlot } from "@/lib/lessons";
 
 export const metadata: Metadata = { title: "Klasse" };
 
@@ -86,6 +88,7 @@ type NoteRow = {
   homework: string | null;
   summary: string | null;
   author_guardian_id: string | null;
+  lessons: { start_position: number; end_position: number; subject: string | null } | null;
 };
 
 type AbsenceRow = { student_id: string; school_day_id: string; reason: string | null };
@@ -111,13 +114,22 @@ function payChip(balance: BalanceRow | undefined): PayChip {
   return { label: "Ikke betalt", tone: "danger" };
 }
 
+function statusPerDay(rows: AttendanceRow[]) {
+  const byDay = new Map<string, DayStatus[]>();
+  for (const row of rows) {
+    byDay.set(row.school_day_id, [...(byDay.get(row.school_day_id) ?? []), row.status as DayStatus]);
+  }
+  return new Map([...byDay].map(([day, statuses]) => [day, collapseDayStatus(statuses)]));
+}
+
 function attendanceSummary(rows: AttendanceRow[], heldDays: number) {
   if (heldDays === 0) return null;
   if (rows.length === 0) return "Ikke ført";
-  const absent = rows.filter(
-    (row) => row.status === "fravaer" || row.status === "meldt_fravaer",
+  const days = [...statusPerDay(rows).values()];
+  const absent = days.filter(
+    (status) => status === "fravaer" || status === "meldt_fravaer",
   ).length;
-  const late = rows.filter((row) => row.status === "sent").length;
+  const late = days.filter((status) => status === "sent").length;
   const parts = [absent ? `${absent} fravær` : "Ingen fravær"];
   if (late) parts.push(`${late} sent`);
   return parts.join(", ");
@@ -152,6 +164,8 @@ async function getClassPage(id: string) {
       attendance: [] as AttendanceRow[],
       notes: [] as NoteRow[],
       absences: [] as AbsenceRow[],
+      slots: [] as TimeSlot[],
+      plans: [] as SlotPlan[],
       error: Boolean(classResult.error || yearResult.error),
     };
   }
@@ -183,6 +197,8 @@ async function getClassPage(id: string) {
     attendanceResult,
     noteResult,
     absenceResult,
+    slotResult,
+    planResult,
   ] = await Promise.all([
     familyIds.length
       ? supabase
@@ -226,7 +242,7 @@ async function getClassPage(id: string) {
       : Promise.resolve({ data: [], error: null }),
     supabase
       .from("class_notes")
-      .select("school_day_id, homework, summary, author_guardian_id, school_days!inner(school_year_id)")
+      .select("school_day_id, homework, summary, author_guardian_id, lessons(start_position, end_position, subject), school_days!inner(school_year_id)")
       .eq("class_id", id)
       .eq("school_days.school_year_id", activeYear.id),
     studentIds.length
@@ -236,6 +252,17 @@ async function getClassPage(id: string) {
           .in("student_id", studentIds)
           .is("withdrawn_at", null)
       : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("school_time_slots")
+      .select("position, label, starts_at, ends_at")
+      .eq("school_year_id", activeYear.id)
+      .order("position", { ascending: true }),
+    supabase
+      .from("class_slot_plans")
+      .select("start_position, end_position, subject, teacher_guardian_id")
+      .eq("class_id", id)
+      .eq("school_year_id", activeYear.id)
+      .order("start_position", { ascending: true }),
   ]);
 
   return {
@@ -250,6 +277,8 @@ async function getClassPage(id: string) {
     attendance: (attendanceResult.data as AttendanceRow[] | null) ?? [],
     notes: (noteResult.data as NoteRow[] | null) ?? [],
     absences: (absenceResult.data as AbsenceRow[] | null) ?? [],
+    slots: (slotResult.data as TimeSlot[] | null) ?? [],
+    plans: (planResult.data as SlotPlan[] | null) ?? [],
     error: Boolean(
       classResult.error ||
         yearResult.error ||
@@ -261,7 +290,9 @@ async function getClassPage(id: string) {
         dayResult.error ||
         attendanceResult.error ||
         noteResult.error ||
-        absenceResult.error,
+        absenceResult.error ||
+        slotResult.error ||
+        planResult.error,
     ),
   };
 }
@@ -398,7 +429,20 @@ export default async function KlassePage({
   const rosterIds = new Set(roster.map((row) => row.id));
   const recentDays = data.schoolDays.slice(0, 12);
   const recentDayIds = new Set(recentDays.map((day) => day.id));
-  const notesByDay = new Map(data.notes.map((row) => [row.school_day_id, row]));
+  const notesByDay = new Map<string, NoteRow[]>();
+  for (const row of data.notes) {
+    notesByDay.set(row.school_day_id, [...(notesByDay.get(row.school_day_id) ?? []), row]);
+  }
+  const noteText = (rows: NoteRow[], field: "homework" | "summary") => {
+    const parts = rows
+      .filter((row) => row[field])
+      .sort((left, right) => (left.lessons?.start_position ?? 0) - (right.lessons?.start_position ?? 0))
+      .map((row) => {
+        const label = row.lessons ? lessonTitle(row.lessons, data.slots, "") : "";
+        return label ? `${label}: ${row[field]}` : (row[field] as string);
+      });
+    return parts.length ? parts.join("\n") : null;
+  };
   const reasonByKey = new Map(
     data.absences.map((row) => [`${row.student_id}:${row.school_day_id}`, row.reason]),
   );
@@ -421,10 +465,19 @@ export default async function KlassePage({
     const rows = (attendanceByDay.get(day.id) ?? []).filter((row) =>
       rosterIds.has(row.student_id),
     );
-    const statusOf = new Map(rows.map((row) => [row.student_id, row.status]));
+    const byStudent = new Map<string, DayStatus[]>();
+    for (const row of rows) {
+      byStudent.set(row.student_id, [...(byStudent.get(row.student_id) ?? []), row.status as DayStatus]);
+    }
+    const statusOf = new Map(
+      [...byStudent].map(([studentId, statuses]) => [studentId, collapseDayStatus(statuses)]),
+    );
     const namesWith = (status: string) =>
       roster.filter((student) => statusOf.get(student.id) === status).map((student) => student.name);
-    const note = notesByDay.get(day.id);
+    const dayNotes = notesByDay.get(day.id) ?? [];
+    const homework = noteText(dayNotes, "homework");
+    const summary = noteText(dayNotes, "summary");
+    const author = dayNotes.find((row) => row.homework || row.summary)?.author_guardian_id ?? null;
     return {
       id: day.id,
       date: day.date,
@@ -446,13 +499,11 @@ export default async function KlassePage({
         ),
       ],
       note:
-        note && (note.homework || note.summary)
+        homework || summary
           ? {
-              homework: note.homework,
-              summary: note.summary,
-              author: note.author_guardian_id
-                ? people.authorNames.get(note.author_guardian_id) || null
-                : "Admin",
+              homework,
+              summary,
+              author: author ? people.authorNames.get(author) || null : "Admin",
             }
           : null,
     };
@@ -532,6 +583,17 @@ export default async function KlassePage({
         </section>
       ) : (
         <>
+          {activeYear ? (
+            <SlotPlanEditor
+              key={JSON.stringify(data.plans)}
+              classId={classRecord.id}
+              schoolYearId={activeYear.id}
+              slots={data.slots}
+              plans={data.plans}
+              candidates={teacherCandidates}
+              dayPlanHref={`${basePath}/dagsplan`}
+            />
+          ) : null}
           {activeYear ? (
             <ClassTeachers
               classId={classRecord.id}

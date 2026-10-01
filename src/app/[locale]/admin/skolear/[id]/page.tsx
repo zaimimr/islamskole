@@ -25,6 +25,7 @@ import { formatNok } from "@/lib/money";
 import { schoolYearStart } from "@/lib/age";
 import { osloToday } from "@/lib/dates";
 import { SchoolDays, type SchoolDayRow } from "./school-days";
+import { TimeSlots, type TimeSlotRow } from "./time-slots";
 import { countCopyableAssignments } from "../copyable-assignments";
 
 export const metadata: Metadata = { title: "Skoleår" };
@@ -67,6 +68,8 @@ export default async function SkolearDetailPage({
     { data: activeData },
     { data: balanceData },
     { data: dayData },
+    { data: slotData },
+    { data: planData },
   ] = await Promise.all([
     supabase
       .from("school_years")
@@ -92,6 +95,17 @@ export default async function SkolearDetailPage({
       .select("id, date, cancelled, note")
       .eq("school_year_id", id)
       .order("date", { ascending: true }),
+    supabase
+      .from("school_time_slots")
+      .select("label, starts_at, ends_at")
+      .eq("school_year_id", id)
+      .order("position", { ascending: true }),
+    supabase
+      .from("class_slot_plans")
+      .select("end_position")
+      .eq("school_year_id", id)
+      .order("end_position", { ascending: false })
+      .limit(1),
   ]);
   const year = yearData as SchoolYearRecord | null;
   if (!year) notFound();
@@ -300,6 +314,13 @@ export default async function SkolearDetailPage({
         days={(dayData as SchoolDayRow[] | null) ?? []}
         hasDates={Boolean(year.starts_on && year.ends_on)}
         today={osloToday()}
+      />
+
+      <TimeSlots
+        key={JSON.stringify(slotData ?? [])}
+        schoolYearId={year.id}
+        slots={(slotData as TimeSlotRow[] | null) ?? []}
+        usedPositions={planData?.[0]?.end_position ?? 0}
       />
 
       <section className="rounded-2xl bg-[#FFF8E9] p-5 ring-1 ring-[#ECDCB9] sm:p-6">

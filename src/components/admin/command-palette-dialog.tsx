@@ -36,6 +36,7 @@ const destinations = [
   { label: "Familier", path: "/familier" },
   { label: "Elever", path: "/elever" },
   { label: "Klasser", path: "/klasser" },
+  { label: "Dagsplan", path: "/dagsplan" },
   { label: "Økonomi", path: "/betaling" },
   { label: "Betalingslogg", path: "/betaling/logg" },
   { label: "Skoleår", path: "/skolear" },
