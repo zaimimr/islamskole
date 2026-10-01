@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -10,7 +10,6 @@ import {
   ChevronDown,
   CloudDownload,
   HandHeart,
-  Info,
   Link2,
   Loader2,
   MoreHorizontal,
@@ -86,6 +85,7 @@ export type InboxTransaction = {
   mappedAt: string | null;
   linkLabel: string | null;
   linkHref: string | null;
+  outcome: string | null;
 };
 
 export type PickerChild = { id: string; name: string; remainingOre: number };
@@ -118,24 +118,34 @@ const statusTone: Record<string, string> = {
   ignorert: "bg-[#F0F0ED] text-[#4E5550]",
 };
 
-function Detail({ label, value }: { label: string; value: string | null }) {
+function Detail({ label, value }: { label: string; value: ReactNode }) {
   if (!value) return null;
   return (
     <div className="min-w-0">
       <dt className="text-xs font-bold text-admin-muted">{label}</dt>
-      <dd className="break-all text-sm">{value}</dd>
+      <dd className="text-sm break-words">{value}</dd>
     </div>
   );
 }
 
+const outcomeIcon: Record<string, typeof Link2> = {
+  matchet: Link2,
+  sadaqa: HandHeart,
+  familie: Users,
+  ignorert: Ban,
+};
+
 export function ImportPanel({
   vippsAccounts,
   dnbAccount,
+  history,
 }: {
   vippsAccounts: AccountOption[];
   dnbAccount: string;
+  history: ReactNode;
 }) {
   const router = useRouter();
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [fetching, startFetch] = useTransition();
   const [uploading, startUpload] = useTransition();
   const [fetchErrors, setFetchErrors] = useState<string[]>([]);
@@ -200,151 +210,162 @@ export function ImportPanel({
     });
   }
 
-  return (
-    <section
-      aria-labelledby="import-heading"
-      className="grid gap-4 rounded-2xl bg-white p-4 ring-1 ring-[#E3DED3] sm:p-5"
+  const fetchButton = (label: string) => (
+    <Button
+      type="button"
+      onClick={fetchVipps}
+      disabled={fetching}
+      className="min-h-11 rounded-xl px-4 font-bold"
     >
-      <div>
-        <h2 id="import-heading" className="font-heading text-lg font-bold">
-          Hent transaksjoner
-        </h2>
-        <p className="mt-0.5 text-sm text-admin-muted">
-          Vipps {vippsAccounts.map((option) => option.value).join(" og ")} hentes direkte.
-          Andre salgssteder og DNB lastes opp som fil.
-        </p>
-      </div>
+      {fetching ? (
+        <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+      ) : (
+        <CloudDownload aria-hidden="true" className="size-4" />
+      )}
+      {fetching ? "Henter …" : label}
+    </Button>
+  );
 
-      <div className="grid gap-2">
-        <Button
-          type="button"
-          onClick={fetchVipps}
-          disabled={fetching}
-          className="min-h-11 rounded-xl px-3 font-bold"
-        >
-          {fetching ? (
-            <Loader2 aria-hidden="true" className="size-4 animate-spin" />
-          ) : (
-            <CloudDownload aria-hidden="true" className="size-4" />
-          )}
-          {fetching ? "Henter fra Vipps …" : "Hent fra Vipps"}
-        </Button>
-        <details className="group/period">
-          <summary className="flex min-h-9 cursor-pointer list-none items-center gap-1 rounded-lg px-1 text-sm font-semibold text-admin-muted outline-none select-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
-            {from || to ? "Valgt periode" : "Alt siden forrige henting"}
-            <ChevronDown
-              aria-hidden="true"
-              className="size-4 transition-transform group-open/period:rotate-180"
-            />
-          </summary>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <div className="grid gap-1.5">
-              <Label htmlFor="vipps-from">Fra</Label>
-              <Input
-                id="vipps-from"
-                type="date"
-                value={from}
-                onChange={(event) => setFrom(event.target.value)}
-                className="h-11 rounded-xl"
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="vipps-to">Til</Label>
-              <Input
-                id="vipps-to"
-                type="date"
-                value={to}
-                onChange={(event) => setTo(event.target.value)}
-                className="h-11 rounded-xl"
-              />
-            </div>
-          </div>
-        </details>
-        {fetchErrors.length > 0 ? (
-          <ul className="grid gap-1.5 rounded-xl bg-[#FFF8E9] px-3 py-2 text-sm text-[#6B5524] ring-1 ring-[#E8D6AA]">
-            {fetchErrors.map((error) => (
-              <li key={error}>{error}</li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => setDialogOpen(true)}
+        className="min-h-11 rounded-xl px-3.5 font-bold"
+      >
+        <Upload aria-hidden="true" className="size-4" />
+        Importer
+      </Button>
+      {fetchButton("Hent fra Vipps")}
 
-      <div className="grid gap-3 border-t border-[#ECE8DF] pt-4">
-        <h3 className="text-sm font-bold">Last opp fil</h3>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="grid gap-1.5">
-            <Label htmlFor="import-source">Fra</Label>
-            <SelectField
-              id="import-source"
-              value={source}
-              onValueChange={setSource}
-              options={[
-                { value: "vipps", label: "Vipps" },
-                { value: "dnb", label: "DNB" },
-              ]}
-            />
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className={cn(dialogShell, "sm:max-w-lg")}>
+          <DialogHeader className={dialogHead}>
+            <DialogTitle className="text-xl font-bold">Importer</DialogTitle>
+          </DialogHeader>
+          <div className={dialogBody}>
+            <section aria-labelledby="import-vipps" className="grid gap-3">
+              <h3 id="import-vipps" className="text-sm font-bold">
+                Hent fra Vipps for periode
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="vipps-from">Fra</Label>
+                  <Input
+                    id="vipps-from"
+                    type="date"
+                    value={from}
+                    onChange={(event) => setFrom(event.target.value)}
+                    className="h-11 rounded-xl"
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="vipps-to">Til</Label>
+                  <Input
+                    id="vipps-to"
+                    type="date"
+                    value={to}
+                    onChange={(event) => setTo(event.target.value)}
+                    className="h-11 rounded-xl"
+                  />
+                </div>
+              </div>
+              {fetchButton("Hent")}
+              {fetchErrors.length > 0 ? (
+                <ul className="grid gap-1.5 rounded-xl bg-[#FFF8E9] px-3 py-2 text-sm text-[#6B5524] ring-1 ring-[#E8D6AA]">
+                  {fetchErrors.map((error) => (
+                    <li key={error}>{error}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </section>
+
+            <section aria-labelledby="import-file-heading" className="grid gap-3 border-t border-[#ECE8DF] pt-4">
+              <h3 id="import-file-heading" className="text-sm font-bold">
+                Last opp fil
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="import-source">Fra</Label>
+                  <SelectField
+                    id="import-source"
+                    value={source}
+                    onValueChange={setSource}
+                    options={[
+                      { value: "vipps", label: "Vipps" },
+                      { value: "dnb", label: "DNB" },
+                    ]}
+                  />
+                </div>
+                {source === "vipps" ? (
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="import-msn">Salgssted</Label>
+                    <SelectField
+                      id="import-msn"
+                      value={vippsAccount}
+                      onValueChange={setVippsAccount}
+                      options={[{ value: "", label: "Les fra filen" }, ...vippsAccounts]}
+                    />
+                  </div>
+                ) : (
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="import-account" required>
+                      Kontonummer
+                    </Label>
+                    <Input
+                      id="import-account"
+                      inputMode="numeric"
+                      value={bankAccount}
+                      onChange={(event) => setBankAccount(event.target.value)}
+                      placeholder="1234.56.78901"
+                      className="h-11 rounded-xl"
+                    />
+                  </div>
+                )}
+              </div>
+              <label
+                htmlFor="import-file"
+                className={cn(
+                  "grid cursor-pointer justify-items-center gap-1 rounded-xl border border-dashed px-3 py-4 text-center text-sm transition-colors focus-within:ring-3 focus-within:ring-ring/50 hover:bg-[#FAF9F5]",
+                  file ? "border-[#9CC79F] bg-[#F2F8F2]" : "border-[#D5CFC2]",
+                )}
+              >
+                <Upload aria-hidden="true" className="size-5 text-[#3C8F44]" />
+                <span className="max-w-full font-bold break-all">
+                  {file ? file.name : "Velg CSV- eller Excel-fil"}
+                </span>
+                <input
+                  key={inputKey}
+                  id="import-file"
+                  type="file"
+                  accept=".csv,.txt,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                  className="sr-only"
+                />
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={upload}
+                disabled={uploading || !file}
+                className="min-h-11 rounded-xl px-3 font-bold"
+              >
+                {uploading ? <Loader2 aria-hidden="true" className="size-4 animate-spin" /> : null}
+                {uploading ? "Laster opp …" : "Last opp"}
+              </Button>
+            </section>
+
+            <section aria-labelledby="import-history" className="grid gap-3 border-t border-[#ECE8DF] pt-4">
+              <h3 id="import-history" className="text-sm font-bold">
+                Siste importer
+              </h3>
+              {history}
+            </section>
           </div>
-          {source === "vipps" ? (
-            <div className="grid gap-1.5">
-              <Label htmlFor="import-msn">Salgssted</Label>
-              <SelectField
-                id="import-msn"
-                value={vippsAccount}
-                onValueChange={setVippsAccount}
-                options={[{ value: "", label: "Les fra filen" }, ...vippsAccounts]}
-              />
-            </div>
-          ) : (
-            <div className="grid gap-1.5">
-              <Label htmlFor="import-account" required>
-                Kontonummer
-              </Label>
-              <Input
-                id="import-account"
-                inputMode="numeric"
-                value={bankAccount}
-                onChange={(event) => setBankAccount(event.target.value)}
-                placeholder="1234.56.78901"
-                className="h-11 rounded-xl"
-              />
-            </div>
-          )}
-        </div>
-        <label
-          htmlFor="import-file"
-          className={cn(
-            "grid cursor-pointer justify-items-center gap-1 rounded-xl border border-dashed px-3 py-4 text-center text-sm transition-colors focus-within:ring-3 focus-within:ring-ring/50 hover:bg-[#FAF9F5]",
-            file ? "border-[#9CC79F] bg-[#F2F8F2]" : "border-[#D5CFC2]",
-          )}
-        >
-          <Upload aria-hidden="true" className="size-5 text-[#3C8F44]" />
-          <span className="max-w-full font-bold break-all">
-            {file ? file.name : "Velg CSV- eller Excel-fil"}
-          </span>
-          <span className="text-xs text-admin-muted">
-            {file ? "Trykk for å bytte fil" : "Linjer som allerede er lastet opp hoppes over"}
-          </span>
-          <input
-            key={inputKey}
-            id="import-file"
-            type="file"
-            accept=".csv,.txt,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-            className="sr-only"
-          />
-        </label>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={upload}
-          disabled={uploading || !file}
-          className="min-h-11 rounded-xl px-3 font-bold"
-        >
-          {uploading ? <Loader2 aria-hidden="true" className="size-4 animate-spin" /> : null}
-          {uploading ? "Laster opp …" : "Last opp"}
-        </Button>
-      </div>
-    </section>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -358,22 +379,6 @@ type DialogState =
 
 function payerLabel(row: InboxTransaction) {
   return row.counterpartyName || (row.source === "dnb" ? "Bankoverføring" : "Ukjent betaler");
-}
-
-function DateMark({ value }: { value: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="hidden w-11 shrink-0 justify-items-center rounded-xl bg-[#F6F4EE] py-1.5 leading-none sm:grid"
-    >
-      <span className="font-heading text-lg font-bold tabular-nums">
-        {formatOsloDate(value, { day: "numeric" }).replace(".", "")}
-      </span>
-      <span className="mt-0.5 text-[0.6875rem] font-bold text-admin-muted uppercase">
-        {formatOsloDate(value, { month: "short" }).replace(".", "")}
-      </span>
-    </span>
-  );
 }
 
 export function TransactionInbox({
@@ -466,17 +471,10 @@ export function TransactionInbox({
           <CheckCheck aria-hidden="true" className="size-6" />
         </span>
         <p className="mt-3 font-heading text-xl font-bold">Alt er avstemt</p>
-        <p className="mt-1 max-w-sm text-sm text-admin-muted">
-          Hent fra Vipps eller last opp en ny eksport når det har kommet inn nye
-          betalinger.
-        </p>
       </div>
     ) : (
       <div className="rounded-2xl bg-white px-6 py-10 text-center ring-1 ring-[#E3DED3]">
         <p className="font-heading text-lg font-semibold">Ingen transaksjoner her</p>
-        <p className="mx-auto mt-1 max-w-md text-sm text-admin-muted">
-          Ingenting passer denne visningen. Prøv en annen status eller fjern et filter.
-        </p>
       </div>
     );
   }
@@ -537,7 +535,7 @@ export function TransactionInbox({
               className="size-4 accent-[#3C8F44]"
             />
             <label htmlFor="select-all" className="font-semibold text-admin-muted">
-              Velg alle {open.length} på siden
+              Velg alle
             </label>
           </div>
         ) : null}
@@ -548,192 +546,202 @@ export function TransactionInbox({
             const isSelected = selected.has(row.id);
             const canSuggest =
               isOpen && row.suggestedStatus && (row.suggestedStatus !== "sadaqa" || row.amount > 0);
-            const amountClass = cn(
-              "font-heading text-lg font-bold whitespace-nowrap tabular-nums",
-              row.amount < 0 && "text-[#8B2F2B]",
-            );
-            return (
-              <li
-                key={row.id}
+            const OutcomeIcon = outcomeIcon[row.status];
+            const actions = canSuggest ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={quickPending}
+                onClick={() => acceptOne(row)}
+                title={row.suggestionReason ?? undefined}
+                className="min-h-10 rounded-xl border-[#D9CBEE] bg-[#F7F2FC] px-3 font-bold text-[#4A2F72] hover:bg-[#EFE6F9]"
+              >
+                <Sparkles aria-hidden="true" className="size-4" />
+                {row.suggestedStatus === "sadaqa" ? "Før som sadaqa" : "Ignorer"}
+              </Button>
+            ) : isOpen && row.amount > 0 ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!schoolYearId}
+                  onClick={() => setDialog({ kind: "family", transaction: row })}
+                  className="min-h-10 rounded-xl px-3 font-bold"
+                >
+                  <Users aria-hidden="true" className="size-4" />
+                  Skolepenger
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setDialog({ kind: "sadaqa", transaction: row })}
+                  className="min-h-10 rounded-xl px-3 font-bold"
+                >
+                  <HandHeart aria-hidden="true" className="size-4" />
+                  Sadaqa
+                </Button>
+              </>
+            ) : !isOpen && row.outcome ? (
+              <a
+                href={row.linkHref ?? undefined}
+                title={statusLabels[row.status]}
                 className={cn(
-                  "grid grid-cols-1 gap-3 px-4 py-3.5 transition-colors sm:px-5",
-                  isSelected && "bg-[#F2F8F2]",
+                  "inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-full px-3 text-sm font-semibold outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                  statusTone[row.status] ?? statusTone.ignorert,
+                  row.linkHref && "hover:underline underline-offset-2",
                 )}
               >
-                <div className="flex gap-3">
+                {OutcomeIcon ? <OutcomeIcon aria-hidden="true" className="size-4 shrink-0" /> : null}
+                <span className="truncate">{row.outcome}</span>
+              </a>
+            ) : null;
+            return (
+              <li key={row.id} className={cn("transition-colors", isSelected && "bg-[#F2F8F2]")}>
+                <div className="flex items-start gap-3 px-4 py-3 sm:px-5 lg:items-center">
                   {isOpen ? (
                     <input
                       type="checkbox"
                       aria-label={`Velg ${formatNok(row.amount)} fra ${payerLabel(row)}`}
                       checked={isSelected}
                       onChange={() => toggle(row.id)}
-                      className="mt-1 size-4 shrink-0 accent-[#3C8F44] sm:mt-3.5"
+                      className="mt-1 size-4 shrink-0 accent-[#3C8F44] lg:mt-0"
                     />
+                  ) : open.length > 0 ? (
+                    <span aria-hidden="true" className="size-4 shrink-0" />
                   ) : null}
-                  <DateMark value={row.bookedOn} />
-                  <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 lg:flex lg:items-center lg:gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <p className="min-w-0 truncate font-bold">{payerLabel(row)}</p>
-                        <p className={cn(amountClass, "lg:hidden")}>{formatNok(row.amount)}</p>
-                      </div>
-                      {row.message && row.message !== row.counterpartyName ? (
-                        <p className="mt-0.5 text-sm break-words">{row.message}</p>
-                      ) : null}
-                      <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-admin-muted">
-                        <span className="sm:hidden">{formatOsloDate(row.bookedOn)} ·</span>
-                        <span>{row.accountLabel}</span>
-                        {!isOpen ? (
-                          <span
-                            className={cn(
-                              "rounded-full px-2 py-0.5 font-bold",
-                              statusTone[row.status] ?? statusTone.ny,
-                            )}
+                  <span className="hidden w-16 shrink-0 text-sm font-semibold whitespace-nowrap text-admin-muted tabular-nums lg:block">
+                    {formatOsloDate(row.bookedOn, { day: "numeric", month: "short" })}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => toggleDetails(row.id)}
+                    aria-expanded={showDetails}
+                    className="group/row min-w-0 flex-1 rounded-lg text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span className="truncate font-bold group-hover/row:underline group-hover/row:underline-offset-2">
+                        {payerLabel(row)}
+                      </span>
+                      <ChevronDown
+                        aria-hidden="true"
+                        className={cn(
+                          "size-4 shrink-0 text-admin-muted transition-transform",
+                          showDetails && "rotate-180",
+                        )}
+                      />
+                    </span>
+                    {row.message && row.message !== row.counterpartyName ? (
+                      <span className="block text-sm break-words lg:truncate">{row.message}</span>
+                    ) : null}
+                    <span className="block truncate text-xs text-admin-muted">
+                      <span className="lg:hidden">
+                        {formatOsloDate(row.bookedOn, { day: "numeric", month: "short" })} ·{" "}
+                      </span>
+                      {row.accountLabel}
+                    </span>
+                  </button>
+                  <div className="hidden w-[17.5rem] shrink-0 items-center justify-end gap-1.5 lg:flex">
+                    {actions}
+                  </div>
+                  <p
+                    className={cn(
+                      "shrink-0 text-right font-heading text-lg font-bold whitespace-nowrap tabular-nums lg:w-28",
+                      row.amount < 0 && "text-[#8B2F2B]",
+                    )}
+                  >
+                    {formatNok(row.amount)}
+                  </p>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Flere valg for ${formatNok(row.amount)} fra ${payerLabel(row)}`}
+                          className="-my-1 size-10 shrink-0 rounded-xl text-admin-muted hover:text-foreground"
+                        />
+                      }
+                    >
+                      <MoreHorizontal aria-hidden="true" className="size-5" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-auto min-w-56">
+                      {isOpen && row.amount > 0 && canSuggest ? (
+                        <>
+                          <DropdownMenuItem
+                            disabled={!schoolYearId}
+                            onClick={() => setDialog({ kind: "family", transaction: row })}
                           >
-                            {statusLabels[row.status] ?? row.status}
-                          </span>
-                        ) : null}
-                      </p>
-                      {!isOpen && (row.linkLabel || row.note) ? (
-                        <p className="mt-1 text-sm">
-                          {row.linkHref ? (
+                            <Users className="size-4" />
+                            Før som skolepenger
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setDialog({ kind: "sadaqa", transaction: row })}>
+                            <HandHeart className="size-4" />
+                            Før som sadaqa
+                          </DropdownMenuItem>
+                        </>
+                      ) : null}
+                      {isOpen ? (
+                        <>
+                          <DropdownMenuItem onClick={() => setDialog({ kind: "link", transaction: row })}>
+                            <Link2 className="size-4" />
+                            Koble til eksisterende betaling
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setDialog({ kind: "ignore", transaction: row })}>
+                            <Ban className="size-4" />
+                            Ignorer
+                          </DropdownMenuItem>
+                        </>
+                      ) : (
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => setDialog({ kind: "undo", transaction: row })}
+                        >
+                          <Undo2 className="size-4" />
+                          Angre behandling
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                {actions ? (
+                  <div className="-mt-1 flex flex-wrap gap-1.5 px-4 pb-3 pl-11 sm:px-5 sm:pl-12 lg:hidden">
+                    {actions}
+                  </div>
+                ) : null}
+                {showDetails ? (
+                  <dl className="mx-4 mb-4 grid gap-x-6 gap-y-3 rounded-xl bg-[#FAF9F5] p-4 ring-1 ring-[#E8E3D9] sm:mx-5 sm:grid-cols-2 lg:ml-[7.75rem] lg:grid-cols-3">
+                    <Detail label="Dato" value={formatOsloDate(row.bookedOn)} />
+                    <Detail label="Beløp" value={formatNok(row.amount)} />
+                    <Detail label="Betaler" value={row.counterpartyName} />
+                    <Detail label="Telefon" value={row.counterpartyPhone} />
+                    <Detail label="Melding" value={row.message} />
+                    <Detail label="Konto" value={row.accountLabel} />
+                    <Detail label="Status" value={statusLabels[row.status] ?? row.status} />
+                    <Detail
+                      label="Ført som"
+                      value={
+                        row.linkLabel ? (
+                          row.linkHref ? (
                             <a
                               href={row.linkHref}
-                              className="font-semibold text-[#277A31] outline-none underline-offset-2 hover:underline focus-visible:rounded focus-visible:ring-3 focus-visible:ring-ring/50"
+                              className="font-semibold text-[#277A31] underline-offset-2 hover:underline"
                             >
                               {row.linkLabel}
                             </a>
                           ) : (
                             row.linkLabel
-                          )}
-                          {row.note ? (
-                            <span className="text-admin-muted">
-                              {row.linkLabel ? " · " : ""}
-                              {row.note}
-                            </span>
-                          ) : null}
-                        </p>
-                      ) : isOpen && row.note ? (
-                        <p className="mt-1 text-sm text-admin-muted">{row.note}</p>
-                      ) : null}
-                    </div>
-                    <p className={cn(amountClass, "hidden w-28 shrink-0 text-right lg:block")}>
-                      {formatNok(row.amount)}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-1.5 lg:w-[17.5rem] lg:shrink-0 lg:flex-nowrap lg:justify-end">
-                      {canSuggest ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={quickPending}
-                          onClick={() => acceptOne(row)}
-                          title={row.suggestionReason ?? undefined}
-                          className="min-h-10 rounded-xl border-[#D9CBEE] bg-[#F7F2FC] px-3 font-bold text-[#4A2F72] hover:bg-[#EFE6F9]"
-                        >
-                          <Sparkles aria-hidden="true" className="size-4" />
-                          {row.suggestedStatus === "sadaqa" ? "Før som sadaqa" : "Ignorer"}
-                        </Button>
-                      ) : isOpen && row.amount > 0 ? (
-                        <>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            disabled={!schoolYearId}
-                            onClick={() => setDialog({ kind: "family", transaction: row })}
-                            className="min-h-10 rounded-xl px-3 font-bold"
-                          >
-                            <Users aria-hidden="true" className="size-4" />
-                            Skolepenger
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setDialog({ kind: "sadaqa", transaction: row })}
-                            className="min-h-10 rounded-xl px-3 font-bold"
-                          >
-                            <HandHeart aria-hidden="true" className="size-4" />
-                            Sadaqa
-                          </Button>
-                        </>
-                      ) : null}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              aria-label={`Flere valg for ${formatNok(row.amount)} fra ${payerLabel(row)}`}
-                              className="size-10 rounded-xl text-admin-muted hover:text-foreground"
-                            />
-                          }
-                        >
-                          <MoreHorizontal aria-hidden="true" className="size-5" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-auto min-w-56">
-                          {isOpen && row.amount > 0 && canSuggest ? (
-                            <>
-                              <DropdownMenuItem
-                                disabled={!schoolYearId}
-                                onClick={() => setDialog({ kind: "family", transaction: row })}
-                              >
-                                <Users className="size-4" />
-                                Før som skolepenger
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setDialog({ kind: "sadaqa", transaction: row })}>
-                                <HandHeart className="size-4" />
-                                Før som sadaqa
-                              </DropdownMenuItem>
-                            </>
-                          ) : null}
-                          {isOpen ? (
-                            <>
-                              <DropdownMenuItem onClick={() => setDialog({ kind: "link", transaction: row })}>
-                                <Link2 className="size-4" />
-                                Koble til eksisterende betaling
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setDialog({ kind: "ignore", transaction: row })}>
-                                <Ban className="size-4" />
-                                Ignorer
-                              </DropdownMenuItem>
-                            </>
-                          ) : null}
-                          <DropdownMenuItem onClick={() => toggleDetails(row.id)}>
-                            <Info className="size-4" />
-                            {showDetails ? "Skjul detaljer" : "Vis detaljer"}
-                          </DropdownMenuItem>
-                          {!isOpen ? (
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => setDialog({ kind: "undo", transaction: row })}
-                            >
-                              <Undo2 className="size-4" />
-                              Angre behandling
-                            </DropdownMenuItem>
-                          ) : null}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                </div>
-                {canSuggest && row.suggestionReason ? (
-                  <p className="-mt-1 flex items-start gap-1.5 text-xs text-[#5A3A85] sm:pl-[5.25rem]">
-                    <Sparkles aria-hidden="true" className="mt-px size-3.5 shrink-0" />
-                    {row.suggestionReason}
-                  </p>
-                ) : null}
-                {showDetails ? (
-                  <dl className="grid gap-3 rounded-xl bg-[#FAF9F5] px-3 py-3 ring-1 ring-[#E8E3D9] sm:ml-[5.25rem] sm:grid-cols-3">
-                    <Detail label="Telefon" value={row.counterpartyPhone} />
-                    <Detail label="Ordre-ID" value={row.reference} />
-                    <Detail label="Transaksjons-ID" value={row.pspReference} />
-                    <Detail label="Ekstern ID" value={row.externalId} />
+                          )
+                        ) : null
+                      }
+                    />
+                    <Detail label="Notat" value={row.note} />
                     <Detail label="Forslag" value={row.suggestionReason} />
                     <Detail label="Behandlet av" value={row.mappedBy} />
-                    <Detail
-                      label="Behandlet"
-                      value={row.mappedAt ? formatOsloDate(row.mappedAt) : null}
-                    />
+                    <Detail label="Behandlet" value={row.mappedAt ? formatOsloDate(row.mappedAt) : null} />
+                    <Detail label="Ordre-ID" value={row.reference ? <span className="break-all">{row.reference}</span> : null} />
+                    <Detail label="Transaksjons-ID" value={row.pspReference ? <span className="break-all">{row.pspReference}</span> : null} />
+                    <Detail label="Ekstern ID" value={<span className="break-all">{row.externalId}</span>} />
                   </dl>
                 ) : null}
               </li>
@@ -1030,6 +1038,7 @@ function FamilyMapDialog({
   const [query, setQuery] = useState("");
   const [family, setFamily] = useState<PickerFamily | null>(null);
   const [shares, setShares] = useState<string[]>([]);
+  const [showOthers, setShowOthers] = useState(false);
 
   function choose(next: PickerFamily | null) {
     setFamily(next);
@@ -1081,10 +1090,7 @@ function FamilyMapDialog({
           <DialogTitle className="text-xl font-bold">
             {family ? `Skolepenger for ${family.name}` : "Hvilken familie har betalt?"}
           </DialogTitle>
-          <DialogDescription>
-            Føres som en betaling for familien
-            {schoolYearLabel ? ` i ${schoolYearLabel}` : ""}, fordelt på barna.
-          </DialogDescription>
+          {schoolYearLabel ? <DialogDescription>Skoleår {schoolYearLabel}</DialogDescription> : null}
         </DialogHeader>
         <div className={dialogBody}>
           <TransactionSummary transaction={transaction} />
@@ -1120,6 +1126,17 @@ function FamilyMapDialog({
                   </ul>
                 </section>
               ) : null}
+              {!term.length && suggested.length > 0 && !showOthers ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowOthers(true)}
+                  className="min-h-11 justify-self-start rounded-xl px-2 font-bold text-[#277A31]"
+                >
+                  <ChevronDown aria-hidden="true" className="size-4" />
+                  Andre familier med utestående ({matches.length})
+                </Button>
+              ) : (
               <section aria-labelledby="family-all" className="grid gap-2">
                 <h3 id="family-all" className="text-xs font-bold text-admin-muted">
                   {term.length
@@ -1145,6 +1162,7 @@ function FamilyMapDialog({
                   </ul>
                 )}
               </section>
+              )}
             </>
           ) : (
             <>

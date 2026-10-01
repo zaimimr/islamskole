@@ -362,7 +362,6 @@ async function TeacherContent({
                         {teacher.teacher_suspended_reason
                           ? `: ${teacher.teacher_suspended_reason}`
                           : ""}
-                        . Har ikke tilgang til Min klasse, men beholder tilgang som forelder.
                       </p>
                     ) : null}
                     <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
