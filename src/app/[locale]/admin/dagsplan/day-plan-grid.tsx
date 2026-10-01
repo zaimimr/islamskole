@@ -90,77 +90,79 @@ export function DayPlanGrid({
 
   return (
     <>
-      <div
-        role="table"
-        aria-label="Dagsplan"
-        className="hidden overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3] md:grid"
-        style={{ gridTemplateColumns: columns }}
-      >
-        <div role="row" className="contents">
-          <div role="columnheader" className="border-b border-[#ECE8DF] px-4 py-3 text-xs font-bold text-admin-muted">
-            Klasse
-          </div>
-          {slots.map((slot) => (
-            <div
-              key={slot.position}
-              role="columnheader"
-              className="border-b border-l border-[#ECE8DF] px-3 py-3 text-xs font-bold text-admin-muted"
-            >
-              <span className="block text-sm text-foreground">{slot.label}</span>
-              <span className="tabular-nums">{slotRangeTimes(slots, { start_position: slot.position, end_position: slot.position })}</span>
+      <div className="hidden overflow-x-auto rounded-2xl bg-white ring-1 ring-[#E3DED3] md:block">
+        <div
+          role="table"
+          aria-label="Dagsplan"
+          className="grid"
+          style={{ gridTemplateColumns: columns }}
+        >
+          <div role="row" className="contents">
+            <div role="columnheader" className="border-b border-[#ECE8DF] px-4 py-3 text-xs font-bold text-admin-muted">
+              Klasse
             </div>
-          ))}
-        </div>
-        {classes.map((row, rowIndex) => {
-          const border = rowIndex < classes.length - 1 ? "border-b border-[#ECE8DF]" : "";
-          const cells: React.ReactNode[] = [];
-          for (let position = 1; position <= slots.length; position += 1) {
-            const lesson = row.lessons.find((item) => item.start_position === position);
-            if (lesson) {
-              const span = Math.min(lesson.end_position, slots.length) - lesson.start_position + 1;
-              cells.push(
-                <div
-                  key={lesson.id}
-                  role="cell"
-                  className={cn("border-l border-[#ECE8DF] p-2", border)}
-                  style={{ gridColumn: `span ${Math.max(span, 1)}` }}
-                >
-                  <LessonCard
-                    lesson={lesson}
-                    row={row}
-                    slots={slots}
-                    onEdit={() => setEditing(lesson)}
-                  />
-                </div>,
-              );
-              position = Math.max(lesson.end_position, position);
-            } else if (!row.lessons.some((item) => item.start_position < position && item.end_position >= position)) {
-              cells.push(
-                <div
-                  key={`empty-${position}`}
-                  role="cell"
-                  className={cn("flex items-center border-l border-[#ECE8DF] px-3 text-sm text-admin-muted", border)}
-                >
-                  Ingen time
-                </div>,
-              );
-            }
-          }
-          return (
-            <div key={row.id} role="row" className="contents">
-              <div role="rowheader" className={cn("flex items-start justify-between gap-2 px-4 py-3", border)}>
-                <span className="min-w-0">
-                  <span className="block font-bold">{row.name}</span>
-                  {row.classTeachers ? (
-                    <span className="block text-xs text-admin-muted">{row.classTeachers}</span>
-                  ) : null}
-                </span>
-                <ResetMenu dayId={dayId} classRow={row} />
+            {slots.map((slot) => (
+              <div
+                key={slot.position}
+                role="columnheader"
+                className="border-b border-l border-[#ECE8DF] px-3 py-3 text-xs font-bold text-admin-muted"
+              >
+                <span className="block text-sm text-foreground">{slot.label}</span>
+                <span className="tabular-nums">{slotRangeTimes(slots, { start_position: slot.position, end_position: slot.position })}</span>
               </div>
-              {cells}
-            </div>
-          );
-        })}
+            ))}
+          </div>
+          {classes.map((row, rowIndex) => {
+            const border = rowIndex < classes.length - 1 ? "border-b border-[#ECE8DF]" : "";
+            const cells: React.ReactNode[] = [];
+            for (let position = 1; position <= slots.length; position += 1) {
+              const lesson = row.lessons.find((item) => item.start_position === position);
+              if (lesson) {
+                const span = Math.min(lesson.end_position, slots.length) - lesson.start_position + 1;
+                cells.push(
+                  <div
+                    key={lesson.id}
+                    role="cell"
+                    className={cn("border-l border-[#ECE8DF] p-2", border)}
+                    style={{ gridColumn: `span ${Math.max(span, 1)}` }}
+                  >
+                    <LessonCard
+                      lesson={lesson}
+                      row={row}
+                      slots={slots}
+                      onEdit={() => setEditing(lesson)}
+                    />
+                  </div>,
+                );
+                position = Math.max(lesson.end_position, position);
+              } else if (!row.lessons.some((item) => item.start_position < position && item.end_position >= position)) {
+                cells.push(
+                  <div
+                    key={`empty-${position}`}
+                    role="cell"
+                    className={cn("flex items-center border-l border-[#ECE8DF] px-3 text-sm text-admin-muted", border)}
+                  >
+                    Ingen time
+                  </div>,
+                );
+              }
+            }
+            return (
+              <div key={row.id} role="row" className="contents">
+                <div role="rowheader" className={cn("flex items-start justify-between gap-2 px-4 py-3", border)}>
+                  <span className="min-w-0">
+                    <span className="block font-bold">{row.name}</span>
+                    {row.classTeachers ? (
+                      <span className="block text-xs text-admin-muted">{row.classTeachers}</span>
+                    ) : null}
+                  </span>
+                  <ResetMenu dayId={dayId} classRow={row} />
+                </div>
+                {cells}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <ul className="grid gap-4 md:hidden">
