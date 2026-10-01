@@ -3179,6 +3179,7 @@ export type Database = {
           is_mine: boolean
           is_substitute: boolean
           lesson_id: string
+          note: string
           school_day_id: string
           start_label: string
           start_position: number
@@ -3249,6 +3250,7 @@ export type Database = {
           is_mine: boolean
           is_substitute: boolean
           lesson_id: string
+          note: string
           school_day_id: string
           start_label: string
           start_position: number

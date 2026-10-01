@@ -10,6 +10,7 @@ export type LessonTab = {
   isSubstitute: boolean;
   cancelled: boolean;
   isMine: boolean;
+  note: string | null;
 };
 
 export async function LessonTabs({
@@ -59,6 +60,7 @@ export async function LessonTabs({
                   </span>
                 ) : null}
               </span>
+              {lesson.note ? <span className="text-sm text-pretty text-foreground/80">{lesson.note}</span> : null}
             </Link>
           </li>
         ))}

@@ -161,6 +161,7 @@ function LessonList({
           {lesson.isSubstitute ? <span className="font-semibold text-secondary-foreground">{labels.substitute}</span> : null}
           {lesson.isMine ? <span className="font-semibold text-brand-green-dark">{labels.mine}</span> : null}
           {lesson.cancelled ? <span className="font-semibold text-destructive">{labels.cancelled}</span> : null}
+          {lesson.note ? <span className="basis-full text-pretty text-foreground/80">{lesson.note}</span> : null}
         </li>
       ))}
     </ul>

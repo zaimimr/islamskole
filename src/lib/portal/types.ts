@@ -174,6 +174,7 @@ export type PortalLesson = {
   is_substitute: boolean;
   cancelled: boolean;
   is_mine: boolean;
+  note: string | null;
 };
 
 export type PortalTimeSlot = {

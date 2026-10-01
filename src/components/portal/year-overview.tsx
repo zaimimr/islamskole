@@ -4,7 +4,7 @@ import { formatPortalDay } from "@/lib/portal/parent-format";
 import type { AttendanceStatus, PortalClassNote } from "@/lib/portal/types";
 import { cn } from "@/lib/utils";
 
-const statusTone: Record<AttendanceStatus | "none", string> = {
+export const attendanceStatusTone: Record<AttendanceStatus | "none", string> = {
   til_stede: "bg-primary/12 text-brand-green-dark",
   sent: "bg-brand-sun/35 text-[#4a3a00]",
   fravaer: "bg-destructive/10 text-destructive",
@@ -46,7 +46,7 @@ export function AttendanceYear({
               return (
                 <li key={day.id} data-date={day.date} className="flex min-h-11 items-center justify-between gap-3">
                   <span className="first-letter:uppercase">{formatPortalDay(day.date, locale)}</span>
-                  <span className={cn("rounded-full px-3 py-1 text-sm font-semibold", statusTone[status])}>
+                  <span className={cn("rounded-full px-3 py-1 text-sm font-semibold", attendanceStatusTone[status])}>
                     {statusLabel(status)}
                   </span>
                 </li>

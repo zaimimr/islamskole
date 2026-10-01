@@ -14,5 +14,6 @@ export function lessonView(lesson: PortalLesson, slots: PortalTimeSlot[], wholeD
     isSubstitute: lesson.is_substitute,
     cancelled: lesson.cancelled,
     isMine: lesson.is_mine,
+    note: lesson.note,
   };
 }

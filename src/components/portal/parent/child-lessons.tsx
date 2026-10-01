@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { attendanceStatusTone } from "@/components/portal/year-overview";
 import { lessonView } from "@/lib/portal/lesson-view";
 import type { AttendanceStatus, PortalLesson, PortalTimeSlot } from "@/lib/portal/types";
 import { cn } from "@/lib/utils";
@@ -34,8 +35,13 @@ export async function ChildLessons({
               {view.teacher ? <span>{t("lessons.teacher", { name: view.teacher })}</span> : null}
               {view.isSubstitute ? <span className="font-semibold">{t("lessons.substitute")}</span> : null}
               {view.cancelled ? <span className="font-semibold text-destructive">{t("lessons.cancelled")}</span> : null}
-              {status ? <span className="font-semibold text-brand-green-dark">{t(`status.${status}`)}</span> : null}
+              {status ? (
+                <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", attendanceStatusTone[status])}>
+                  {t(`status.${status}`)}
+                </span>
+              ) : null}
             </p>
+            {view.note ? <p className="text-sm text-pretty text-foreground/80">{view.note}</p> : null}
           </li>
         );
       })}

@@ -453,7 +453,7 @@ function LessonDialog({
               onChange={(event) => setNote(event.target.value)}
             />
             <p id="lesson-note-hint" className="text-xs text-admin-muted">
-              Lærere og foreldre i klassen kan se merknaden.
+              Lærere, foreldre og elever i klassen kan se merknaden på Min side.
             </p>
           </div>
           <label className="flex min-h-11 items-center gap-3 text-sm font-bold">
