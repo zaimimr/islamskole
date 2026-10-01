@@ -4,7 +4,7 @@ create extension if not exists pgtap with schema extensions;
 
 set local search_path = public, extensions;
 
-select plan(26);
+select plan(31);
 
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
 
@@ -294,6 +294,42 @@ select is(
    where class_id = 'f1000000-0000-0000-0000-0000000000c1' and school_day_id = 'f1000000-0000-0000-0000-0000000000d3'),
   '1-2,3-3',
   'the merged day keeps its own shape'
+);
+
+select is(
+  public.admin_save_time_slots('f1000000-0000-0000-0000-000000000001',
+    '[{"label":"Time 1","starts_at":"10:00","ends_at":"11:00"},{"label":"Time 2","starts_at":"11:00","ends_at":"12:00"},
+      {"label":"Time 3","starts_at":"13:00","ends_at":"14:00"},{"label":"Time 4","starts_at":"14:00","ends_at":"15:00"}]'::jsonb),
+  4,
+  'admin adds a fourth time slot'
+);
+
+select is(
+  (select string_agg(start_position || '-' || end_position, ',') from public.lessons
+   where class_id = 'f1000000-0000-0000-0000-0000000000c2' and school_day_id = 'f1000000-0000-0000-0000-0000000000d3'),
+  '1-4',
+  'a class without a weekly plan follows the new length of the day'
+);
+
+select throws_ok(
+  $$ select public.admin_save_time_slots('f1000000-0000-0000-0000-000000000001',
+       '[{"label":"Time 1","starts_at":"10:00","ends_at":"11:00"},{"label":"Time 2","starts_at":"11:00","ends_at":"12:00"}]'::jsonb) $$,
+  'P0001',
+  null,
+  'slots used by a weekly plan cannot be removed'
+);
+
+select is(
+  public.admin_reset_day_lessons('f1000000-0000-0000-0000-0000000000d3', 'f1000000-0000-0000-0000-0000000000c1'),
+  2,
+  'resetting a day rebuilds it from the weekly plan'
+);
+
+select is(
+  (select string_agg(start_position || '-' || end_position || ' ' || subject, ',' order by start_position) from public.lessons
+   where class_id = 'f1000000-0000-0000-0000-0000000000c1' and school_day_id = 'f1000000-0000-0000-0000-0000000000d3'),
+  '1-1 Islam,2-3 Koran',
+  'the reset day matches the weekly plan again'
 );
 
 reset role;
