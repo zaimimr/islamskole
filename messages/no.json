@@ -783,6 +783,11 @@
         "end": "Avslutt vikartilgang",
         "badge": "Vikar til og med {date}",
         "notice": "Du er vikar i denne klassen til og med {date}."
+      },
+      "suspended": {
+        "title": "Lærertilgangen er satt på pause",
+        "body": "Du har ikke tilgang til Min klasse, oppmøte og klassenotater akkurat nå. Tilgangen som forelder fungerer som vanlig. Ta kontakt med skolen hvis du har spørsmål.",
+        "back": "Til Min side"
       }
     },
     "common": {

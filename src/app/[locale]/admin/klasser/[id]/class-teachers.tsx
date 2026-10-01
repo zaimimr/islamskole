@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { StatusPill } from "@/components/admin/status-pill";
 import {
   Select,
   SelectContent,
@@ -25,6 +26,7 @@ export type ClassTeacher = {
   name: string;
   phone: string | null;
   email: string | null;
+  suspended?: boolean;
 };
 
 export function ClassTeachers({
@@ -116,7 +118,12 @@ export function ClassTeachers({
               className="flex min-h-14 flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-5"
             >
               <span className="min-w-0">
-                <span className="block font-bold">{teacher.name}</span>
+                <span className="flex flex-wrap items-center gap-2 font-bold">
+                  {teacher.name}
+                  {teacher.suspended ? (
+                    <StatusPill tone="danger">Suspendert</StatusPill>
+                  ) : null}
+                </span>
                 {teacher.phone ? (
                   <a
                     href={`tel:${teacher.phone.replace(/\s+/g, "")}`}

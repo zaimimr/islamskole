@@ -783,6 +783,11 @@
         "end": "End substitute access",
         "badge": "Substitute until {date}",
         "notice": "You are substitute in this class until {date}."
+      },
+      "suspended": {
+        "title": "Your teacher access is paused",
+        "body": "You do not have access to My class, attendance and class notes right now. Your access as a parent works as usual. Contact the school if you have questions.",
+        "back": "Back to My page"
       }
     },
     "common": {

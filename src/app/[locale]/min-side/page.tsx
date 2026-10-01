@@ -7,7 +7,8 @@ import { TeacherHome } from "@/components/portal/teacher-home";
 import { PortalTabs } from "@/components/portal/parent/portal-tabs";
 import { buttonVariants } from "@/components/ui/button";
 import { getSiteSettings } from "@/lib/data";
-import { getPortalContext, isRegisteredTeacher } from "@/lib/portal/data";
+import { TeacherSuspendedNotice } from "@/components/portal/teacher/suspended-notice";
+import { getPortalContext, isRegisteredTeacher, isSuspendedTeacher } from "@/lib/portal/data";
 
 export default async function PortalHomePage({
   params,
@@ -23,12 +24,14 @@ export default async function PortalHomePage({
   ]);
   if (!context.user) redirect({ href: "/min-side/logg-inn", locale });
 
-  const isTeacher = context.isTeacher || (await isRegisteredTeacher());
-  const hasRole = context.isGuardian || isTeacher || context.isStudent;
+  const [registered, suspended] = await Promise.all([isRegisteredTeacher(), isSuspendedTeacher()]);
+  const isTeacher = context.isTeacher || registered;
+  const hasRole = context.isGuardian || isTeacher || context.isStudent || suspended;
 
   return (
     <div className="grid gap-8">
       <h1 className="sr-only">{t("title")}</h1>
+      {suspended ? <TeacherSuspendedNotice /> : null}
       {isTeacher && context.isGuardian ? (
         <PortalTabs
           defaultTab={query.fane === "klasse" ? "klasse" : "barn"}

@@ -173,10 +173,26 @@ export async function isRegisteredTeacher(): Promise<boolean> {
     .from("guardians")
     .select("id", { count: "exact", head: true })
     .in("id", guardianIds)
-    .eq("is_teacher", true);
+    .eq("is_teacher", true)
+    .is("teacher_suspended_at", null);
   if (error) console.error("guardians is_teacher failed", error);
   return (count ?? 0) > 0;
 }
+
+export const isSuspendedTeacher = cache(async (): Promise<boolean> => {
+  const guardianIds = await getGuardianIds();
+  if (!guardianIds.length) return false;
+  const { data, error } = await createAdminClient()
+    .from("guardians")
+    .select("teacher_suspended_at")
+    .in("id", guardianIds)
+    .eq("is_teacher", true);
+  if (error) {
+    console.error("guardians teacher_suspended_at failed", error);
+    return false;
+  }
+  return (data ?? []).length > 0 && (data ?? []).every((row) => row.teacher_suspended_at);
+});
 
 const getActiveYear = cache(
   async (): Promise<{ id: string; label: string } | null> => {
