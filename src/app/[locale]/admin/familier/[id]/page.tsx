@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAdminFamilies, getAdminFamilyById } from "@/lib/families/service";
 import { formatNok } from "@/lib/money";
 import { formatOsloDate } from "@/lib/dates";
+import { getLastParentChange } from "@/lib/parent-changes";
 import { findDuplicateFamilies } from "../duplicates";
 import { familyOptions } from "../family-options";
 import { adminBasePath } from "@/components/admin/paths";
@@ -164,6 +165,7 @@ export default async function FamilyPage({
     adjustmentResult,
     teacherResult,
     dismissalResult,
+    lastParentChange,
   ] = await Promise.all([
     supabase
       .from("school_years")
@@ -212,6 +214,7 @@ export default async function FamilyPage({
       .from("sibling_discount_dismissals")
       .select("school_year_id")
       .eq("family_id", id),
+    getLastParentChange({ familyId: id }),
   ]);
 
   const activeYear = yearResult.data as {
@@ -371,6 +374,19 @@ export default async function FamilyPage({
       occurredAt: payment.created_at,
       kind: "payment" as const,
     })),
+    ...(lastParentChange
+      ? [
+          {
+            id: "parent-change",
+            title: "Sist endret av forelder",
+            description: [lastParentChange.summary, lastParentChange.actorEmail]
+              .filter(Boolean)
+              .join(" · "),
+            occurredAt: lastParentChange.createdAt,
+            kind: "guardian" as const,
+          },
+        ]
+      : []),
     ...family.openReviews.map((review) => ({
       id: `review-${review.id}`,
       title: "Familiedata må gjennomgås",

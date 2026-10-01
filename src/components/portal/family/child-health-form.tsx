@@ -8,6 +8,7 @@ import { updateChildHealth } from "@/lib/portal/family-actions";
 import type { FamilyChild } from "@/lib/portal/family-types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { ChildDetails } from "@/components/portal/family/child-details";
 import { ErrorNote, Field, formText, useErrorText } from "@/components/portal/family/family-ui";
 
 const CONSENT_OPTIONS = [
@@ -57,16 +58,8 @@ export function ChildHealthForm({ child }: { child: FamilyChild }) {
   }
 
   return (
-    <li data-testid="family-child" className="grid gap-4 rounded-2xl p-4 ring-1 ring-foreground/10">
-      <div className="grid gap-0.5">
-        <h4 id={`${idPrefix}-name`} className="font-heading text-lg font-semibold text-balance">{name}</h4>
-        {child.birth_date ? (
-          <p className="text-sm">
-            {t("born", { date: formatDate(child.birth_date, locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }) })}
-          </p>
-        ) : null}
-        <p className="text-sm text-muted-foreground">{t("wrongInfo")}</p>
-      </div>
+    <li id={idPrefix} data-testid="family-child" className="grid gap-4 rounded-2xl p-4 ring-1 ring-foreground/10">
+      <ChildDetails child={child} name={name} />
 
       <form onSubmit={handleSubmit} aria-labelledby={`${idPrefix}-name`} className="grid gap-4">
         <p className="flex items-center gap-2 text-sm font-bold text-brand-green-dark">

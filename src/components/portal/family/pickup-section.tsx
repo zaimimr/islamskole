@@ -3,12 +3,60 @@
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { HandHeart, Loader2, Plus, Trash2 } from "lucide-react";
-import { addPickupPerson, removePickupPerson } from "@/lib/portal/family-actions";
-import type { PortalFamily } from "@/lib/portal/family-types";
+import { HandHeart, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { addPickupPerson, removePickupPerson, updatePickupPerson } from "@/lib/portal/family-actions";
+import type { FamilyPickup, PortalFamily } from "@/lib/portal/family-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Field, FormDialog, formText, useErrorText } from "@/components/portal/family/family-ui";
+import { Field, FormDialog, PHONE_PATTERN, formText, useErrorText } from "@/components/portal/family/family-ui";
+
+function PickupFields({ idPrefix, person }: { idPrefix: string; person?: FamilyPickup }) {
+  const t = useTranslations("portal.family.pickup");
+  return (
+    <>
+      <Field id={`${idPrefix}-name`} label={t("name")}>
+        <Input
+          id={`${idPrefix}-name`}
+          name="name"
+          required
+          maxLength={120}
+          autoComplete="off"
+          defaultValue={person?.name ?? ""}
+        />
+      </Field>
+      <Field id={`${idPrefix}-phone`} label={t("phone")} optional>
+        <Input
+          id={`${idPrefix}-phone`}
+          name="phone"
+          type="tel"
+          inputMode="tel"
+          maxLength={40}
+          pattern={PHONE_PATTERN}
+          autoComplete="off"
+          defaultValue={person?.phone ?? ""}
+        />
+      </Field>
+      <Field id={`${idPrefix}-relation`} label={t("relation")} optional>
+        <Input
+          id={`${idPrefix}-relation`}
+          name="relation"
+          maxLength={60}
+          autoComplete="off"
+          placeholder={t("relationPlaceholder")}
+          defaultValue={person?.relation ?? ""}
+        />
+      </Field>
+    </>
+  );
+}
+
+function pickupInput(form: FormData) {
+  return {
+    name: formText(form, "name"),
+    phone: formText(form, "phone"),
+    relation: formText(form, "relation"),
+  };
+}
 
 export function PickupSection({ family }: { family: PortalFamily }) {
   const t = useTranslations("portal.family.pickup");
@@ -48,6 +96,24 @@ export function PickupSection({ family }: { family: PortalFamily }) {
                   {[person.relation, person.phone].filter(Boolean).join(" · ")}
                 </span>
               </p>
+              <FormDialog
+                trigger={
+                  <Button type="button" variant="ghost" aria-label={t("editLabel", { name: person.name })}>
+                    <Pencil aria-hidden="true" />
+                    <span className="sr-only sm:not-sr-only">{t("edit")}</span>
+                  </Button>
+                }
+                title={t("editTitle", { name: person.name })}
+                submitLabel={t("save")}
+                onSubmit={async (form) => {
+                  const input = pickupInput(form);
+                  const result = await updatePickupPerson(person.id, input);
+                  if (result.ok) toast.success(t("saved", { name: input.name }));
+                  return result;
+                }}
+              >
+                <PickupFields idPrefix={`pickup-${person.id}`} person={person} />
+              </FormDialog>
               <Button
                 type="button"
                 variant="ghost"
@@ -60,7 +126,7 @@ export function PickupSection({ family }: { family: PortalFamily }) {
                 ) : (
                   <Trash2 aria-hidden="true" />
                 )}
-                {t("remove")}
+                <span className="sr-only sm:not-sr-only">{t("remove")}</span>
               </Button>
             </li>
           ))}
@@ -79,38 +145,13 @@ export function PickupSection({ family }: { family: PortalFamily }) {
           title={t("addTitle")}
           submitLabel={t("add")}
           onSubmit={async (form) => {
-            const name = formText(form, "name");
-            const result = await addPickupPerson(family.id, {
-              name,
-              phone: formText(form, "phone"),
-              relation: formText(form, "relation"),
-            });
-            if (result.ok) toast.success(t("added", { name }));
+            const input = pickupInput(form);
+            const result = await addPickupPerson(family.id, input);
+            if (result.ok) toast.success(t("added", { name: input.name }));
             return result;
           }}
         >
-          <Field id={`${idPrefix}-name`} label={t("name")}>
-            <Input id={`${idPrefix}-name`} name="name" required maxLength={120} autoComplete="off" />
-          </Field>
-          <Field id={`${idPrefix}-phone`} label={t("phone")} optional>
-            <Input
-              id={`${idPrefix}-phone`}
-              name="phone"
-              type="tel"
-              inputMode="tel"
-              maxLength={40}
-              autoComplete="off"
-            />
-          </Field>
-          <Field id={`${idPrefix}-relation`} label={t("relation")} optional>
-            <Input
-              id={`${idPrefix}-relation`}
-              name="relation"
-              maxLength={60}
-              autoComplete="off"
-              placeholder={t("relationPlaceholder")}
-            />
-          </Field>
+          <PickupFields idPrefix={idPrefix} />
         </FormDialog>
       ) : null}
     </section>

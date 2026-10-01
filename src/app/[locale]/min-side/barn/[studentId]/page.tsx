@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Pencil } from "lucide-react";
 import { Link, redirect } from "@/i18n/navigation";
 import { ChildAbsence } from "@/components/portal/parent/child-absence";
 import { childName, joinNames } from "@/components/portal/parent/child-card";
@@ -57,6 +57,13 @@ export default async function ChildDetailPage({
         <p className="text-sm text-foreground/75">
           {teachers ? t("teachers", { names: teachers, count: child.teachers.length }) : t("noTeacher")}
         </p>
+        <Link
+          href={`/min-side/familie#child-${child.student_id}`}
+          className="-ml-2 inline-flex min-h-11 w-fit items-center gap-2 rounded-lg px-2 text-sm font-semibold text-brand-green-dark outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <Pencil aria-hidden="true" className="size-4" />
+          {t("editInfo")}
+        </Link>
       </header>
 
       <div className="grid gap-8 lg:grid-cols-2 lg:items-start">

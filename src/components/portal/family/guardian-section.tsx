@@ -3,8 +3,13 @@
 import { useRef } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Clock, Mail, Pencil, Phone, UserPlus, Users } from "lucide-react";
-import { addGuardian, requestEmailChange, updateGuardian } from "@/lib/portal/family-actions";
+import { BellOff, Clock, Mail, Pencil, Phone, Trash2, UserPlus, Users } from "lucide-react";
+import {
+  addGuardian,
+  removeGuardian,
+  requestEmailChange,
+  updateFamilyGuardian,
+} from "@/lib/portal/family-actions";
 import { isPlaceholderEmail } from "@/lib/portal/emails";
 import {
   RELATIONSHIP_LABELS,
@@ -14,7 +19,14 @@ import {
 import type { PortalErrorCode } from "@/lib/portal/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Field, FormDialog, formText, useErrorText } from "@/components/portal/family/family-ui";
+import {
+  Field,
+  FormDialog,
+  PHONE_PATTERN,
+  RadioPills,
+  formText,
+  useErrorText,
+} from "@/components/portal/family/family-ui";
 
 function guardianName(guardian: Pick<FamilyGuardian, "first_name" | "last_name">) {
   return [guardian.first_name, guardian.last_name].filter(Boolean).join(" ");
@@ -50,22 +62,37 @@ function NameFields({ idPrefix, guardian }: { idPrefix: string; guardian?: Famil
           />
         </Field>
       </div>
-      <Field id={`${idPrefix}-phone`} label={t("phone")} optional>
+      <Field id={`${idPrefix}-phone`} label={t("phone")} hint={t("phoneHint")} optional>
         <Input
           id={`${idPrefix}-phone`}
           name="phone"
           type="tel"
           inputMode="tel"
           maxLength={40}
+          pattern={PHONE_PATTERN}
           autoComplete="off"
           defaultValue={guardian?.phone ?? ""}
+          aria-describedby={`${idPrefix}-phone-hint`}
         />
       </Field>
     </>
   );
 }
 
-function GuardianItem({ guardian }: { guardian: FamilyGuardian }) {
+function RelationshipField({ defaultValue }: { defaultValue: string }) {
+  const t = useTranslations("portal.family.guardians");
+  return (
+    <RadioPills
+      name="relationship"
+      legend={t("relationship")}
+      required
+      defaultValue={defaultValue}
+      options={RELATIONSHIP_LABELS.map((label) => ({ value: label, label: t(`relations.${label}`) }))}
+    />
+  );
+}
+
+function GuardianItem({ guardian, family }: { guardian: FamilyGuardian; family: PortalFamily }) {
   const t = useTranslations("portal.family");
   const locale = useLocale();
   const errorText = useErrorText();
@@ -94,6 +121,12 @@ function GuardianItem({ guardian }: { guardian: FamilyGuardian }) {
           ) : null}
         </p>
         {relation ? <p className="text-sm text-muted-foreground">{relation}</p> : null}
+        {!guardian.receives_communication ? (
+          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <BellOff aria-hidden="true" className="size-4" />
+            {t("guardians.noMessages")}
+          </p>
+        ) : null}
       </div>
       <dl className="grid gap-2 text-sm">
         <div className="flex items-center gap-2">
@@ -131,17 +164,35 @@ function GuardianItem({ guardian }: { guardian: FamilyGuardian }) {
           }
           title={t("guardians.editTitle", { name })}
           submitLabel={t("save")}
+          errorText={(code) => (code === "invalid" ? t("guardians.editInvalid") : errorText(code))}
           onSubmit={async (form) => {
-            const result = await updateGuardian(guardian.id, {
+            const result = await updateFamilyGuardian(family.id, guardian.id, {
               firstName: formText(form, "first_name"),
               lastName: formText(form, "last_name"),
               phone: formText(form, "phone"),
+              relationship: formText(form, "relationship"),
+              receivesCommunication: form.get("receives_communication") === "on",
             });
             if (result.ok) toast.success(t("guardians.saved"));
             return result;
           }}
         >
           <NameFields idPrefix={`${idPrefix}-edit`} guardian={guardian} />
+          <RelationshipField
+            defaultValue={isRelationship(guardian.relationship_label) ? guardian.relationship_label : "foresatt"}
+          />
+          <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-xl px-3 py-2.5 ring-1 ring-foreground/10 has-focus-visible:ring-3 has-focus-visible:ring-ring/50">
+            <input
+              type="checkbox"
+              name="receives_communication"
+              defaultChecked={guardian.receives_communication}
+              className="mt-0.5 size-4 shrink-0 accent-[var(--brand-green-dark)]"
+            />
+            <span className="grid gap-0.5">
+              <span className="text-sm font-medium">{t("guardians.receivesMessages")}</span>
+              <span className="text-sm text-muted-foreground">{t("guardians.receivesMessagesHint")}</span>
+            </span>
+          </label>
         </FormDialog>
         {guardian.is_me || !guardian.email || isPlaceholderEmail(guardian.email) ? (
           <FormDialog
@@ -178,6 +229,25 @@ function GuardianItem({ guardian }: { guardian: FamilyGuardian }) {
             </Field>
           </FormDialog>
         ) : null}
+        {!guardian.is_me && family.guardians.length > 1 ? (
+          <FormDialog
+            trigger={
+              <Button type="button" variant="ghost" aria-label={t("guardians.removeLabel", { name })}>
+                <Trash2 aria-hidden="true" />
+                {t("guardians.remove")}
+              </Button>
+            }
+            title={t("guardians.removeTitle", { name })}
+            description={t("guardians.removeIntro", { name })}
+            submitLabel={t("guardians.removeConfirm")}
+            destructive
+            onSubmit={async () => {
+              const result = await removeGuardian(family.id, guardian.id);
+              if (result.ok) toast.success(t("guardians.removed", { name }));
+              return result;
+            }}
+          />
+        ) : null}
       </div>
     </li>
   );
@@ -195,7 +265,7 @@ export function GuardianSection({ family }: { family: PortalFamily }) {
       </h3>
       <ul className="grid gap-3">
         {family.guardians.map((guardian) => (
-          <GuardianItem key={guardian.id} guardian={guardian} />
+          <GuardianItem key={guardian.id} guardian={guardian} family={family} />
         ))}
       </ul>
       <FormDialog
@@ -221,27 +291,7 @@ export function GuardianSection({ family }: { family: PortalFamily }) {
         }}
       >
         <NameFields idPrefix={`${idPrefix}-add`} />
-        <fieldset className="grid gap-2">
-          <legend className="mb-2 text-sm font-medium">{t("guardians.relationship")}</legend>
-          <div className="grid grid-cols-2 gap-2">
-            {RELATIONSHIP_LABELS.map((label) => (
-              <label
-                key={label}
-                className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-3 py-2 ring-1 ring-foreground/10 transition-colors has-checked:bg-primary/10 has-checked:ring-2 has-checked:ring-primary has-focus-visible:ring-3 has-focus-visible:ring-ring/50"
-              >
-                <input
-                  type="radio"
-                  name="relationship"
-                  value={label}
-                  required
-                  defaultChecked={label === "foresatt"}
-                  className="size-4 accent-[var(--brand-green-dark)]"
-                />
-                {t(`guardians.relations.${label}`)}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <RelationshipField defaultValue="foresatt" />
       </FormDialog>
     </section>
   );
