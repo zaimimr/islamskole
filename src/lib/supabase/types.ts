@@ -2222,6 +2222,36 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_login_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          phone: string
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          phone: string
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          phone?: string
+        }
+        Relationships: []
+      }
       student_applications: {
         Row: {
           child_address: string | null
@@ -2983,6 +3013,7 @@ export type Database = {
       }
       portal_teaches_lesson: { Args: { p_lesson_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
+      normalize_no_mobile: { Args: { p_phone: string }; Returns: string }
       portal_can_mark: {
         Args: { p_school_day_id: string; p_student_id: string }
         Returns: boolean
@@ -3194,6 +3225,21 @@ export type Database = {
       set_active_school_year: {
         Args: { p_school_year_id: string }
         Returns: undefined
+      }
+      sms_login_issue: {
+        Args: { p_code_hash: string; p_phone: string; p_ttl_seconds: number }
+        Returns: string
+      }
+      sms_login_lookup: {
+        Args: { p_phone: string }
+        Returns: {
+          email: string
+          source: string
+        }[]
+      }
+      sms_login_verify: {
+        Args: { p_code_hash: string; p_max_attempts: number; p_phone: string }
+        Returns: string
       }
       update_family_relationships: {
         Args: {

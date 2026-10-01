@@ -12,15 +12,9 @@ export async function findAuthUserId(email: string) {
   return data ?? null;
 }
 
-export async function sendLoginLink(input: {
-  email: string;
-  locale: "no" | "en";
-  next?: string;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
-  const email = input.email.trim().toLowerCase();
-  const site = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
-  if (!site) return { ok: false, error: "NEXT_PUBLIC_SITE_URL mangler" };
-
+export async function createLoginTokenHash(
+  email: string,
+): Promise<{ ok: true; tokenHash: string } | { ok: false; error: string }> {
   const admin = createAdminClient();
   const { error: createError } = await admin.auth.admin.createUser({
     email,
@@ -41,6 +35,21 @@ export async function sendLoginLink(input: {
     console.error("login link generateLink failed", linkError);
     return { ok: false, error: "Kunne ikke lage innloggingslenken. Prøv igjen." };
   }
+  return { ok: true, tokenHash };
+}
+
+export async function sendLoginLink(input: {
+  email: string;
+  locale: "no" | "en";
+  next?: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const email = input.email.trim().toLowerCase();
+  const site = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
+  if (!site) return { ok: false, error: "NEXT_PUBLIC_SITE_URL mangler" };
+
+  const token = await createLoginTokenHash(email);
+  if (!token.ok) return token;
+  const tokenHash = token.tokenHash;
 
   const url = new URL(`${site}${localePrefix(input.locale)}/min-side/auth/bekreft`);
   url.searchParams.set("token_hash", tokenHash);

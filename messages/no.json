@@ -659,7 +659,25 @@
       "sentTitle": "Sjekk e-posten din",
       "sent": "Hvis e-posten er registrert hos oss, får du en lenke i løpet av noen minutter. Sjekk også søppelposten.",
       "again": "Bruk en annen e-post",
-      "invalidLink": "Lenken er brukt eller utløpt. Be om en ny lenke under."
+      "invalidLink": "Lenken er brukt eller utløpt. Be om en ny lenke under.",
+      "introSms": "Logg inn med e-post eller mobilnummer. Vi sender deg en lenke eller en kode.",
+      "sms": {
+        "tabEmail": "E-post",
+        "tabSms": "SMS",
+        "phoneLabel": "Mobilnummer",
+        "phoneHint": "Norsk mobilnummer, for eksempel 912 34 567.",
+        "sendCode": "Send kode på SMS",
+        "sentTitle": "Sjekk SMS-ene dine",
+        "sent": "Hvis {phone} er registrert hos oss, får du en kode på SMS om litt. Koden gjelder i 10 minutter.",
+        "codeLabel": "Kode fra SMS",
+        "verify": "Logg inn",
+        "resend": "Send ny kode",
+        "otherNumber": "Bruk et annet nummer",
+        "invalidPhone": "Skriv et norsk mobilnummer med 8 siffer.",
+        "invalidCode": "Koden har 6 siffer.",
+        "wrongCode": "Koden er feil eller utløpt. Prøv igjen, eller be om en ny kode.",
+        "disabled": "Innlogging med SMS er ikke tilgjengelig nå. Bruk e-post i stedet."
+      }
     },
     "adminLink": "Administrasjon",
     "errors": {
