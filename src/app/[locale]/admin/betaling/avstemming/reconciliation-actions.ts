@@ -12,7 +12,7 @@ import {
   parseDnbRows,
   parseVippsRows,
 } from "@/lib/bank-statement";
-import { isZip, readXlsxRows } from "@/lib/xlsx-rows";
+import { isZip, readXlsxSheets } from "@/lib/xlsx-rows";
 import { importFromVipps, importTransactions, type ImportSummary } from "@/lib/reconciliation";
 import { registerFamilyPayment } from "../finance-actions";
 import { recordSadaqaGift, voidSadaqaGift } from "../sadaqa/sadaqa-actions";
@@ -133,10 +133,10 @@ export async function importStatementFile(formData: FormData): Promise<ImportRes
     return { ok: false, error: "Ugyldig Vippsnummer." };
   }
 
-  let rows: string[][];
+  let sheets: string[][][];
   try {
     const bytes = new Uint8Array(await file.arrayBuffer());
-    rows = isZip(bytes) ? readXlsxRows(bytes) : parseDelimited(decodeText(bytes));
+    sheets = isZip(bytes) ? readXlsxSheets(bytes) : [parseDelimited(decodeText(bytes))];
   } catch (error) {
     return {
       ok: false,
@@ -144,8 +144,13 @@ export async function importStatementFile(formData: FormData): Promise<ImportRes
     };
   }
 
-  const parsed =
-    source === "dnb" ? parseDnbRows(rows, account) : parseVippsRows(rows, account || null);
+  const parsed = sheets
+    .map((rows) =>
+      source === "dnb" ? parseDnbRows(rows, account) : parseVippsRows(rows, account || null),
+    )
+    .reduce((best, next) =>
+      next.transactions.length > best.transactions.length ? next : best,
+    );
   if (parsed.transactions.length === 0) {
     return {
       ok: false,

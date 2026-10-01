@@ -300,3 +300,43 @@ test("Vipps Report API items map to the same ids as portal exports", () => {
     null,
   );
 });
+
+test("vipps settlement report transaction sheet keeps captures and refunds per sales unit", () => {
+  const header = [
+    "Sales unit",
+    "MSN/Vipps number",
+    "Country",
+    "Payment solution",
+    "Time",
+    "Booking date",
+    "Type",
+    "Amount",
+    "Balance",
+    "Fee",
+    "Net amount",
+    "Currency",
+    "Customer name",
+    "Customer phone number",
+    "Message",
+    "Category",
+    "PSP reference",
+    "Order ID/Reference",
+  ];
+  const rows = [
+    header,
+    ["Islamskole Elevbetaling", "610090", "Norway", "Open amount", "2026-08-31 09:53:00", "2026-08-31", "Capture", "4000.00", "4000.00", "-70.00", "3930.00", "NOK", "Ola Nordmann", "+47 xxxx 8586", "Inaya, Aimen", "", "111", "222"],
+    ["Islamskole Elevbetaling", "610090", "Norway", "", "2026-09-01 00:10:00", "2026-08-31", "Fees retained", "-70.00", "3930.00", "", "", "NOK", "", "", "", "", "21630-20260831", ""],
+    ["Islamskole Elevbetaling", "610090", "Norway", "", "2026-09-01 00:10:00", "2026-08-31", "Payout scheduled", "-3930.00", "0.00", "", "", "NOK", "", "", "", "", "21630-2000400", "Utb. 2000400 Vippsnr 610090"],
+    ["Islamskole web", "1111805", "Norway", "Recurring", "2026-08-22 15:54:00", "2026-08-22", "Refund", "-10000.00", "0.00", "", "", "NOK", "", "", "", "", "333", "444"],
+  ];
+  const result = parseVippsRows(rows, null);
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.skipped, 2);
+  assert.deepEqual(
+    result.transactions.map((t) => [t.account, t.entryType, t.amount, t.counterpartyPhone, t.reference]),
+    [
+      ["610090", "capture", 400000, "+47 xxxx 8586", "222"],
+      ["1111805", "refund", -1000000, null, "444"],
+    ],
+  );
+});

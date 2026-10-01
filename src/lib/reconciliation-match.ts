@@ -2,11 +2,11 @@ export type ReconciliationStatus = "ny" | "matchet" | "sadaqa" | "familie" | "ig
 
 export const DEFAULT_VIPPS_REPORT_MSNS = ["60206", "1111805"];
 export const DONATIONS_API_MSN = "60206";
-export const DONATION_MSNS = ["60206", "610088"];
+export const DONATION_MSNS = ["60206", "24279"];
 
 export const vippsAccountLabels: Record<string, string> = {
   "60206": "Islamskole donasjon",
-  "610088": "Islamskole Sadaqah Bidrag",
+  "24279": "Islamskole Sadaqah Bidrag",
   "610090": "Islamskole Elevbetaling",
   "1111805": "Islamskole web",
 };

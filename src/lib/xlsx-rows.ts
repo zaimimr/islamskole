@@ -68,15 +68,17 @@ function columnIndex(ref: string): number {
 }
 
 export function readXlsxRows(bytes: Uint8Array): string[][] {
+  return readXlsxSheets(bytes)[0];
+}
+
+export function readXlsxSheets(bytes: Uint8Array): string[][][] {
   const buffer = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const entries = readEntries(buffer);
   const byName = new Map(entries.map((entry) => [entry.name, entry]));
-  const sheet =
-    byName.get("xl/worksheets/sheet1.xml") ??
-    entries
-      .filter((entry) => /^xl\/worksheets\/sheet\d+\.xml$/.test(entry.name))
-      .sort((a, b) => a.name.localeCompare(b.name, "en", { numeric: true }))[0];
-  if (!sheet) throw new Error("Fant ikke noe ark i Excel-filen.");
+  const sheets = entries
+    .filter((entry) => /^xl\/worksheets\/sheet\d+\.xml$/.test(entry.name))
+    .sort((a, b) => a.name.localeCompare(b.name, "en", { numeric: true }));
+  if (sheets.length === 0) throw new Error("Fant ikke noe ark i Excel-filen.");
 
   const sharedEntry = byName.get("xl/sharedStrings.xml");
   const shared = sharedEntry
@@ -85,8 +87,11 @@ export function readXlsxRows(bytes: Uint8Array): string[][] {
       )
     : [];
 
+  return sheets.map((sheet) => sheetRows(readEntry(buffer, sheet), shared));
+}
+
+function sheetRows(sheetXml: string, shared: string[]): string[][] {
   const rows: string[][] = [];
-  const sheetXml = readEntry(buffer, sheet);
   for (const rowMatch of sheetXml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)) {
     const row: string[] = [];
     let next = 0;

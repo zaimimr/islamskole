@@ -3,7 +3,7 @@ import { HeartHandshakeIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const VIPPS_DONATION_URL = "https://qr.vipps.no/donations/60206";
-export const VIPPS_NUMBER = "24279";
+export const VIPPS_NUMBER = "60206";
 export const DONATION_EMAIL = "donasjon@islamskole.no";
 
 export async function VippsDonateButton({
