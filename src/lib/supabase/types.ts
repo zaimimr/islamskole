@@ -2297,6 +2297,7 @@ export type Database = {
           expires_at: string
           id: string
           phone: string
+          user_id: string | null
         }
         Insert: {
           attempts?: number
@@ -2306,6 +2307,7 @@ export type Database = {
           expires_at: string
           id?: string
           phone: string
+          user_id?: string | null
         }
         Update: {
           attempts?: number
@@ -2315,6 +2317,25 @@ export type Database = {
           expires_at?: string
           id?: string
           phone?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      sms_login_phones: {
+        Row: {
+          phone: string
+          user_id: string
+          verified_at: string
+        }
+        Insert: {
+          phone: string
+          user_id: string
+          verified_at?: string
+        }
+        Update: {
+          phone?: string
+          user_id?: string
+          verified_at?: string
         }
         Relationships: []
       }
@@ -3373,18 +3394,31 @@ export type Database = {
         Returns: undefined
       }
       sms_login_issue: {
-        Args: { p_code_hash: string; p_phone: string; p_ttl_seconds: number }
+        Args: {
+          p_code_hash: string
+          p_phone: string
+          p_ttl_seconds: number
+          p_user_id?: string
+        }
         Returns: string
       }
-      sms_login_lookup: {
-        Args: { p_phone: string }
-        Returns: {
-          email: string
-          source: string
-        }[]
+      sms_login_link_phone: {
+        Args: {
+          p_code_hash: string
+          p_max_attempts: number
+          p_phone: string
+          p_user_id: string
+        }
+        Returns: string
       }
+      sms_login_lookup: { Args: { p_phone: string }; Returns: string }
       sms_login_verify: {
-        Args: { p_code_hash: string; p_max_attempts: number; p_phone: string }
+        Args: {
+          p_code_hash: string
+          p_max_attempts: number
+          p_phone: string
+          p_user_id?: string
+        }
         Returns: string
       }
       update_family_relationships: {

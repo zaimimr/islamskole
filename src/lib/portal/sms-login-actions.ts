@@ -7,6 +7,7 @@ import { after } from "next/server";
 import { resolvePostLoginPath } from "@/lib/auth-redirect";
 import { createLoginTokenHash } from "@/lib/login-link";
 import { sendSms, smsEnabled } from "@/lib/sms";
+import { allowSmsHit, allowSmsSend, smsPepper } from "@/lib/sms-login-server";
 import {
   SMS_CODE_MAX_ATTEMPTS,
   SMS_CODE_TTL_SECONDS,
@@ -23,25 +24,8 @@ const MIN_FILL_MS = 2_000;
 export type SmsLoginError = "invalid" | "rate_limited" | "disabled" | "wrong_code" | "unknown";
 export type SmsLoginResult = { ok: true } | { ok: false; error: SmsLoginError };
 
-function pepper() {
-  return process.env.SMS_CODE_PEPPER || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-}
-
 async function clientIp() {
   return (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-}
-
-async function allowHit(key: string, limit: number, windowSeconds: number) {
-  const { data, error } = await createAdminClient().rpc("portal_login_hit", {
-    p_key: key,
-    p_limit: limit,
-    p_window_seconds: windowSeconds,
-  });
-  if (error) {
-    console.error("sms login throttle failed", error);
-    return false;
-  }
-  return data === true;
 }
 
 async function loginEmailForPhone(phone: string) {
@@ -50,7 +34,7 @@ async function loginEmailForPhone(phone: string) {
     console.error("sms login lookup failed", error);
     return null;
   }
-  return data?.[0]?.email ?? null;
+  return data ?? null;
 }
 
 function codeMessage(code: string, locale: "no" | "en") {
@@ -61,16 +45,12 @@ function codeMessage(code: string, locale: "no" | "en") {
 
 async function deliverCode(phone: string, locale: "no" | "en") {
   try {
-    if (!(await allowHit(`sms-phone:${phone}`, 3, 600))) return;
     if (!(await loginEmailForPhone(phone))) return;
-    if (!(await allowHit("global:sms", 40, 3600))) {
-      console.error("sms login global limit reached");
-      return;
-    }
+    if (!(await allowSmsSend(phone))) return;
     const code = generateLoginCode();
     const { error } = await createAdminClient().rpc("sms_login_issue", {
       p_phone: phone,
-      p_code_hash: hashLoginCode(phone, code, pepper()),
+      p_code_hash: hashLoginCode(phone, code, smsPepper()),
       p_ttl_seconds: SMS_CODE_TTL_SECONDS,
     });
     if (error) {
@@ -84,9 +64,9 @@ async function deliverCode(phone: string, locale: "no" | "en") {
 }
 
 export async function requestSmsLoginCode(formData: FormData): Promise<SmsLoginResult> {
-  if (!smsEnabled() || !pepper()) return { ok: false, error: "disabled" };
+  if (!smsEnabled() || !smsPepper()) return { ok: false, error: "disabled" };
   const ip = await clientIp();
-  if (!(await allowHit(`sms-ip:${ip}`, 5, 60))) return { ok: false, error: "rate_limited" };
+  if (!(await allowSmsHit(`sms-ip:${ip}`, 5, 60))) return { ok: false, error: "rate_limited" };
 
   if (String(formData.get("hp_field_t") ?? "").trim()) return { ok: true };
   const loadedAt = Number(formData.get("loaded_at"));
@@ -101,18 +81,21 @@ export async function requestSmsLoginCode(formData: FormData): Promise<SmsLoginR
 }
 
 export async function verifySmsLoginCode(formData: FormData): Promise<SmsLoginResult> {
-  if (!smsEnabled() || !pepper()) return { ok: false, error: "disabled" };
+  if (!smsEnabled() || !smsPepper()) return { ok: false, error: "disabled" };
   const ip = await clientIp();
-  if (!(await allowHit(`sms-verify-ip:${ip}`, 20, 600))) return { ok: false, error: "rate_limited" };
+  if (!(await allowSmsHit(`sms-verify-ip:${ip}`, 20, 600))) return { ok: false, error: "rate_limited" };
 
   const phone = normalizeNorwegianMobile(String(formData.get("phone") ?? ""));
   const code = String(formData.get("code") ?? "").replace(/\s/g, "");
   if (!phone || !isLoginCode(code)) return { ok: false, error: "invalid" };
+  if (!(await allowSmsHit(`sms-verify-phone:${phone}`, 10, 86_400))) {
+    return { ok: false, error: "rate_limited" };
+  }
 
   const admin = createAdminClient();
   const { data: status, error } = await admin.rpc("sms_login_verify", {
     p_phone: phone,
-    p_code_hash: hashLoginCode(phone, code, pepper()),
+    p_code_hash: hashLoginCode(phone, code, smsPepper()),
     p_max_attempts: SMS_CODE_MAX_ATTEMPTS,
   });
   if (error) {

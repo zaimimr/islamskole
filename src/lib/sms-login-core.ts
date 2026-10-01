@@ -21,3 +21,7 @@ export function generateLoginCode(): string {
 export function hashLoginCode(phone: string, code: string, pepper: string): string {
   return createHmac("sha256", pepper).update(`${phone}:${code}`).digest("hex");
 }
+
+export function formatNorwegianMobile(phone: string): string {
+  return phone.replace(/^\+47(\d{3})(\d{2})(\d{3})$/, "+47 $1 $2 $3");
+}

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  formatNorwegianMobile,
   generateLoginCode,
   hashLoginCode,
   isLoginCode,
@@ -64,4 +65,9 @@ test("hashLoginCode is stable, peppered and bound to the phone", () => {
   assert.notEqual(hash, hashLoginCode("+4791234568", "123456", "pepper"));
   assert.notEqual(hash, hashLoginCode("+4791234567", "123456", "other"));
   assert.ok(!hash.includes("123456"));
+});
+
+test("formatNorwegianMobile groups a normalized number for display", () => {
+  assert.equal(formatNorwegianMobile("+4791234567"), "+47 912 34 567");
+  assert.equal(formatNorwegianMobile("12345"), "12345");
 });
