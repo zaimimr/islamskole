@@ -48,6 +48,10 @@ export type PortalSelfNote = {
   date: string;
   homework: string | null;
   summary: string | null;
+  lesson_id: string | null;
+  subject: string | null;
+  start_position: number | null;
+  end_position: number | null;
 };
 
 export type PortalSelf = {
@@ -63,7 +67,7 @@ export type PortalSelf = {
   school_year_label: string | null;
   teachers: PortalPerson[];
   notes: PortalSelfNote[];
-  attendance: { date: string; status: AttendanceStatus }[];
+  attendance: { date: string; status: AttendanceStatus; lesson_id: string | null }[];
 };
 
 export type PortalClass = {
@@ -119,6 +123,10 @@ export type PortalClassNote = {
   id: string;
   class_id: string;
   school_day_id: string;
+  lesson_id: string;
+  subject: string | null;
+  start_position: number | null;
+  end_position: number | null;
   date: string | null;
   homework: string | null;
   summary: string | null;
@@ -140,9 +148,39 @@ export type PortalAbsenceReport = {
 export type PortalAttendance = {
   student_id: string;
   school_day_id: string;
+  lesson_id: string | null;
   date: string | null;
   status: AttendanceStatus;
   marked_at: string;
+};
+
+export type PortalLesson = {
+  lesson_id: string;
+  school_day_id: string;
+  date: string;
+  class_id: string;
+  class_name_no: string;
+  class_name_en: string;
+  start_position: number;
+  end_position: number;
+  start_label: string | null;
+  end_label: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  subject: string | null;
+  teacher_guardian_id: string | null;
+  teacher_first_name: string | null;
+  teacher_last_name: string | null;
+  is_substitute: boolean;
+  cancelled: boolean;
+  is_mine: boolean;
+};
+
+export type PortalTimeSlot = {
+  position: number;
+  label: string;
+  starts_at: string;
+  ends_at: string;
 };
 
 export type PortalErrorCode =

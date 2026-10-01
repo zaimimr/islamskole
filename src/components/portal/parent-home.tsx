@@ -86,18 +86,27 @@ export async function ParentHome({ locale }: { locale: string }) {
         ) : null}
 
         <div className="lg:hidden">
-          <NextDay locale={locale} today={data.today} upcoming={data.schoolDays.upcoming} rows={rows} />
+          <NextDay
+            locale={locale}
+            today={data.today}
+            upcoming={data.schoolDays.upcoming}
+            rows={rows}
+            lessons={data.lessons}
+            slots={data.slots}
+          />
         </div>
 
         <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
           {data.children.map((child) => {
-            const note = data.notesByClass.get(child.class_id)?.[0] ?? null;
+            const classNotes = data.notesByClass.get(child.class_id) ?? [];
+            const note = classNotes[0] ?? null;
             return (
               <ChildCard
                 key={`${child.student_id}-${child.class_id}`}
                 child={child}
                 locale={locale}
-                note={note}
+                notes={classNotes.filter((row) => row.date === note?.date)}
+                slots={data.slots}
                 noteIsRecent={Boolean(note?.date && note.date >= recentFrom)}
                 attendance={summarizeAttendance(data.attendance, child.student_id, { from, to }, data.today)}
                 term={term}
@@ -109,7 +118,14 @@ export async function ParentHome({ locale }: { locale: string }) {
 
       <aside className="grid gap-8 lg:sticky lg:top-36">
         <div className="hidden lg:block">
-          <NextDay locale={locale} today={data.today} upcoming={data.schoolDays.upcoming} rows={rows} />
+          <NextDay
+            locale={locale}
+            today={data.today}
+            upcoming={data.schoolDays.upcoming}
+            rows={rows}
+            lessons={data.lessons}
+            slots={data.slots}
+          />
         </div>
 
         <nav aria-label={tHome("tiles.label")}>

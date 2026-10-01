@@ -271,7 +271,7 @@ select lives_ok(
 
 insert into public.class_notes (class_id, school_day_id, homework)
 values ('d7000000-0000-0000-0000-0000000000c2', 'd7000000-0000-0000-0000-0000000000d2', 'ZZTEST admin endret')
-on conflict (class_id, school_day_id) do update set homework = excluded.homework;
+on conflict (lesson_id) do update set homework = excluded.homework;
 
 select is(
   (select homework from public.class_notes where class_id = 'd7000000-0000-0000-0000-0000000000c2' and school_day_id = 'd7000000-0000-0000-0000-0000000000d2'),
@@ -281,7 +281,7 @@ select is(
 
 insert into public.attendance (student_id, school_day_id, status)
 values ('d7000000-0000-0000-0000-000000000053', 'd7000000-0000-0000-0000-0000000000d4', 'til_stede')
-on conflict (student_id, school_day_id) do update set status = excluded.status;
+on conflict (student_id, lesson_id) do update set status = excluded.status;
 
 select is(
   (select status::text from public.attendance where student_id = 'd7000000-0000-0000-0000-000000000053' and school_day_id = 'd7000000-0000-0000-0000-0000000000d4'),

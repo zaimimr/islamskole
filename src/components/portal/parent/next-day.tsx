@@ -2,8 +2,9 @@ import { getTranslations } from "next-intl/server";
 import { CalendarDays, CalendarOff } from "lucide-react";
 import { ChildAbsence } from "@/components/portal/parent/child-absence";
 import { childName } from "@/components/portal/parent/child-card";
+import { ChildLessons } from "@/components/portal/parent/child-lessons";
 import { formatPortalDay } from "@/lib/portal/parent-format";
-import type { PortalChild, PortalSchoolDay } from "@/lib/portal/types";
+import type { PortalChild, PortalLesson, PortalSchoolDay, PortalTimeSlot } from "@/lib/portal/types";
 
 type AbsenceOptions = {
   days: { id: string; label: string; reported: boolean }[];
@@ -21,11 +22,15 @@ export async function NextDay({
   today,
   upcoming,
   rows,
+  lessons,
+  slots,
 }: {
   locale: string;
   today: string;
   upcoming: PortalSchoolDay[];
   rows: { child: PortalChild; options: AbsenceOptions }[];
+  lessons: PortalLesson[];
+  slots: PortalTimeSlot[];
 }) {
   const t = await getTranslations({ locale, namespace: "portal.home.next" });
   const first = upcoming[0] ?? null;
@@ -90,6 +95,13 @@ export async function NextDay({
                     {reported ? t("reported") : t("expected")}
                   </span>
                 </p>
+                <ChildLessons
+                  lessons={lessons.filter(
+                    (lesson) => lesson.class_id === child.class_id && lesson.school_day_id === open.id,
+                  )}
+                  slots={slots}
+                  locale={locale}
+                />
                 <ChildAbsence
                   studentId={child.student_id}
                   classId={child.class_id}

@@ -1,8 +1,9 @@
 import { getTranslations } from "next-intl/server";
 import { ChevronRight, ClipboardCheck, NotebookPen, Wallet } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { lessonTitle } from "@/lib/lessons";
 import { formatNok } from "@/lib/money";
-import type { PortalChild, PortalClassNote } from "@/lib/portal/types";
+import type { PortalChild, PortalClassNote, PortalTimeSlot } from "@/lib/portal/types";
 import { formatPortalDay, type PortalTerm } from "@/lib/portal/parent-format";
 
 export function childName(child: Pick<PortalChild, "first_name" | "last_name">) {
@@ -41,17 +42,33 @@ export function ClassNoteBody({
   );
 }
 
+export function noteLessonLabel(
+  note: Pick<PortalClassNote, "start_position" | "end_position" | "subject">,
+  slots: PortalTimeSlot[],
+  wholeDayLabel: string,
+): string | null {
+  if (note.start_position === null || note.end_position === null) return null;
+  const title = lessonTitle(
+    { start_position: note.start_position, end_position: note.end_position, subject: note.subject },
+    slots,
+    wholeDayLabel,
+  );
+  return title === wholeDayLabel ? null : title;
+}
+
 export async function ChildCard({
   child,
   locale,
-  note,
+  notes,
+  slots,
   noteIsRecent,
   attendance,
   term,
 }: {
   child: PortalChild;
   locale: string;
-  note: PortalClassNote | null;
+  notes: PortalClassNote[];
+  slots: PortalTimeSlot[];
   noteIsRecent: boolean;
   attendance: { absent: number; late: number; present: number };
   term: PortalTerm;
@@ -62,6 +79,8 @@ export async function ChildCard({
   const teachers = joinNames(child.teachers, locale);
   const termLabel = t(`term.${term}`);
   const remaining = child.remaining_ore;
+  const note = notes[0] ?? null;
+  const written = notes.filter((row) => row.homework || row.summary);
 
   return (
     <article
@@ -97,11 +116,21 @@ export async function ChildCard({
               </p>
             ) : null}
           </div>
-          {note && (note.homework || note.summary) ? (
-            <ClassNoteBody
-              note={note}
-              labels={{ homework: t("note.homework"), summary: t("note.summary") }}
-            />
+          {written.length ? (
+            <div className="grid gap-4">
+              {written.map((row) => {
+                const label = noteLessonLabel(row, slots, t("lessons.wholeDay"));
+                return (
+                  <div key={row.id} className="grid gap-2">
+                    {label ? <p className="font-semibold">{label}</p> : null}
+                    <ClassNoteBody
+                      note={row}
+                      labels={{ homework: t("note.homework"), summary: t("note.summary") }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           ) : (
             <p className="text-pretty text-muted-foreground">{t("note.empty")}</p>
           )}

@@ -8,15 +8,21 @@ import { AttendanceRoster } from "@/components/portal/teacher/attendance-roster"
 import { ClassNoteEditor } from "@/components/portal/teacher/class-note-editor";
 import { DaySwitcher } from "@/components/portal/teacher/day-switcher";
 import { EndSubstituteButton } from "@/components/portal/teacher/end-substitute-button";
+import { LessonTabs } from "@/components/portal/teacher/lesson-tabs";
 import { osloToday } from "@/lib/dates";
+import { lessonTitle } from "@/lib/lessons";
 import {
   getClassForAdmin,
+  getClassForLessonTeacher,
   getClassNotes,
-  getClassRoster,
+  getLessonRoster,
+  getLessons,
   getMyClasses,
   getPortalContext,
   getSchoolDays,
+  getTimeSlots,
 } from "@/lib/portal/data";
+import { lessonView } from "@/lib/portal/lesson-view";
 import {
   allSchoolDays,
   capitalize,
@@ -24,7 +30,7 @@ import {
   formatSavedAt,
   formatSchoolDay,
 } from "@/lib/portal/teacher-days";
-import { getClassNoteForDay } from "@/lib/portal/teacher-notes";
+import { getLessonNote } from "@/lib/portal/teacher-notes";
 
 const backLinkClass =
   "inline-flex min-h-11 w-fit items-center gap-1.5 rounded-lg pr-2 text-sm font-semibold text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -43,30 +49,56 @@ export default async function TeacherClassPage({
   ]);
   if (!context.user) redirect({ href: "/min-side/logg-inn", locale });
 
+  const lessonAccess = classes.some((row) => row.class_id === classId)
+    ? null
+    : await getClassForLessonTeacher(classId);
   const current =
     classes.find((row) => row.class_id === classId) ??
+    lessonAccess?.portalClass ??
     (context.isAdmin ? await getClassForAdmin(classId) : null);
   if (!current) notFound();
 
-  const days = await getSchoolDays(current.school_year_id);
-  const list = allSchoolDays(days);
+  const [days, slots] = await Promise.all([
+    getSchoolDays(current.school_year_id),
+    getTimeSlots(current.school_year_id),
+  ]);
+  const scoped = lessonAccess
+    ? {
+        ...days,
+        upcoming: days.upcoming.filter((item) => lessonAccess.dayIds.has(item.id)),
+        past: days.past.filter((item) => lessonAccess.dayIds.has(item.id)),
+      }
+    : days;
+  const list = allSchoolDays(scoped);
   const requested = typeof query.dag === "string" ? list.find((day) => day.id === query.dag) : undefined;
-  const day = requested ?? defaultSchoolDay(days);
+  const day = requested ?? defaultSchoolDay(scoped);
   const today = osloToday();
   const className = locale === "en" ? current.name_en : current.name_no;
+  const wholeDay = t("lessons.wholeDay");
 
-  const [roster, note, notes] = day
-    ? await Promise.all([
-        getClassRoster(classId, day.id),
-        getClassNoteForDay(classId, day.id),
-        getClassNotes(classId, 6, day.date),
-      ])
-    : [[], null, await getClassNotes(classId, 5, today)];
+  const lessons = day ? (await getLessons([day.id])).filter((row) => row.class_id === classId) : [];
+  const lesson =
+    lessons.find((row) => row.lesson_id === query.time) ??
+    lessons.find((row) => row.is_mine && !row.cancelled) ??
+    lessons.find((row) => !row.cancelled) ??
+    lessons[0] ??
+    null;
+
+  const [roster, note, notes] = await Promise.all([
+    lesson ? getLessonRoster(lesson.lesson_id, current.school_year_label) : Promise.resolve([]),
+    lesson ? getLessonNote(lesson.lesson_id) : Promise.resolve(null),
+    getClassNotes(classId, 12, day?.date ?? today),
+  ]);
   const previousNotes = notes
     .filter((row) => !day || (row.date !== null && row.date < day.date))
     .slice(0, 5);
   const isFuture = day ? day.date > today : false;
-  const markable = day ? !day.cancelled && !isFuture : false;
+  const markable = day && lesson ? !day.cancelled && !lesson.cancelled && !isFuture : false;
+  const showTabs = lessons.some((row) => lessonTitle(row, slots, wholeDay) !== wholeDay);
+  const noteLesson = (row: (typeof previousNotes)[number]) =>
+    row.start_position !== null && row.end_position !== null
+      ? lessonTitle({ start_position: row.start_position, end_position: row.end_position, subject: row.subject }, slots, wholeDay)
+      : wholeDay;
 
   return (
     <div className="grid gap-8">
@@ -91,7 +123,7 @@ export default async function TeacherClassPage({
         <div className="grid gap-1">
           <h1 className="text-3xl font-bold text-balance">{className}</h1>
           <p className="text-muted-foreground">
-            {t("students", { count: current.student_count })} · {current.school_year_label}
+            {t("students", { count: current.student_count || roster.length })} · {current.school_year_label}
           </p>
         </div>
         {current.substitute_until ? (
@@ -138,12 +170,32 @@ export default async function TeacherClassPage({
                 ) : null}
               </div>
 
-              <section aria-labelledby="attendance-title" className="grid gap-3">
-                <h2 id="attendance-title" className="text-2xl font-bold">
-                  {t("roster.title")}
-                </h2>
-                <AttendanceRoster key={day.id} rows={roster} schoolDayId={day.id} markable={markable} />
-              </section>
+              {showTabs ? (
+                <LessonTabs
+                  classId={classId}
+                  dayId={day.id}
+                  selectedId={lesson?.lesson_id ?? ""}
+                  lessons={lessons.map((row) => lessonView(row, slots, wholeDay))}
+                />
+              ) : null}
+
+              {lesson?.cancelled && !day.cancelled ? (
+                <p role="status" className="flex gap-2 rounded-xl bg-secondary p-3 text-sm text-secondary-foreground">
+                  <CalendarX aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                  <span className="font-semibold">{t("lessons.cancelledNotice")}</span>
+                </p>
+              ) : null}
+
+              {lesson ? (
+                <section aria-labelledby="attendance-title" className="grid gap-3">
+                  <h2 id="attendance-title" className="text-2xl font-bold">
+                    {t("roster.title")}
+                  </h2>
+                  <AttendanceRoster key={lesson.lesson_id} rows={roster} lessonId={lesson.lesson_id} markable={markable} />
+                </section>
+              ) : (
+                <p className="rounded-2xl bg-card p-5 text-muted-foreground ring-1 ring-foreground/8">{t("lessons.none")}</p>
+              )}
             </>
           ) : (
             <p className="rounded-2xl bg-card p-5 text-muted-foreground ring-1 ring-foreground/8">{t("noDays")}</p>
@@ -151,22 +203,23 @@ export default async function TeacherClassPage({
         </div>
 
         <aside className="grid gap-8 lg:sticky lg:top-24">
-          {day ? (
+          {day && lesson ? (
             <section aria-labelledby="note-title" className="grid gap-3">
               <div className="grid gap-1">
                 <h2 id="note-title" className="text-2xl font-bold">
                   {t("note.title")}
                 </h2>
-                <p className="text-sm text-muted-foreground">{t("note.intro")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {lessonTitle(lesson, slots, wholeDay)} · {t("note.intro")}
+                </p>
               </div>
               <ClassNoteEditor
-                key={day.id}
-                classId={classId}
-                schoolDayId={day.id}
+                key={lesson.lesson_id}
+                lessonId={lesson.lesson_id}
                 initialHomework={note?.homework ?? ""}
                 initialSummary={note?.summary ?? ""}
                 savedLabel={note?.updated_at ? formatSavedAt(note.updated_at, locale) : null}
-                disabled={day.cancelled}
+                disabled={day.cancelled || lesson.cancelled}
               />
             </section>
           ) : null}
@@ -180,11 +233,14 @@ export default async function TeacherClassPage({
                 {previousNotes.map((row) => (
                   <li key={row.id}>
                     <Link
-                      href={`/min-side/klasse/${classId}?dag=${row.school_day_id}`}
+                      href={`/min-side/klasse/${classId}?dag=${row.school_day_id}&time=${row.lesson_id}`}
                       className="grid gap-2 p-4 outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
                     >
                       <p className="font-semibold">
                         {row.date ? capitalize(formatSchoolDay(row.date, locale)) : null}
+                        {noteLesson(row) !== wholeDay ? (
+                          <span className="font-normal text-muted-foreground"> · {noteLesson(row)}</span>
+                        ) : null}
                       </p>
                       {row.homework ? (
                         <p className="text-sm">

@@ -95,6 +95,8 @@ export type Database = {
       }
       attendance: {
         Row: {
+          id: string
+          lesson_id: string | null
           marked_at: string
           marked_by: string | null
           school_day_id: string
@@ -102,6 +104,8 @@ export type Database = {
           student_id: string
         }
         Insert: {
+          id?: string
+          lesson_id?: string | null
           marked_at?: string
           marked_by?: string | null
           school_day_id: string
@@ -109,6 +113,8 @@ export type Database = {
           student_id: string
         }
         Update: {
+          id?: string
+          lesson_id?: string | null
           marked_at?: string
           marked_by?: string | null
           school_day_id?: string
@@ -116,6 +122,13 @@ export type Database = {
           student_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "attendance_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "attendance_school_day_id_fkey"
             columns: ["school_day_id"]
@@ -172,6 +185,7 @@ export type Database = {
           created_at: string
           homework: string | null
           id: string
+          lesson_id: string
           school_day_id: string
           summary: string | null
           updated_at: string
@@ -182,6 +196,7 @@ export type Database = {
           created_at?: string
           homework?: string | null
           id?: string
+          lesson_id?: string
           school_day_id: string
           summary?: string | null
           updated_at?: string
@@ -192,11 +207,19 @@ export type Database = {
           created_at?: string
           homework?: string | null
           id?: string
+          lesson_id?: string
           school_day_id?: string
           summary?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "class_notes_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "class_notes_author_guardian_id_fkey"
             columns: ["author_guardian_id"]
@@ -223,6 +246,64 @@ export type Database = {
             columns: ["school_day_id"]
             isOneToOne: false
             referencedRelation: "school_days"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      class_slot_plans: {
+        Row: {
+          class_id: string
+          created_at: string
+          end_position: number
+          id: string
+          school_year_id: string
+          start_position: number
+          subject: string | null
+          teacher_guardian_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          end_position: number
+          id?: string
+          school_year_id: string
+          start_position: number
+          subject?: string | null
+          teacher_guardian_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          end_position?: number
+          id?: string
+          school_year_id?: string
+          start_position?: number
+          subject?: string | null
+          teacher_guardian_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_slot_plans_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_slot_plans_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_slot_plans_teacher_guardian_id_fkey"
+            columns: ["teacher_guardian_id"]
+            isOneToOne: false
+            referencedRelation: "guardians"
             referencedColumns: ["id"]
           },
         ]
@@ -778,6 +859,86 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      lessons: {
+        Row: {
+          cancelled: boolean
+          class_id: string
+          created_at: string
+          end_position: number
+          id: string
+          is_override: boolean
+          is_substitute: boolean
+          note: string | null
+          plan_id: string | null
+          school_day_id: string
+          start_position: number
+          subject: string | null
+          teacher_guardian_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          cancelled?: boolean
+          class_id: string
+          created_at?: string
+          end_position: number
+          id?: string
+          is_override?: boolean
+          is_substitute?: boolean
+          note?: string | null
+          plan_id?: string | null
+          school_day_id: string
+          start_position: number
+          subject?: string | null
+          teacher_guardian_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cancelled?: boolean
+          class_id?: string
+          created_at?: string
+          end_position?: number
+          id?: string
+          is_override?: boolean
+          is_substitute?: boolean
+          note?: string | null
+          plan_id?: string | null
+          school_day_id?: string
+          start_position?: number
+          subject?: string | null
+          teacher_guardian_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lessons_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lessons_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "class_slot_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lessons_school_day_id_fkey"
+            columns: ["school_day_id"]
+            isOneToOne: false
+            referencedRelation: "school_days"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lessons_teacher_guardian_id_fkey"
+            columns: ["teacher_guardian_id"]
+            isOneToOne: false
+            referencedRelation: "guardians"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       installments: {
         Row: {
@@ -1646,6 +1807,47 @@ export type Database = {
           },
         ]
       }
+      school_time_slots: {
+        Row: {
+          created_at: string
+          ends_at: string
+          id: string
+          label: string
+          position: number
+          school_year_id: string
+          starts_at: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          id?: string
+          label: string
+          position: number
+          school_year_id: string
+          starts_at: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          id?: string
+          label?: string
+          position?: number
+          school_year_id?: string
+          starts_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_time_slots_school_year_id_fkey"
+            columns: ["school_year_id"]
+            isOneToOne: false
+            referencedRelation: "school_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_years: {
         Row: {
           created_at: string
@@ -2404,6 +2606,114 @@ export type Database = {
         Args: { p_school_year_id: string }
         Returns: number
       }
+      admin_merge_lessons: {
+        Args: { p_lesson_id: string; p_other_lesson_id: string }
+        Returns: undefined
+      }
+      admin_reset_day_lessons: {
+        Args: { p_class_id: string; p_school_day_id: string }
+        Returns: number
+      }
+      admin_save_class_slot_plans: {
+        Args: { p_class_id: string; p_plans: Json; p_school_year_id: string }
+        Returns: number
+      }
+      admin_save_time_slots: {
+        Args: { p_school_year_id: string; p_slots: Json }
+        Returns: number
+      }
+      admin_split_lesson: { Args: { p_lesson_id: string }; Returns: number }
+      admin_update_lesson: {
+        Args: {
+          p_cancelled: boolean
+          p_lesson_id: string
+          p_note: string | null
+          p_subject: string | null
+          p_teacher_guardian_id: string | null
+        }
+        Returns: undefined
+      }
+      ensure_lessons: { Args: { p_school_day_id: string }; Returns: number }
+      ensure_year_lessons: {
+        Args: { p_school_year_id: string }
+        Returns: number
+      }
+      portal_can_mark_lesson: {
+        Args: { p_lesson_id: string; p_student_id: string }
+        Returns: boolean
+      }
+      portal_can_read_lesson: { Args: { p_lesson_id: string }; Returns: boolean }
+      portal_can_write_lesson_attendance: {
+        Args: { p_lesson_id: string; p_student_id: string }
+        Returns: boolean
+      }
+      portal_lesson_roster: {
+        Args: { p_lesson_id: string }
+        Returns: {
+          absence_reason: string
+          absence_report_id: string
+          attendance_marked_at: string
+          attendance_status: string
+          birth_date: string
+          first_name: string
+          allergies: string | null
+          guardians: Json
+          last_name: string
+          medical_notes: string | null
+          photo_consent: boolean | null
+          pickup: Json
+          student_id: string
+        }[]
+      }
+      portal_lessons: {
+        Args: { p_school_day_ids: string[] }
+        Returns: {
+          lesson_id: string
+          school_day_id: string
+          date: string
+          class_id: string
+          class_name_no: string
+          class_name_en: string
+          start_position: number
+          end_position: number
+          start_label: string | null
+          end_label: string | null
+          starts_at: string | null
+          ends_at: string | null
+          subject: string | null
+          teacher_guardian_id: string | null
+          teacher_first_name: string | null
+          teacher_last_name: string | null
+          is_substitute: boolean
+          cancelled: boolean
+          is_mine: boolean
+        }[]
+      }
+      portal_my_lessons: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          lesson_id: string
+          school_day_id: string
+          date: string
+          class_id: string
+          class_name_no: string
+          class_name_en: string
+          start_position: number
+          end_position: number
+          start_label: string | null
+          end_label: string | null
+          starts_at: string | null
+          ends_at: string | null
+          subject: string | null
+          teacher_guardian_id: string | null
+          teacher_first_name: string | null
+          teacher_last_name: string | null
+          is_substitute: boolean
+          cancelled: boolean
+          is_mine: boolean
+        }[]
+      }
+      portal_teaches_lesson: { Args: { p_lesson_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       portal_can_mark: {
         Args: { p_school_day_id: string; p_student_id: string }

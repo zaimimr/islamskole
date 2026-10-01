@@ -3,10 +3,12 @@ import { getSiteSettings, getUpcomingEvents } from "@/lib/data";
 import { osloToday } from "@/lib/dates";
 import {
   getClassNotes,
+  getLessons,
   getMyAbsenceReports,
   getMyAttendance,
   getMyChildren,
   getSchoolDays,
+  getTimeSlots,
 } from "@/lib/portal/data";
 import type { PortalFamily } from "@/lib/portal/family-types";
 import { formatPortalDay } from "@/lib/portal/parent-format";
@@ -14,7 +16,7 @@ import type { PortalAbsenceReport, PortalChild, PortalSchoolDay } from "@/lib/po
 
 const ABSENCE_DAY_COUNT = 6;
 
-export async function getParentData(noteLimit = 1) {
+export async function getParentData(noteLimit = 6) {
   const [children, schoolDays, attendance, reports, settings] = await Promise.all([
     getMyChildren(),
     getSchoolDays(),
@@ -24,7 +26,12 @@ export async function getParentData(noteLimit = 1) {
   ]);
   const classIds = [...new Set(children.map((child) => child.class_id))];
   const today = osloToday();
-  const noteLists = await Promise.all(classIds.map((id) => getClassNotes(id, noteLimit, today)));
+  const openDay = schoolDays.upcoming.find((day) => !day.cancelled) ?? null;
+  const [noteLists, lessons, slots] = await Promise.all([
+    Promise.all(classIds.map((id) => getClassNotes(id, noteLimit, today))),
+    openDay ? getLessons([openDay.id]) : Promise.resolve([]),
+    schoolDays.schoolYearId ? getTimeSlots(schoolDays.schoolYearId) : Promise.resolve([]),
+  ]);
   const notesByClass = new Map(classIds.map((id, index) => [id, noteLists[index]]));
   return {
     today,
@@ -33,6 +40,9 @@ export async function getParentData(noteLimit = 1) {
     attendance,
     reports,
     notesByClass,
+    openDay,
+    lessons,
+    slots,
     contactEmail: settings?.contact_email ?? null,
   };
 }

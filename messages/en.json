@@ -760,7 +760,7 @@
       },
       "note": {
         "title": "This week's note",
-        "intro": "Parents see the note on My page. One note per school day.",
+        "intro": "Parents see the note on My page. One note per lesson.",
         "homework": "Homework",
         "homeworkPlaceholder": "For example: Practise surah Al-Fatiha, page 4 in the workbook",
         "summary": "What we did today",
@@ -790,6 +790,16 @@
         "title": "Your teacher access is paused",
         "body": "You do not have access to My class, attendance and class notes right now. Your access as a parent works as usual. Contact the school if you have questions.",
         "back": "Back to My page"
+      },
+      "lessons": {
+        "title": "Lessons",
+        "none": "The class has no lessons this day.",
+        "cancelledNotice": "This lesson is cancelled. Attendance cannot be recorded.",
+        "cancelled": "Cancelled",
+        "substitute": "Substitute",
+        "wholeDay": "Whole day",
+        "mine": "Your lesson",
+        "extraTitle": "Your lessons in other classes"
       }
     },
     "common": {
@@ -862,6 +872,13 @@
         "cancelled": "No school",
         "empty": "No upcoming school days or activities.",
         "reported": "Absence reported: {names}"
+      },
+      "lessons": {
+        "title": "Timetable {day}",
+        "wholeDay": "Whole day",
+        "teacher": "Teacher: {name}",
+        "substitute": "Substitute",
+        "cancelled": "Cancelled"
       }
     },
     "notFound": {

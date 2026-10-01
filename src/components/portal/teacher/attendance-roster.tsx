@@ -28,11 +28,11 @@ function fullName(row: { first_name: string | null; last_name: string | null }) 
 
 export function AttendanceRoster({
   rows,
-  schoolDayId,
+  lessonId,
   markable,
 }: {
   rows: PortalRosterRow[];
-  schoolDayId: string;
+  lessonId: string;
   markable: boolean;
 }) {
   const t = useTranslations("portal.teacher");
@@ -58,8 +58,8 @@ export function AttendanceRoster({
       applyStatuses(Object.fromEntries(studentIds.map((id) => [id, status])));
       const result =
         studentIds.length === 1
-          ? await markAttendance(studentIds[0], schoolDayId, status)
-          : await markAttendanceMany(studentIds, schoolDayId, status);
+          ? await markAttendance(studentIds[0], lessonId, status)
+          : await markAttendanceMany(studentIds, lessonId, status);
       if (!result.ok) toast.error(tErrors(result.error));
     });
   }

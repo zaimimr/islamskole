@@ -1,4 +1,5 @@
 import { OSLO } from "@/lib/dates";
+import { statusByDay } from "@/lib/lessons";
 import type { PortalAttendance } from "@/lib/portal/types";
 
 export type PortalTerm = "autumn" | "spring";
@@ -41,11 +42,19 @@ export function summarizeAttendance(
   today: string,
 ): { absent: number; late: number; present: number } {
   const summary = { absent: 0, late: 0, present: 0 };
-  for (const row of rows) {
-    if (row.student_id !== studentId || !row.date) continue;
-    if (row.date < range.from || row.date > range.to || row.date > today) continue;
-    if (row.status === "fravaer" || row.status === "meldt_fravaer") summary.absent += 1;
-    else if (row.status === "sent") summary.late += 1;
+  const days = statusByDay(
+    rows.filter(
+      (row) =>
+        row.student_id === studentId &&
+        row.date !== null &&
+        row.date >= range.from &&
+        row.date <= range.to &&
+        row.date <= today,
+    ),
+  );
+  for (const status of days.values()) {
+    if (status === "fravaer" || status === "meldt_fravaer") summary.absent += 1;
+    else if (status === "sent") summary.late += 1;
     else summary.present += 1;
   }
   return summary;

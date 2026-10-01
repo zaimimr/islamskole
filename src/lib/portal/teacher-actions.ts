@@ -9,13 +9,8 @@ import type { PortalActionResult } from "@/lib/portal/types";
 
 const uuid = z.string().uuid();
 
-export async function deleteClassNote(
-  classId: string,
-  schoolDayId: string,
-): Promise<PortalActionResult> {
-  if (!uuid.safeParse(classId).success || !uuid.safeParse(schoolDayId).success) {
-    return { ok: false, error: "invalid" };
-  }
+export async function deleteClassNote(lessonId: string): Promise<PortalActionResult> {
+  if (!uuid.safeParse(lessonId).success) return { ok: false, error: "invalid" };
   const context = await getPortalContext();
   if (!context.user) return { ok: false, error: "unauthenticated" };
 
@@ -23,9 +18,8 @@ export async function deleteClassNote(
   const { data, error } = await supabase
     .from("class_notes")
     .delete()
-    .eq("class_id", classId)
-    .eq("school_day_id", schoolDayId)
-    .select("id");
+    .eq("lesson_id", lessonId)
+    .select("id, class_id, school_day_id");
   if (error) return { ok: false, error: error.code === "42501" ? "forbidden" : "unknown" };
 
   if (data?.length) {
@@ -33,7 +27,7 @@ export async function deleteClassNote(
       action: "class_note.delete",
       entityType: "class_note",
       entityId: data[0].id,
-      metadata: { class_id: classId, school_day_id: schoolDayId },
+      metadata: { class_id: data[0].class_id, school_day_id: data[0].school_day_id, lesson_id: lessonId },
     });
   }
   revalidatePath("/[locale]/min-side", "layout");

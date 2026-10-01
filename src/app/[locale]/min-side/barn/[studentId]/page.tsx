@@ -3,7 +3,10 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ChevronLeft } from "lucide-react";
 import { Link, redirect } from "@/i18n/navigation";
 import { ChildAbsence } from "@/components/portal/parent/child-absence";
-import { childName, joinNames } from "@/components/portal/parent/child-card";
+import { childName, joinNames, noteLessonLabel } from "@/components/portal/parent/child-card";
+import { ChildLessons } from "@/components/portal/parent/child-lessons";
+import { statusByDay } from "@/lib/lessons";
+import { formatPortalDay } from "@/lib/portal/parent-format";
 import { AttendanceYear, NotesYear } from "@/components/portal/year-overview";
 import { getPortalContext } from "@/lib/portal/data";
 import { absenceOptions, getParentData } from "@/lib/portal/parent-data";
@@ -31,12 +34,11 @@ export default async function ChildDetailPage({
   const { term, from, to } = currentTerm(data.today);
   const summary = summarizeAttendance(data.attendance, child.student_id, { from, to }, data.today);
   const options = absenceOptions(child, data.schoolDays.upcoming, data.reports, locale, data.today);
-  const statusByDate = new Map(
-    data.attendance
-      .filter((row) => row.student_id === child.student_id && row.date)
-      .map((row) => [row.date as string, row.status]),
-  );
+  const childAttendance = data.attendance.filter((row) => row.student_id === child.student_id);
+  const statusByDate = statusByDay(childAttendance);
   const yearDays = allSchoolDays(data.schoolDays).filter((day) => !day.cancelled);
+  const dayLessons = data.lessons.filter((lesson) => lesson.class_id === child.class_id);
+  const classNotes = data.notesByClass.get(child.class_id) ?? [];
 
   return (
     <div className="grid gap-8">
@@ -58,6 +60,24 @@ export default async function ChildDetailPage({
           {teachers ? t("teachers", { names: teachers, count: child.teachers.length }) : t("noTeacher")}
         </p>
       </header>
+
+      {data.openDay && dayLessons.length ? (
+        <section aria-labelledby="detail-lessons" className="soft-card grid gap-3 p-5 sm:p-6">
+          <h2 id="detail-lessons" className="font-heading text-xl font-semibold first-letter:uppercase">
+            {t("lessons.title", { day: formatPortalDay(data.openDay.date, locale) })}
+          </h2>
+          <ChildLessons
+            lessons={dayLessons}
+            slots={data.slots}
+            locale={locale}
+            statusByLesson={new Map(
+              childAttendance
+                .filter((row) => row.lesson_id)
+                .map((row) => [row.lesson_id as string, row.status]),
+            )}
+          />
+        </section>
+      ) : null}
 
       <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
         <AttendanceYear
@@ -88,7 +108,7 @@ export default async function ChildDetailPage({
           id="detail-notes"
           title={t("note.yearTitle")}
           empty={t("note.empty")}
-          notes={data.notesByClass.get(child.class_id) ?? []}
+          notes={classNotes.map((row) => ({ ...row, lessonLabel: noteLessonLabel(row, data.slots, t("lessons.wholeDay")) }))}
           labels={{ homework: t("note.homework"), summary: t("note.summary") }}
           locale={locale}
         />
