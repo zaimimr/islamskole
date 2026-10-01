@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarClock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { loadFamilyNames } from "@/lib/families/names";
 import { adminBasePath } from "@/components/admin/paths";
 import { InstallmentRowActions } from "@/components/admin/installment-row-actions";
 import { formatNok } from "@/lib/money";
@@ -81,7 +82,7 @@ export default async function InstallmentsPage({
   const basePath = adminBasePath(locale);
   const supabase = await createClient();
 
-  const [yearResult, installmentResult, familyResult] = await Promise.all([
+  const [yearResult, installmentResult, familyNameById] = await Promise.all([
       supabase
         .from("school_years")
         .select("id, label")
@@ -94,9 +95,9 @@ export default async function InstallmentsPage({
         )
         .eq("payment_plans.status", "aktiv")
         .order("due_date", { ascending: true }),
-      supabase.from("families").select("id, display_name"),
+      loadFamilyNames(supabase),
     ]);
-  if (yearResult.error || installmentResult.error || familyResult.error) {
+  if (yearResult.error || installmentResult.error) {
     return (
       <FinanceLoadError
         title="Avdragene kunne ikke lastes"
@@ -106,17 +107,10 @@ export default async function InstallmentsPage({
   }
   const yearRow = yearResult.data;
   const installmentData = installmentResult.data;
-  const familyData = familyResult.data;
 
   const activeYear = yearRow as { id: string; label: string } | null;
   const rows = ((installmentData as unknown as InstallmentRow[] | null) ?? [])
     .filter((row) => !activeYear || row.school_year_id === activeYear.id);
-  const familyNameById = new Map(
-    (
-      (familyData as { id: string; display_name: string | null }[] | null) ??
-      []
-    ).map((family) => [family.id, family.display_name ?? "Familie uten navn"]),
-  );
 
   const paymentIds = [
     ...new Set(

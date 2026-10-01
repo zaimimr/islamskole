@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Gift, HandHeart } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { loadFamilyNames } from "@/lib/families/names";
 import { adminBasePath } from "@/components/admin/paths";
 import { formatNok } from "@/lib/money";
 import { formatOsloDate } from "@/lib/dates";
@@ -101,7 +102,7 @@ export default async function SadaqaPage({
     giftResult,
     balanceResult,
     studentResult,
-    familyResult,
+    familyNames,
   ] = await Promise.all([
     getSadaqaTotals(supabase, selectedYear.id),
     supabase
@@ -124,15 +125,14 @@ export default async function SadaqaPage({
     supabase
       .from("students")
       .select("id, family_id, child_first_name, child_last_name"),
-    supabase.from("families").select("id, display_name"),
+    loadFamilyNames(supabase),
   ]);
   if (
     !totals ||
     disbursementResult.error ||
     giftResult.error ||
     balanceResult.error ||
-    studentResult.error ||
-    familyResult.error
+    studentResult.error
   ) {
     return (
       <FinanceLoadError
@@ -152,9 +152,6 @@ export default async function SadaqaPage({
     const student = studentId ? students.get(studentId) : null;
     return student ? studentDisplayName(student) || "Ukjent barn" : "Ikke fordelt";
   };
-  const familyNames = new Map(
-    (familyResult.data ?? []).map((family) => [family.id, family.display_name]),
-  );
   const familyName = (familyId: string, fallbackLastName?: string | null) =>
     familyNames.get(familyId) ||
     (fallbackLastName ? `Familien ${fallbackLastName}` : "Familie uten navn");
@@ -224,11 +221,8 @@ export default async function SadaqaPage({
       ),
     }))
     .sort((a, b) => a.name.localeCompare(b.name, "nb-NO"));
-  const giftFamilies = (familyResult.data ?? [])
-    .map((family) => ({
-      id: family.id,
-      name: family.display_name || "Familie uten navn",
-    }))
+  const giftFamilies = [...familyNames.entries()]
+    .map(([id, name]) => ({ id, name }))
     .sort((a, b) => a.name.localeCompare(b.name, "nb-NO"));
 
   const difference = totals.giftsOre - totals.supportOre;

@@ -6,9 +6,11 @@ import { toast } from "sonner";
 import {
   ArrowLeft,
   Ban,
+  CheckCheck,
   ChevronDown,
   CloudDownload,
   HandHeart,
+  Info,
   Link2,
   Loader2,
   MoreHorizontal,
@@ -91,6 +93,7 @@ export type PickerFamily = {
   key: string;
   familyId: string | null;
   name: string;
+  guardians: string[];
   children: PickerChild[];
 };
 
@@ -105,13 +108,6 @@ const statusLabels: Record<string, string> = {
   sadaqa: "Sadaqa",
   familie: "Skolepenger",
   ignorert: "Ignorert",
-};
-
-const suggestionLabels: Record<string, string> = {
-  sadaqa: "Forslag: sadaqa",
-  ignorert: "Forslag: ignorer",
-  matchet: "Forslag: koble",
-  familie: "Forslag: skolepenger",
 };
 
 const statusTone: Record<string, string> = {
@@ -205,42 +201,21 @@ export function ImportPanel({
   }
 
   return (
-    <div className="grid gap-4">
-      <section
-        aria-labelledby="vipps-fetch"
-        className="grid gap-3 rounded-2xl bg-white p-4 ring-1 ring-[#E3DED3] sm:p-5"
-      >
-        <div>
-          <h2 id="vipps-fetch" className="font-heading text-lg font-bold">
-            Hent fra Vipps
-          </h2>
-          <p className="mt-0.5 text-sm text-admin-muted">
-            Henter innbetalinger for {vippsAccounts.map((option) => option.value).join(", ")}.
-            Uten datoer hentes alt siden forrige henting.
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="grid gap-1.5">
-            <Label htmlFor="vipps-from">Fra (valgfritt)</Label>
-            <Input
-              id="vipps-from"
-              type="date"
-              value={from}
-              onChange={(event) => setFrom(event.target.value)}
-              className="h-11 rounded-xl"
-            />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="vipps-to">Til (valgfritt)</Label>
-            <Input
-              id="vipps-to"
-              type="date"
-              value={to}
-              onChange={(event) => setTo(event.target.value)}
-              className="h-11 rounded-xl"
-            />
-          </div>
-        </div>
+    <section
+      aria-labelledby="import-heading"
+      className="grid gap-4 rounded-2xl bg-white p-4 ring-1 ring-[#E3DED3] sm:p-5"
+    >
+      <div>
+        <h2 id="import-heading" className="font-heading text-lg font-bold">
+          Hent transaksjoner
+        </h2>
+        <p className="mt-0.5 text-sm text-admin-muted">
+          Vipps {vippsAccounts.map((option) => option.value).join(" og ")} hentes direkte.
+          Andre salgssteder og DNB lastes opp som fil.
+        </p>
+      </div>
+
+      <div className="grid gap-2">
         <Button
           type="button"
           onClick={fetchVipps}
@@ -248,12 +223,43 @@ export function ImportPanel({
           className="min-h-11 rounded-xl px-3 font-bold"
         >
           {fetching ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 aria-hidden="true" className="size-4 animate-spin" />
           ) : (
-            <CloudDownload className="size-4" />
+            <CloudDownload aria-hidden="true" className="size-4" />
           )}
-          Hent fra Vipps
+          {fetching ? "Henter fra Vipps …" : "Hent fra Vipps"}
         </Button>
+        <details className="group/period">
+          <summary className="flex min-h-9 cursor-pointer list-none items-center gap-1 rounded-lg px-1 text-sm font-semibold text-admin-muted outline-none select-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+            {from || to ? "Valgt periode" : "Alt siden forrige henting"}
+            <ChevronDown
+              aria-hidden="true"
+              className="size-4 transition-transform group-open/period:rotate-180"
+            />
+          </summary>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <div className="grid gap-1.5">
+              <Label htmlFor="vipps-from">Fra</Label>
+              <Input
+                id="vipps-from"
+                type="date"
+                value={from}
+                onChange={(event) => setFrom(event.target.value)}
+                className="h-11 rounded-xl"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="vipps-to">Til</Label>
+              <Input
+                id="vipps-to"
+                type="date"
+                value={to}
+                onChange={(event) => setTo(event.target.value)}
+                className="h-11 rounded-xl"
+              />
+            </div>
+          </div>
+        </details>
         {fetchErrors.length > 0 ? (
           <ul className="grid gap-1.5 rounded-xl bg-[#FFF8E9] px-3 py-2 text-sm text-[#6B5524] ring-1 ring-[#E8D6AA]">
             {fetchErrors.map((error) => (
@@ -261,74 +267,72 @@ export function ImportPanel({
             ))}
           </ul>
         ) : null}
-      </section>
+      </div>
 
-      <section
-        aria-labelledby="file-import"
-        className="grid gap-3 rounded-2xl bg-white p-4 ring-1 ring-[#E3DED3] sm:p-5"
-      >
-        <div>
-          <h2 id="file-import" className="font-heading text-lg font-bold">
-            Last opp eksport
-          </h2>
-          <p className="mt-0.5 text-sm text-admin-muted">
-            CSV eller Excel fra Vipps-portalen eller DNB nettbank. Linjer som
-            allerede er lastet opp hoppes over.
-          </p>
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="import-source">Hvor kommer filen fra?</Label>
-          <SelectField
-            id="import-source"
-            value={source}
-            onValueChange={setSource}
-            options={[
-              { value: "vipps", label: "Vipps-portalen" },
-              { value: "dnb", label: "DNB nettbank" },
-            ]}
-          />
-        </div>
-        {source === "vipps" ? (
+      <div className="grid gap-3 border-t border-[#ECE8DF] pt-4">
+        <h3 className="text-sm font-bold">Last opp fil</h3>
+        <div className="grid grid-cols-2 gap-2">
           <div className="grid gap-1.5">
-            <Label htmlFor="import-msn">Salgssted</Label>
+            <Label htmlFor="import-source">Fra</Label>
             <SelectField
-              id="import-msn"
-              value={vippsAccount}
-              onValueChange={setVippsAccount}
+              id="import-source"
+              value={source}
+              onValueChange={setSource}
               options={[
-                { value: "", label: "Les fra filen" },
-                ...vippsAccounts,
+                { value: "vipps", label: "Vipps" },
+                { value: "dnb", label: "DNB" },
               ]}
             />
           </div>
-        ) : (
-          <div className="grid gap-1.5">
-            <Label htmlFor="import-account" required>
-              Kontonummer
-            </Label>
-            <Input
-              id="import-account"
-              inputMode="numeric"
-              value={bankAccount}
-              onChange={(event) => setBankAccount(event.target.value)}
-              placeholder="1234.56.78901"
-              className="h-11 rounded-xl"
-            />
-          </div>
-        )}
-        <div className="grid gap-1.5">
-          <Label htmlFor="import-file" required>
-            Fil
-          </Label>
-          <Input
+          {source === "vipps" ? (
+            <div className="grid gap-1.5">
+              <Label htmlFor="import-msn">Salgssted</Label>
+              <SelectField
+                id="import-msn"
+                value={vippsAccount}
+                onValueChange={setVippsAccount}
+                options={[{ value: "", label: "Les fra filen" }, ...vippsAccounts]}
+              />
+            </div>
+          ) : (
+            <div className="grid gap-1.5">
+              <Label htmlFor="import-account" required>
+                Kontonummer
+              </Label>
+              <Input
+                id="import-account"
+                inputMode="numeric"
+                value={bankAccount}
+                onChange={(event) => setBankAccount(event.target.value)}
+                placeholder="1234.56.78901"
+                className="h-11 rounded-xl"
+              />
+            </div>
+          )}
+        </div>
+        <label
+          htmlFor="import-file"
+          className={cn(
+            "grid cursor-pointer justify-items-center gap-1 rounded-xl border border-dashed px-3 py-4 text-center text-sm transition-colors focus-within:ring-3 focus-within:ring-ring/50 hover:bg-[#FAF9F5]",
+            file ? "border-[#9CC79F] bg-[#F2F8F2]" : "border-[#D5CFC2]",
+          )}
+        >
+          <Upload aria-hidden="true" className="size-5 text-[#3C8F44]" />
+          <span className="max-w-full font-bold break-all">
+            {file ? file.name : "Velg CSV- eller Excel-fil"}
+          </span>
+          <span className="text-xs text-admin-muted">
+            {file ? "Trykk for å bytte fil" : "Linjer som allerede er lastet opp hoppes over"}
+          </span>
+          <input
             key={inputKey}
             id="import-file"
             type="file"
             accept=".csv,.txt,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-            className="h-11 rounded-xl pt-2"
+            className="sr-only"
           />
-        </div>
+        </label>
         <Button
           type="button"
           variant="outline"
@@ -336,11 +340,11 @@ export function ImportPanel({
           disabled={uploading || !file}
           className="min-h-11 rounded-xl px-3 font-bold"
         >
-          {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-          Last opp
+          {uploading ? <Loader2 aria-hidden="true" className="size-4 animate-spin" /> : null}
+          {uploading ? "Laster opp …" : "Last opp"}
         </Button>
-      </section>
-    </div>
+      </div>
+    </section>
   );
 }
 
@@ -352,18 +356,40 @@ type DialogState =
   | { kind: "undo"; transaction: InboxTransaction }
   | null;
 
+function payerLabel(row: InboxTransaction) {
+  return row.counterpartyName || (row.source === "dnb" ? "Bankoverføring" : "Ukjent betaler");
+}
+
+function DateMark({ value }: { value: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="hidden w-11 shrink-0 justify-items-center rounded-xl bg-[#F6F4EE] py-1.5 leading-none sm:grid"
+    >
+      <span className="font-heading text-lg font-bold tabular-nums">
+        {formatOsloDate(value, { day: "numeric" }).replace(".", "")}
+      </span>
+      <span className="mt-0.5 text-[0.6875rem] font-bold text-admin-muted uppercase">
+        {formatOsloDate(value, { month: "short" }).replace(".", "")}
+      </span>
+    </span>
+  );
+}
+
 export function TransactionInbox({
   transactions,
   families,
   giftFamilies,
   schoolYearId,
   schoolYearLabel,
+  emptyKind,
 }: {
   transactions: InboxTransaction[];
   families: PickerFamily[];
   giftFamilies: { id: string; name: string }[];
   schoolYearId: string | null;
   schoolYearLabel: string | null;
+  emptyKind: "done" | "filtered";
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -378,6 +404,7 @@ export function TransactionInbox({
     (row) => row.suggestedStatus === "sadaqa" || row.suggestedStatus === "ignorert",
   );
   const incoming = selectedRows.filter((row) => row.amount > 0);
+  const allSelected = open.length > 0 && selectedRows.length === open.length;
 
   function toggle(id: string) {
     setSelected((current) => {
@@ -386,6 +413,10 @@ export function TransactionInbox({
       else next.add(id);
       return next;
     });
+  }
+
+  function toggleAll() {
+    setSelected(allSelected ? new Set() : new Set(open.map((row) => row.id)));
   }
 
   function toggleDetails(id: string) {
@@ -429,223 +460,287 @@ export function TransactionInbox({
   }
 
   if (transactions.length === 0) {
-    return (
+    return emptyKind === "done" ? (
+      <div className="grid justify-items-center rounded-2xl bg-white px-6 py-12 text-center ring-1 ring-[#E3DED3]">
+        <span className="grid size-12 place-items-center rounded-full bg-[#DCEDDD] text-[#216A2B]">
+          <CheckCheck aria-hidden="true" className="size-6" />
+        </span>
+        <p className="mt-3 font-heading text-xl font-bold">Alt er avstemt</p>
+        <p className="mt-1 max-w-sm text-sm text-admin-muted">
+          Hent fra Vipps eller last opp en ny eksport når det har kommet inn nye
+          betalinger.
+        </p>
+      </div>
+    ) : (
       <div className="rounded-2xl bg-white px-6 py-10 text-center ring-1 ring-[#E3DED3]">
         <p className="font-heading text-lg font-semibold">Ingen transaksjoner her</p>
         <p className="mx-auto mt-1 max-w-md text-sm text-admin-muted">
-          Hent fra Vipps eller last opp en eksport for å komme i gang, eller
-          endre filteret.
+          Ingenting passer denne visningen. Prøv en annen status eller fjern et filter.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="grid grid-cols-1 gap-3">
       {selectedRows.length > 0 ? (
-        <div className="sticky top-0 z-20 flex flex-wrap items-center gap-2 rounded-2xl bg-white/90 px-4 py-3 ring-1 ring-[#E3DED3] backdrop-blur">
-          <p className="mr-auto text-sm font-bold">
-            {selectedRows.length} valgt ·{" "}
-            {formatNok(selectedRows.reduce((sum, row) => sum + row.amount, 0))}
+        <div className="sticky top-2 z-20 flex flex-wrap items-center gap-2 rounded-2xl bg-[#1F2A22] px-4 py-2.5 text-white shadow-[0_10px_30px_-12px_rgb(9_13_19/0.45)]">
+          <p className="mr-auto text-sm">
+            <span className="font-bold">{selectedRows.length} valgt</span>
+            <span className="text-white/75">
+              {" "}
+              · {formatNok(selectedRows.reduce((sum, row) => sum + row.amount, 0))}
+            </span>
           </p>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setSelected(new Set())}
+            className="min-h-10 rounded-xl px-3 font-bold text-white/80 hover:bg-white/10 hover:text-white"
+          >
+            Fjern valg
+          </Button>
           <Button
             type="button"
             variant="outline"
             disabled={bulkPending || withSuggestion.length === 0}
             onClick={() => runBulk("suggestions")}
-            className="min-h-11 rounded-xl px-3 font-bold"
+            className="min-h-10 rounded-xl border-white/25 bg-transparent px-3 font-bold text-white hover:bg-white/10 hover:text-white"
           >
-            <Sparkles className="size-4" />
+            <Sparkles aria-hidden="true" className="size-4" />
             Godta forslag ({withSuggestion.length})
           </Button>
           <Button
             type="button"
             disabled={bulkPending || incoming.length === 0}
             onClick={() => runBulk("sadaqa")}
-            className="min-h-11 rounded-xl px-3 font-bold"
+            className="min-h-10 rounded-xl bg-white px-3 font-bold text-[#1F2A22] hover:bg-white/90"
           >
-            {bulkPending ? <Loader2 className="size-4 animate-spin" /> : <HandHeart className="size-4" />}
+            {bulkPending ? (
+              <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+            ) : (
+              <HandHeart aria-hidden="true" className="size-4" />
+            )}
             Før som sadaqa ({incoming.length})
           </Button>
         </div>
       ) : null}
 
-      <ul className="divide-y divide-[#ECE8DF] overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
-        {transactions.map((row) => {
-          const isOpen = row.status === "ny";
-          const showDetails = expanded.has(row.id);
-          return (
-            <li key={row.id} className="grid gap-2 px-4 py-3 sm:px-5">
-              <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
-                {isOpen ? (
-                  <input
-                    type="checkbox"
-                    aria-label={`Velg ${formatNok(row.amount)} fra ${row.counterpartyName ?? "ukjent"}`}
-                    checked={selected.has(row.id)}
-                    onChange={() => toggle(row.id)}
-                    className="mt-1.5 size-4 accent-[#3C8F44]"
-                  />
-                ) : (
-                  <span className="size-4" />
+      <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
+        {open.length > 0 ? (
+          <div className="flex min-h-11 items-center gap-3 border-b border-[#ECE8DF] bg-[#FAF9F5] px-4 text-sm sm:px-5">
+            <input
+              id="select-all"
+              type="checkbox"
+              checked={allSelected}
+              onChange={toggleAll}
+              className="size-4 accent-[#3C8F44]"
+            />
+            <label htmlFor="select-all" className="font-semibold text-admin-muted">
+              Velg alle {open.length} på siden
+            </label>
+          </div>
+        ) : null}
+        <ul className="divide-y divide-[#ECE8DF]">
+          {transactions.map((row) => {
+            const isOpen = row.status === "ny";
+            const showDetails = expanded.has(row.id);
+            const isSelected = selected.has(row.id);
+            const canSuggest =
+              isOpen && row.suggestedStatus && (row.suggestedStatus !== "sadaqa" || row.amount > 0);
+            const amountClass = cn(
+              "font-heading text-lg font-bold whitespace-nowrap tabular-nums",
+              row.amount < 0 && "text-[#8B2F2B]",
+            );
+            return (
+              <li
+                key={row.id}
+                className={cn(
+                  "grid grid-cols-1 gap-3 px-4 py-3.5 transition-colors sm:px-5",
+                  isSelected && "bg-[#F2F8F2]",
                 )}
-                <div className="min-w-0">
-                  <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="font-bold">
-                      {row.counterpartyName || (row.source === "dnb" ? "Bankoverføring" : "Ukjent betaler")}
-                    </span>
-                    <span className="rounded-full bg-[#F0F0ED] px-2 py-0.5 text-xs font-bold text-[#4E5550]">
-                      {row.accountLabel}
-                    </span>
-                    <span
-                      className={cn(
-                        "rounded-full px-2 py-0.5 text-xs font-bold",
-                        statusTone[row.status] ?? statusTone.ny,
-                      )}
-                    >
-                      {statusLabels[row.status] ?? row.status}
-                    </span>
-                    {isOpen && row.suggestedStatus ? (
-                      <span className="rounded-full bg-[#F4EEFB] px-2 py-0.5 text-xs font-bold text-[#5A3A85]">
-                        {suggestionLabels[row.suggestedStatus] ?? row.suggestedStatus}
-                      </span>
-                    ) : null}
-                  </p>
-                  <p className="mt-0.5 text-sm text-admin-muted">
-                    {formatOsloDate(row.bookedOn)}
-                    {row.message ? ` · ${row.message}` : ""}
-                  </p>
-                  {!isOpen ? (
-                    <p className="mt-0.5 text-sm">
-                      {row.linkHref ? (
-                        <a
-                          href={row.linkHref}
-                          className="font-semibold text-[#277A31] outline-none underline-offset-2 hover:underline focus-visible:rounded focus-visible:ring-3 focus-visible:ring-ring/50"
-                        >
-                          {row.linkLabel}
-                        </a>
-                      ) : (
-                        row.linkLabel
-                      )}
-                      {row.note ? (
-                        <span className="text-admin-muted">
-                          {row.linkLabel ? " · " : ""}
-                          {row.note}
-                        </span>
-                      ) : null}
-                    </p>
-                  ) : row.note ? (
-                    <p className="mt-0.5 text-sm text-admin-muted">{row.note}</p>
+              >
+                <div className="flex gap-3">
+                  {isOpen ? (
+                    <input
+                      type="checkbox"
+                      aria-label={`Velg ${formatNok(row.amount)} fra ${payerLabel(row)}`}
+                      checked={isSelected}
+                      onChange={() => toggle(row.id)}
+                      className="mt-1 size-4 shrink-0 accent-[#3C8F44] sm:mt-3.5"
+                    />
                   ) : null}
-                </div>
-                <div className="flex items-center gap-1">
-                  <p
-                    className={cn(
-                      "font-heading text-lg font-bold tabular-nums",
-                      row.amount < 0 && "text-[#8B2F2B]",
-                    )}
-                  >
-                    {formatNok(row.amount)}
-                  </p>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
+                  <DateMark value={row.bookedOn} />
+                  <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 lg:flex lg:items-center lg:gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="min-w-0 truncate font-bold">{payerLabel(row)}</p>
+                        <p className={cn(amountClass, "lg:hidden")}>{formatNok(row.amount)}</p>
+                      </div>
+                      {row.message && row.message !== row.counterpartyName ? (
+                        <p className="mt-0.5 text-sm break-words">{row.message}</p>
+                      ) : null}
+                      <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-admin-muted">
+                        <span className="sm:hidden">{formatOsloDate(row.bookedOn)} ·</span>
+                        <span>{row.accountLabel}</span>
+                        {!isOpen ? (
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 font-bold",
+                              statusTone[row.status] ?? statusTone.ny,
+                            )}
+                          >
+                            {statusLabels[row.status] ?? row.status}
+                          </span>
+                        ) : null}
+                      </p>
+                      {!isOpen && (row.linkLabel || row.note) ? (
+                        <p className="mt-1 text-sm">
+                          {row.linkHref ? (
+                            <a
+                              href={row.linkHref}
+                              className="font-semibold text-[#277A31] outline-none underline-offset-2 hover:underline focus-visible:rounded focus-visible:ring-3 focus-visible:ring-ring/50"
+                            >
+                              {row.linkLabel}
+                            </a>
+                          ) : (
+                            row.linkLabel
+                          )}
+                          {row.note ? (
+                            <span className="text-admin-muted">
+                              {row.linkLabel ? " · " : ""}
+                              {row.note}
+                            </span>
+                          ) : null}
+                        </p>
+                      ) : isOpen && row.note ? (
+                        <p className="mt-1 text-sm text-admin-muted">{row.note}</p>
+                      ) : null}
+                    </div>
+                    <p className={cn(amountClass, "hidden w-28 shrink-0 text-right lg:block")}>
+                      {formatNok(row.amount)}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5 lg:w-[17.5rem] lg:shrink-0 lg:flex-nowrap lg:justify-end">
+                      {canSuggest ? (
                         <Button
                           type="button"
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Handlinger"
-                          className="text-admin-muted hover:text-foreground"
-                        />
-                      }
-                    >
-                      <MoreHorizontal aria-hidden="true" className="size-5" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-auto min-w-52">
-                      {isOpen && row.amount > 0 ? (
+                          variant="outline"
+                          disabled={quickPending}
+                          onClick={() => acceptOne(row)}
+                          title={row.suggestionReason ?? undefined}
+                          className="min-h-10 rounded-xl border-[#D9CBEE] bg-[#F7F2FC] px-3 font-bold text-[#4A2F72] hover:bg-[#EFE6F9]"
+                        >
+                          <Sparkles aria-hidden="true" className="size-4" />
+                          {row.suggestedStatus === "sadaqa" ? "Før som sadaqa" : "Ignorer"}
+                        </Button>
+                      ) : isOpen && row.amount > 0 ? (
                         <>
-                          <DropdownMenuItem onClick={() => setDialog({ kind: "sadaqa", transaction: row })}>
-                            <HandHeart className="size-4" />
-                            Før som sadaqa
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
+                          <Button
+                            type="button"
+                            variant="outline"
                             disabled={!schoolYearId}
                             onClick={() => setDialog({ kind: "family", transaction: row })}
+                            className="min-h-10 rounded-xl px-3 font-bold"
                           >
-                            <Users className="size-4" />
-                            Før som skolepenger for familie
-                          </DropdownMenuItem>
+                            <Users aria-hidden="true" className="size-4" />
+                            Skolepenger
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setDialog({ kind: "sadaqa", transaction: row })}
+                            className="min-h-10 rounded-xl px-3 font-bold"
+                          >
+                            <HandHeart aria-hidden="true" className="size-4" />
+                            Sadaqa
+                          </Button>
                         </>
                       ) : null}
-                      {isOpen ? (
-                        <>
-                          <DropdownMenuItem onClick={() => setDialog({ kind: "link", transaction: row })}>
-                            <Link2 className="size-4" />
-                            Koble til eksisterende betaling
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setDialog({ kind: "ignore", transaction: row })}>
-                            <Ban className="size-4" />
-                            Ignorer
-                          </DropdownMenuItem>
-                        </>
-                      ) : (
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => setDialog({ kind: "undo", transaction: row })}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Flere valg for ${formatNok(row.amount)} fra ${payerLabel(row)}`}
+                              className="size-10 rounded-xl text-admin-muted hover:text-foreground"
+                            />
+                          }
                         >
-                          <Undo2 className="size-4" />
-                          Angre behandling
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                          <MoreHorizontal aria-hidden="true" className="size-5" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-auto min-w-56">
+                          {isOpen && row.amount > 0 && canSuggest ? (
+                            <>
+                              <DropdownMenuItem
+                                disabled={!schoolYearId}
+                                onClick={() => setDialog({ kind: "family", transaction: row })}
+                              >
+                                <Users className="size-4" />
+                                Før som skolepenger
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setDialog({ kind: "sadaqa", transaction: row })}>
+                                <HandHeart className="size-4" />
+                                Før som sadaqa
+                              </DropdownMenuItem>
+                            </>
+                          ) : null}
+                          {isOpen ? (
+                            <>
+                              <DropdownMenuItem onClick={() => setDialog({ kind: "link", transaction: row })}>
+                                <Link2 className="size-4" />
+                                Koble til eksisterende betaling
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setDialog({ kind: "ignore", transaction: row })}>
+                                <Ban className="size-4" />
+                                Ignorer
+                              </DropdownMenuItem>
+                            </>
+                          ) : null}
+                          <DropdownMenuItem onClick={() => toggleDetails(row.id)}>
+                            <Info className="size-4" />
+                            {showDetails ? "Skjul detaljer" : "Vis detaljer"}
+                          </DropdownMenuItem>
+                          {!isOpen ? (
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={() => setDialog({ kind: "undo", transaction: row })}
+                            >
+                              <Undo2 className="size-4" />
+                              Angre behandling
+                            </DropdownMenuItem>
+                          ) : null}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 pl-7">
-                {isOpen && row.suggestedStatus && (row.suggestedStatus !== "sadaqa" || row.amount > 0) ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={quickPending}
-                    onClick={() => acceptOne(row)}
-                    className="min-h-9 rounded-lg px-2.5 font-bold"
-                    title={row.suggestionReason ?? undefined}
-                  >
-                    <Sparkles className="size-4" />
-                    {row.suggestedStatus === "sadaqa" ? "Før som sadaqa" : "Ignorer"}
-                  </Button>
+                {canSuggest && row.suggestionReason ? (
+                  <p className="-mt-1 flex items-start gap-1.5 text-xs text-[#5A3A85] sm:pl-[5.25rem]">
+                    <Sparkles aria-hidden="true" className="mt-px size-3.5 shrink-0" />
+                    {row.suggestionReason}
+                  </p>
                 ) : null}
-                <button
-                  type="button"
-                  onClick={() => toggleDetails(row.id)}
-                  aria-expanded={showDetails}
-                  className="inline-flex min-h-9 items-center gap-1 rounded-lg px-1 text-sm font-semibold text-admin-muted outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
-                >
-                  Detaljer
-                  <ChevronDown
-                    aria-hidden="true"
-                    className={cn("size-4 transition-transform", showDetails && "rotate-180")}
-                  />
-                </button>
-              </div>
-              {showDetails ? (
-                <dl className="ml-7 grid gap-3 rounded-xl bg-[#FAF9F5] px-3 py-3 ring-1 ring-[#E8E3D9] sm:grid-cols-3">
-                  <Detail label="Telefon" value={row.counterpartyPhone} />
-                  <Detail label="Ordre-ID" value={row.reference} />
-                  <Detail label="Transaksjons-ID" value={row.pspReference} />
-                  <Detail label="Ekstern ID" value={row.externalId} />
-                  <Detail label="Forslag" value={row.suggestionReason} />
-                  <Detail label="Behandlet av" value={row.mappedBy} />
-                  <Detail
-                    label="Behandlet"
-                    value={row.mappedAt ? formatOsloDate(row.mappedAt) : null}
-                  />
-                </dl>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
+                {showDetails ? (
+                  <dl className="grid gap-3 rounded-xl bg-[#FAF9F5] px-3 py-3 ring-1 ring-[#E8E3D9] sm:ml-[5.25rem] sm:grid-cols-3">
+                    <Detail label="Telefon" value={row.counterpartyPhone} />
+                    <Detail label="Ordre-ID" value={row.reference} />
+                    <Detail label="Transaksjons-ID" value={row.pspReference} />
+                    <Detail label="Ekstern ID" value={row.externalId} />
+                    <Detail label="Forslag" value={row.suggestionReason} />
+                    <Detail label="Behandlet av" value={row.mappedBy} />
+                    <Detail
+                      label="Behandlet"
+                      value={row.mappedAt ? formatOsloDate(row.mappedAt) : null}
+                    />
+                  </dl>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
 
       {dialog?.kind === "sadaqa" ? (
         <SadaqaMapDialog
@@ -696,16 +791,27 @@ function useAction(onClose: () => void) {
 
 function TransactionSummary({ transaction }: { transaction: InboxTransaction }) {
   return (
-    <p className="rounded-xl bg-[#FAF9F5] px-3 py-2 text-sm ring-1 ring-[#E8E3D9]">
-      <span className="font-bold">{formatNok(transaction.amount)}</span> fra{" "}
-      {transaction.counterpartyName ?? "ukjent"} · {transaction.accountLabel} ·{" "}
-      {formatOsloDate(transaction.bookedOn)}
-      {transaction.message ? (
-        <span className="block text-admin-muted">{transaction.message}</span>
-      ) : null}
-    </p>
+    <div className="flex items-start justify-between gap-4 rounded-xl bg-[#FAF9F5] px-4 py-3 ring-1 ring-[#E8E3D9]">
+      <div className="min-w-0">
+        <p className="font-bold break-words">{transaction.counterpartyName ?? "Ukjent betaler"}</p>
+        {transaction.message && transaction.message !== transaction.counterpartyName ? (
+          <p className="text-sm break-words">{transaction.message}</p>
+        ) : null}
+        <p className="mt-0.5 text-xs text-admin-muted">
+          {formatOsloDate(transaction.bookedOn)} · {transaction.accountLabel}
+        </p>
+      </div>
+      <p className="shrink-0 font-heading text-xl font-bold tabular-nums">
+        {formatNok(transaction.amount)}
+      </p>
+    </div>
   );
 }
+
+const dialogShell = "flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0";
+const dialogHead = "border-b border-[#ECE8DF] px-5 pt-5 pb-4 pr-12 sm:px-6";
+const dialogBody = "grid min-h-0 flex-1 content-start gap-4 overflow-y-auto px-5 py-4 sm:px-6";
+const dialogFoot = cn(footerClass, "mx-0 mb-0 shrink-0 px-5 sm:px-6");
 
 function SadaqaMapDialog({
   transaction,
@@ -723,14 +829,14 @@ function SadaqaMapDialog({
 
   return (
     <Dialog open onOpenChange={(next) => (next ? null : onClose())}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Før som sadaqa-gave</DialogTitle>
+      <DialogContent className={cn(dialogShell, "sm:max-w-lg")}>
+        <DialogHeader className={dialogHead}>
+          <DialogTitle className="text-xl font-bold">Før som sadaqa-gave</DialogTitle>
           <DialogDescription>
             Beløpet registreres som en gave i sadaqa-oversikten.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-3 py-1">
+        <div className={dialogBody}>
           <TransactionSummary transaction={transaction} />
           <div className="grid gap-1.5">
             <Label htmlFor="map-sadaqa-donor">Fra</Label>
@@ -765,7 +871,7 @@ function SadaqaMapDialog({
             />
           </div>
         </div>
-        <DialogFooter className={footerClass}>
+        <DialogFooter className={dialogFoot}>
           <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
             Avbryt
           </Button>
@@ -805,6 +911,108 @@ function prefillShares(children: PickerChild[], totalOre: number): string[] {
   return shares.map((share) => (share > 0 ? String(share / 100) : ""));
 }
 
+function words(value: string | null | undefined): string[] {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLocaleLowerCase("nb-NO")
+    .split(/[^\p{L}]+/u)
+    .filter((word) => word.length >= 2);
+}
+
+type ScoredFamily = { family: PickerFamily; score: number; reasons: string[]; remaining: number };
+
+function scoreFamily(family: PickerFamily, transaction: InboxTransaction): ScoredFamily {
+  const payer = new Set(words(transaction.counterpartyName));
+  const message = new Set(words(transaction.message));
+  const reasons: string[] = [];
+  let score = 0;
+
+  const guardian = family.guardians.find(
+    (name) => words(name).filter((word) => payer.has(word)).length >= 2,
+  );
+  if (guardian) {
+    score += 10;
+    reasons.push(`${guardian} er foresatt`);
+  } else if (
+    [...family.guardians, ...family.children.map((child) => child.name)].some((name) =>
+      words(name).slice(1).some((word) => payer.has(word)),
+    )
+  ) {
+    score += 3;
+    reasons.push("Samme etternavn som betaleren");
+  }
+
+  const mentioned = family.children.filter((child) => {
+    const [first] = words(child.name);
+    return first ? message.has(first) : false;
+  });
+  if (mentioned.length > 0) {
+    score += 4 * mentioned.length;
+    reasons.push(`Meldingen nevner ${mentioned.map((child) => child.name.split(" ")[0]).join(", ")}`);
+  }
+
+  const remaining = family.children.reduce((sum, child) => sum + Math.max(child.remainingOre, 0), 0);
+  if (score > 0 && remaining === transaction.amount) {
+    score += 2;
+    reasons.push("Beløpet er nøyaktig det som gjenstår");
+  }
+  return { family, score, reasons, remaining };
+}
+
+function FamilyOption({
+entry,
+highlight,
+onChoose,
+}: {
+entry: ScoredFamily;
+highlight?: boolean;
+onChoose: (family: PickerFamily) => void;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onChoose(entry.family)}
+        className={cn(
+          "grid w-full gap-1 rounded-xl px-4 py-3 text-left text-sm ring-1 outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4",
+          highlight
+            ? "bg-[#F2F8F2] ring-[#C9E0CB] hover:bg-[#E7F2E8]"
+            : "bg-white ring-[#E8E3D9] hover:bg-[#FAF9F5]",
+        )}
+      >
+        <span className="min-w-0">
+          <span className="block font-bold">{entry.family.name}</span>
+          <span className="block text-admin-muted">
+            {entry.family.children.map((child) => child.name).join(", ")}
+          </span>
+          {entry.family.guardians.length > 0 ? (
+            <span className="block text-xs text-admin-muted">
+              Foresatte: {entry.family.guardians.join(", ")}
+            </span>
+          ) : null}
+          {highlight && entry.reasons.length > 0 ? (
+            <span className="mt-1 flex items-start gap-1.5 text-xs font-semibold text-[#216A2B]">
+              <Sparkles aria-hidden="true" className="mt-px size-3.5 shrink-0" />
+              {entry.reasons.join(" · ")}
+            </span>
+          ) : null}
+        </span>
+        <span className="text-xs font-bold whitespace-nowrap tabular-nums sm:text-right">
+          {entry.remaining > 0 ? (
+            <>
+              <span className="font-normal text-admin-muted">Gjenstår </span>
+              {formatNok(entry.remaining)}
+            </>
+          ) : (
+            <span className="text-[#216A2B]">Ferdig betalt</span>
+          )}
+        </span>
+      </button>
+    </li>
+  );
+}
+
 function FamilyMapDialog({
   transaction,
   families,
@@ -819,7 +1027,7 @@ function FamilyMapDialog({
   onClose: () => void;
 }) {
   const { pending, run } = useAction(onClose);
-  const [query, setQuery] = useState(transaction.counterpartyName?.split(" ").pop() ?? "");
+  const [query, setQuery] = useState("");
   const [family, setFamily] = useState<PickerFamily | null>(null);
   const [shares, setShares] = useState<string[]>([]);
 
@@ -828,17 +1036,21 @@ function FamilyMapDialog({
     setShares(next ? prefillShares(next.children, transaction.amount) : []);
   }
 
-  const term = query.trim().toLocaleLowerCase("nb-NO");
-  const matches = (
-    term
-      ? families.filter((option) =>
-          [option.name, ...option.children.map((child) => child.name)]
-            .join(" ")
-            .toLocaleLowerCase("nb-NO")
-            .includes(term),
-        )
-      : families.filter((option) => option.children.some((child) => child.remainingOre > 0))
-  ).slice(0, 8);
+  const scored = families
+    .map((option) => scoreFamily(option, transaction))
+    .sort((a, b) => b.score - a.score || b.remaining - a.remaining);
+  const suggested = scored.filter((entry) => entry.score >= 4).slice(0, 3);
+  const term = words(query);
+  const matches = term.length
+    ? scored
+        .filter((entry) => {
+          const haystack = words(
+            [entry.family.name, ...entry.family.guardians, ...entry.family.children.map((child) => child.name)].join(" "),
+          );
+          return term.every((part) => haystack.some((word) => word.startsWith(part)));
+        })
+        .slice(0, 30)
+    : scored.filter((entry) => entry.remaining > 0 && !suggested.includes(entry));
 
   const children = family?.children ?? [];
   const allocated = shares.reduce((sum, value) => sum + kronerToOre(Number(value) || 0), 0);
@@ -864,72 +1076,75 @@ function FamilyMapDialog({
 
   return (
     <Dialog open onOpenChange={(next) => (next ? null : onClose())}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent className={cn(dialogShell, "sm:max-w-2xl")}>
+        <DialogHeader className={dialogHead}>
+          <DialogTitle className="text-xl font-bold">
             {family ? `Skolepenger for ${family.name}` : "Hvilken familie har betalt?"}
           </DialogTitle>
           <DialogDescription>
-            Registreres som en betaling for familien
-            {schoolYearLabel ? ` i ${schoolYearLabel}` : ""}, fordelt på barna,
-            på samme måte som en manuell betaling.
+            Føres som en betaling for familien
+            {schoolYearLabel ? ` i ${schoolYearLabel}` : ""}, fordelt på barna.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-3 py-1">
+        <div className={dialogBody}>
           <TransactionSummary transaction={transaction} />
           {!family ? (
             <>
-              <div className="grid gap-1.5">
-                <Label htmlFor="map-family-search">Finn familie eller barn</Label>
-                <div className="relative">
-                  <Search
-                    aria-hidden="true"
-                    className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#3C8F44]"
-                  />
-                  <Input
-                    id="map-family-search"
-                    autoFocus
-                    autoComplete="off"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Skriv navn"
-                    className="h-11 rounded-xl pl-9"
-                  />
-                </div>
+              <div className="relative">
+                <Label htmlFor="map-family-search" className="sr-only">
+                  Søk etter familie, barn eller foresatt
+                </Label>
+                <Search
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#3C8F44]"
+                />
+                <Input
+                  id="map-family-search"
+                  autoFocus
+                  autoComplete="off"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Søk etter familie, barn eller foresatt"
+                  className="h-12 rounded-xl pl-10 text-base"
+                />
               </div>
-              {matches.length === 0 ? (
-                <p className="rounded-xl bg-[#FAF9F5] px-3 py-3 text-sm text-admin-muted ring-1 ring-[#E8E3D9]">
-                  Ingen familie eller barn passer søket.
-                </p>
-              ) : (
-                <ul className="grid gap-1.5">
-                  {matches.map((option) => {
-                    const remaining = option.children.reduce(
-                      (sum, child) => sum + Math.max(child.remainingOre, 0),
-                      0,
-                    );
-                    return (
-                      <li key={option.key}>
-                        <button
-                          type="button"
-                          onClick={() => choose(option)}
-                          className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl bg-[#FAF9F5] px-3 py-2 text-left text-sm ring-1 ring-[#E8E3D9] outline-none transition-colors hover:bg-[#F2F1EB] focus-visible:ring-3 focus-visible:ring-ring/50"
-                        >
-                          <span className="min-w-0">
-                            <span className="block truncate font-bold">{option.name}</span>
-                            <span className="block truncate text-xs text-admin-muted">
-                              {option.children.map((child) => child.name).join(", ")}
-                            </span>
-                          </span>
-                          <span className="shrink-0 text-xs font-bold tabular-nums text-admin-muted">
-                            {remaining > 0 ? `Gjenstår ${formatNok(remaining)}` : "Ferdig betalt"}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+              {!term.length && suggested.length > 0 ? (
+                <section aria-labelledby="family-suggested" className="grid gap-2">
+                  <h3 id="family-suggested" className="text-xs font-bold text-admin-muted">
+                    Mest sannsynlig
+                  </h3>
+                  <ul className="grid gap-2">
+                    {suggested.map((entry) => (
+                      <FamilyOption key={entry.family.key} entry={entry} highlight onChoose={choose} />
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+              <section aria-labelledby="family-all" className="grid gap-2">
+                <h3 id="family-all" className="text-xs font-bold text-admin-muted">
+                  {term.length
+                    ? `${matches.length} treff`
+                    : suggested.length > 0
+                      ? "Andre familier med utestående"
+                      : "Familier med utestående"}
+                </h3>
+                {matches.length === 0 ? (
+                  <p className="rounded-xl bg-[#FAF9F5] px-4 py-3 text-sm text-admin-muted ring-1 ring-[#E8E3D9]">
+                    Ingen familie, barn eller foresatt passer «{query.trim()}».
+                  </p>
+                ) : (
+                  <ul className="grid gap-2">
+                    {matches.map((entry) => (
+                      <FamilyOption
+                        key={entry.family.key}
+                        entry={entry}
+                        highlight={term.length > 0 && entry.score >= 4}
+                        onChoose={choose}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </section>
             </>
           ) : (
             <>
@@ -942,11 +1157,11 @@ function FamilyMapDialog({
                 Velg en annen familie
               </button>
               <fieldset className="grid gap-2">
-                <legend className="mb-1 text-sm font-bold">Fordeling på barn</legend>
+                <legend className="mb-2 text-sm font-bold">Fordeling på barn</legend>
                 {children.map((child, index) => (
                   <div
                     key={child.id}
-                    className="grid grid-cols-[1fr_7.5rem] items-center gap-3 rounded-xl bg-[#FAF9F5] px-3 py-2 ring-1 ring-[#E8E3D9]"
+                    className="grid grid-cols-[minmax(0,1fr)_8rem] items-center gap-3 rounded-xl bg-white px-4 py-2.5 ring-1 ring-[#E8E3D9]"
                   >
                     <Label htmlFor={`map-share-${child.id}`} className="grid gap-0.5">
                       <span className="font-bold">{child.name}</span>
@@ -956,46 +1171,56 @@ function FamilyMapDialog({
                           : "Ingenting igjen å betale"}
                       </span>
                     </Label>
-                    <Input
-                      id={`map-share-${child.id}`}
-                      type="number"
-                      inputMode="numeric"
-                      min="0"
-                      step="1"
-                      value={shares[index] ?? ""}
-                      onChange={(event) =>
-                        setShares((current) =>
-                          current.map((value, i) => (i === index ? event.target.value : value)),
-                        )
-                      }
-                      className="h-11 rounded-xl text-right tabular-nums"
-                    />
+                    <div className="relative">
+                      <Input
+                        id={`map-share-${child.id}`}
+                        type="number"
+                        inputMode="numeric"
+                        min="0"
+                        step="1"
+                        value={shares[index] ?? ""}
+                        onChange={(event) =>
+                          setShares((current) =>
+                            current.map((value, i) => (i === index ? event.target.value : value)),
+                          )
+                        }
+                        className="h-11 rounded-xl pr-9 text-right tabular-nums"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-admin-muted"
+                      >
+                        kr
+                      </span>
+                    </div>
                   </div>
                 ))}
               </fieldset>
               <p
                 aria-live="polite"
                 className={cn(
-                  "rounded-xl px-3 py-2 text-sm ring-1",
+                  "rounded-xl px-4 py-2.5 text-sm font-semibold ring-1",
                   rest === 0
                     ? "bg-[#F2F8F2] text-[#216A2B] ring-[#C9E0CB]"
-                    : "bg-[#F9DEDB] text-[#8B2F2B] ring-[#E8B9B5]",
+                    : "bg-[#FFF8E9] text-[#775108] ring-[#EFDDB4]",
                 )}
               >
-                Fordelt {formatNok(allocated)} av {formatNok(transaction.amount)}
-                {rest > 0 ? `. Fordel ${formatNok(rest)} til.` : ""}
-                {rest < 0 ? `. ${formatNok(Math.abs(rest))} for mye.` : ""}
+                {rest === 0
+                  ? `Hele ${formatNok(transaction.amount)} er fordelt.`
+                  : rest > 0
+                    ? `Fordel ${formatNok(rest)} til før du kan registrere.`
+                    : `${formatNok(Math.abs(rest))} for mye er fordelt.`}
               </p>
             </>
           )}
         </div>
-        <DialogFooter className={footerClass}>
+        <DialogFooter className={dialogFoot}>
           <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
             Avbryt
           </Button>
           <Button type="button" onClick={save} disabled={pending || !family || rest !== 0}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : null}
-            Registrer {formatNok(transaction.amount)}
+            {pending ? <Loader2 aria-hidden="true" className="size-4 animate-spin" /> : null}
+            {family ? `Registrer ${formatNok(transaction.amount)}` : "Velg en familie"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1041,15 +1266,15 @@ function LinkPaymentDialog({
 
   return (
     <Dialog open onOpenChange={(next) => (next ? null : onClose())}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Koble til eksisterende betaling</DialogTitle>
+      <DialogContent className={cn(dialogShell, "sm:max-w-xl")}>
+        <DialogHeader className={dialogHead}>
+          <DialogTitle className="text-xl font-bold">Koble til eksisterende betaling</DialogTitle>
           <DialogDescription>
             Bruk dette når betalingen allerede er registrert i systemet. Ingenting
             nytt blir ført.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-3 py-1">
+        <div className={dialogBody}>
           <TransactionSummary transaction={transaction} />
           <form
             className="flex gap-2"
@@ -1112,7 +1337,7 @@ function LinkPaymentDialog({
             </ul>
           )}
         </div>
-        <DialogFooter className={footerClass}>
+        <DialogFooter className={dialogFoot}>
           <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
             Lukk
           </Button>
@@ -1134,14 +1359,14 @@ function IgnoreDialog({
 
   return (
     <Dialog open onOpenChange={(next) => (next ? null : onClose())}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Ignorer transaksjonen</DialogTitle>
+      <DialogContent className={cn(dialogShell, "sm:max-w-lg")}>
+        <DialogHeader className={dialogHead}>
+          <DialogTitle className="text-xl font-bold">Ignorer transaksjonen</DialogTitle>
           <DialogDescription>
             Den teller ikke som sadaqa eller skolepenger. Du kan angre senere.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-3 py-1">
+        <div className={dialogBody}>
           <TransactionSummary transaction={transaction} />
           <div className="grid gap-1.5">
             <Label htmlFor="ignore-reason" required>
@@ -1157,7 +1382,7 @@ function IgnoreDialog({
             />
           </div>
         </div>
-        <DialogFooter className={footerClass}>
+        <DialogFooter className={dialogFoot}>
           <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
             Avbryt
           </Button>
