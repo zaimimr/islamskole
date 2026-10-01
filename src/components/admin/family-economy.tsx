@@ -33,6 +33,8 @@ import {
   type FamilyPaymentChild,
 } from "@/app/[locale]/admin/betaling/family-payment-dialog";
 import { SadaqaCoverDialog } from "@/components/admin/sadaqa";
+import { CustomPlanBuilder } from "@/components/admin/custom-plan-builder";
+import type { CustomPlanConfig } from "@/lib/custom-payment-plan";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,8 +54,9 @@ import {
 
 export type FamilyPlan = {
   id: string;
-  planType: "full" | "semester" | "maanedlig";
+  planType: "full" | "semester" | "maanedlig" | "egendefinert";
   monthlyAmount: number | null;
+  customConfig?: CustomPlanConfig | null;
   pausedAt: string | null;
 };
 
@@ -101,6 +104,7 @@ const planLabels: Record<string, string> = {
   full: "Full betaling",
   semester: "Semesterplan",
   maanedlig: "Månedlig",
+  egendefinert: "Egendefinert",
 };
 
 const installmentStatusLabels: Record<string, string> = {
@@ -174,6 +178,7 @@ export function FamilyEconomy({
   const [monthlyAmount, setMonthlyAmount] = useState(
     plan?.monthlyAmount ? String(plan.monthlyAmount / 100) : "1000",
   );
+  const [customValid, setCustomValid] = useState(false);
   const [adjustmentType, setAdjustmentType] = useState("annet");
   const [siblingChild, setSiblingChild] = useState(
     childrenOptions[0]?.id ?? "",
@@ -429,6 +434,12 @@ export function FamilyEconomy({
                   detail:
                     "Fast beløp per barn hver måned til avgiften er dekket.",
                 },
+                {
+                  value: "egendefinert",
+                  title: "Egendefinert",
+                  detail:
+                    "Velg første betaling, månedlige avdrag og siste betaling selv. Resten regnes ut.",
+                },
               ].map((option) => (
                 <label
                   key={option.value}
@@ -470,10 +481,21 @@ export function FamilyEconomy({
                 />
               </div>
             ) : null}
+            {planType === "egendefinert" ? (
+              <CustomPlanBuilder
+                familyChildren={paymentChildren}
+                config={plan?.customConfig ?? null}
+                onValidChange={setCustomValid}
+              />
+            ) : null}
             <div className="flex flex-wrap gap-2">
               <Button
                 type="submit"
-                disabled={pending || !planType}
+                disabled={
+                  pending ||
+                  !planType ||
+                  (planType === "egendefinert" && !customValid)
+                }
                 className="min-h-11 rounded-xl px-4"
               >
                 {pending ? <Loader2 className="size-4 animate-spin" /> : null}
