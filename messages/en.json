@@ -878,6 +878,38 @@
       "title": "Page not found",
       "text": "The page does not exist, or you do not have access to it.",
       "back": "Back to My page"
+    },
+    "semesterPlan": {
+      "title": "Semester plan",
+      "intro": "What the class will learn week by week.",
+      "introEdit": "Write what the class will learn each week. Guardians and students see the plan on My page.",
+      "week": "Week {number}",
+      "current": "This week",
+      "next": "Next",
+      "noSchool": "No school day",
+      "past": "{count, plural, one {# earlier week} other {# earlier weeks}}",
+      "empty": "No plan has been added yet.",
+      "weekEmpty": "No topic for this week yet.",
+      "general": "Whole week",
+      "resource": "Open resource",
+      "add": "Add topic",
+      "edit": "Edit {title}",
+      "delete": "Delete {title}",
+      "copyPrevious": "Copy previous week",
+      "copied": "{count, plural, =0 {Nothing new to copy} one {# topic copied} other {# topics copied}}",
+      "saved": "{count, plural, one {Saved} other {Saved in # weeks}}",
+      "deleted": "Topic deleted",
+      "form": {
+        "block": "Lesson",
+        "title": "Topic",
+        "titlePlaceholder": "For example: Surah Al-Fatiha",
+        "description": "Learning goals",
+        "descriptionPlaceholder": "What should the students know after this week?",
+        "link": "Link to a resource (optional)",
+        "allWeeks": "Also add to all upcoming weeks",
+        "save": "Save",
+        "cancel": "Cancel"
+      }
     }
   }
 }

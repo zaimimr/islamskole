@@ -2,11 +2,13 @@ import { getTranslations } from "next-intl/server";
 import { joinNames, noteLessonLabel } from "@/components/portal/parent/child-card";
 import { ChildLessons } from "@/components/portal/parent/child-lessons";
 import { AttendanceYear, NotesYear } from "@/components/portal/year-overview";
+import { WeekPlanView } from "@/components/semester-plan/week-plan-view";
 import { osloToday } from "@/lib/dates";
 import { statusByDay } from "@/lib/lessons";
 import { getLessons, getMySelf, getSchoolDays, getTimeSlots } from "@/lib/portal/data";
 import { formatPortalDay } from "@/lib/portal/parent-format";
 import { allSchoolDays } from "@/lib/portal/teacher-days";
+import { getWeekPlans } from "@/lib/portal/week-plan-data";
 
 export async function StudentHome({ locale }: { locale: string }) {
   const [t, tParent, self] = await Promise.all([
@@ -15,9 +17,13 @@ export async function StudentHome({ locale }: { locale: string }) {
     getMySelf(),
   ]);
   const me = self.find((row) => row.class_id) ?? self[0];
-  const [days, slots] = me?.school_year_id
-    ? await Promise.all([getSchoolDays(me.school_year_id), getTimeSlots(me.school_year_id)])
-    : [null, []];
+  const [days, slots, weekPlans] = me?.school_year_id
+    ? await Promise.all([
+        getSchoolDays(me.school_year_id),
+        getTimeSlots(me.school_year_id),
+        me.class_id ? getWeekPlans(me.class_id, me.school_year_id) : Promise.resolve([]),
+      ])
+    : [null, [], []];
   const openDay = days?.upcoming.find((day) => !day.cancelled) ?? null;
   const lessons = openDay && me?.class_id
     ? (await getLessons([openDay.id])).filter((lesson) => lesson.class_id === me.class_id)
@@ -61,6 +67,14 @@ export async function StudentHome({ locale }: { locale: string }) {
               <ChildLessons lessons={lessons} slots={slots} locale={locale} />
             </section>
           ) : null}
+          <WeekPlanView
+            id="student-semester-plan"
+            entries={weekPlans}
+            days={days ? allSchoolDays(days) : []}
+            slots={slots}
+            locale={locale}
+            today={today}
+          />
           <NotesYear
             id="student-notes"
             title={tParent("note.yearTitle")}
