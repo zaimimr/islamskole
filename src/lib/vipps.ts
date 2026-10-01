@@ -45,11 +45,18 @@ export function isVippsConfigured() {
   );
 }
 
-let cachedToken: { token: string; expiresAt: number } | null = null;
+export type VippsCredentials = Pick<
+  VippsConfig,
+  "baseUrl" | "clientId" | "clientSecret" | "subscriptionKey" | "merchantSerialNumber"
+>;
 
-async function getAccessToken(config: VippsConfig): Promise<string> {
-  if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) {
-    return cachedToken.token;
+const cachedTokens = new Map<string, { token: string; expiresAt: number }>();
+
+export async function getAccessToken(config: VippsCredentials): Promise<string> {
+  const cacheKey = `${config.baseUrl}|${config.clientId}|${config.merchantSerialNumber}`;
+  const cached = cachedTokens.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now() + 60_000) {
+    return cached.token;
   }
 
   const response = await fetch(`${config.baseUrl}/accesstoken/get`, {
@@ -58,13 +65,14 @@ async function getAccessToken(config: VippsConfig): Promise<string> {
       client_id: config.clientId,
       client_secret: config.clientSecret,
       "Ocp-Apim-Subscription-Key": config.subscriptionKey,
+      "Merchant-Serial-Number": config.merchantSerialNumber,
     },
     cache: "no-store",
   });
 
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(`Vipps token-feil (${response.status}): ${body}`);
+    throw new VippsHttpError(`Vipps token-feil (${response.status}): ${body}`, response.status);
   }
 
   const data = (await response.json()) as {
@@ -72,11 +80,20 @@ async function getAccessToken(config: VippsConfig): Promise<string> {
     expires_in: string | number;
   };
   const expiresInSeconds = Number(data.expires_in) || 3600;
-  cachedToken = {
+  cachedTokens.set(cacheKey, {
     token: data.access_token,
     expiresAt: Date.now() + expiresInSeconds * 1000,
-  };
+  });
   return data.access_token;
+}
+
+export class VippsHttpError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
 }
 
 function baseHeaders(config: VippsConfig, token: string) {

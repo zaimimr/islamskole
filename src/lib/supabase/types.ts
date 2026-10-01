@@ -473,6 +473,143 @@ export type Database = {
         }
         Relationships: []
       }
+      external_transactions: {
+        Row: {
+          account: string
+          amount: number
+          booked_at: string | null
+          booked_on: string
+          counterparty_name: string | null
+          counterparty_phone: string | null
+          currency: string
+          entry_type: string | null
+          external_id: string
+          family_id: string | null
+          id: string
+          import_batch_id: string | null
+          imported_at: string
+          mapped_at: string | null
+          mapped_by: string | null
+          matched_payment_id: string | null
+          message: string | null
+          note: string | null
+          psp_reference: string | null
+          raw: Json
+          reference: string | null
+          sadaqa_gift_id: string | null
+          source: string
+          status: string
+          suggested_status: string | null
+          suggestion_reason: string | null
+        }
+        Insert: {
+          account: string
+          amount: number
+          booked_at?: string | null
+          booked_on: string
+          counterparty_name?: string | null
+          counterparty_phone?: string | null
+          currency?: string
+          entry_type?: string | null
+          external_id: string
+          family_id?: string | null
+          id?: string
+          import_batch_id?: string | null
+          imported_at?: string
+          mapped_at?: string | null
+          mapped_by?: string | null
+          matched_payment_id?: string | null
+          message?: string | null
+          note?: string | null
+          psp_reference?: string | null
+          raw?: Json
+          reference?: string | null
+          sadaqa_gift_id?: string | null
+          source: string
+          status?: string
+          suggested_status?: string | null
+          suggestion_reason?: string | null
+        }
+        Update: {
+          account?: string
+          amount?: number
+          booked_at?: string | null
+          booked_on?: string
+          counterparty_name?: string | null
+          counterparty_phone?: string | null
+          currency?: string
+          entry_type?: string | null
+          external_id?: string
+          family_id?: string | null
+          id?: string
+          import_batch_id?: string | null
+          imported_at?: string
+          mapped_at?: string | null
+          mapped_by?: string | null
+          matched_payment_id?: string | null
+          message?: string | null
+          note?: string | null
+          psp_reference?: string | null
+          raw?: Json
+          reference?: string | null
+          sadaqa_gift_id?: string | null
+          source?: string
+          status?: string
+          suggested_status?: string | null
+          suggestion_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "external_transactions_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "external_transactions_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "external_transactions_matched_payment_id_fkey"
+            columns: ["matched_payment_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_payment_candidates"
+            referencedColumns: ["matched_payment_id"]
+          },
+          {
+            foreignKeyName: "external_transactions_matched_payment_id_fkey"
+            columns: ["matched_payment_id"]
+            isOneToOne: false
+            referencedRelation: "duplicate_payment_candidates"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "external_transactions_matched_payment_id_fkey"
+            columns: ["matched_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "external_transactions_matched_payment_id_fkey"
+            columns: ["matched_payment_id"]
+            isOneToOne: false
+            referencedRelation: "sadaqa_disbursements"
+            referencedColumns: ["payment_id"]
+          },
+          {
+            foreignKeyName: "external_transactions_sadaqa_gift_id_fkey"
+            columns: ["sadaqa_gift_id"]
+            isOneToOne: false
+            referencedRelation: "sadaqa_gifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       families: {
         Row: {
           address: string | null
@@ -733,6 +870,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      import_batches: {
+        Row: {
+          account: string | null
+          created_at: string
+          created_by: string | null
+          duplicate_count: number
+          errors: Json
+          file_name: string | null
+          id: string
+          inserted_count: number
+          kind: string
+          matched_count: number
+          period_from: string | null
+          period_to: string | null
+          row_count: number
+          skipped_count: number
+          source: string
+        }
+        Insert: {
+          account?: string | null
+          created_at?: string
+          created_by?: string | null
+          duplicate_count?: number
+          errors?: Json
+          file_name?: string | null
+          id?: string
+          inserted_count?: number
+          kind: string
+          matched_count?: number
+          period_from?: string | null
+          period_to?: string | null
+          row_count?: number
+          skipped_count?: number
+          source: string
+        }
+        Update: {
+          account?: string | null
+          created_at?: string
+          created_by?: string | null
+          duplicate_count?: number
+          errors?: Json
+          file_name?: string | null
+          id?: string
+          inserted_count?: number
+          kind?: string
+          matched_count?: number
+          period_from?: string | null
+          period_to?: string | null
+          row_count?: number
+          skipped_count?: number
+          source?: string
+        }
+        Relationships: []
       }
       info_blocks: {
         Row: {
