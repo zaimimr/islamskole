@@ -844,7 +844,7 @@
         "unmarked": "ikke registrert"
       },
       "note": {
-        "title": "Ukens notat",
+        "title": "Notat for timen",
         "intro": "Foreldrene ser notatet på Min side. Ett notat per time.",
         "homework": "Lekser",
         "homeworkPlaceholder": "For eksempel: Øv på sura Al-Fatiha, side 4 i arbeidsboka",
@@ -992,6 +992,12 @@
       "copied": "{count, plural, =0 {Ingenting nytt å kopiere} one {# tema kopiert} other {# temaer kopiert}}",
       "saved": "{count, plural, one {Lagret} other {Lagret i # uker}}",
       "deleted": "Tema slettet",
+      "deleteConfirm": {
+        "title": "Slette «{title}»?",
+        "description": "Temaet, læringsmålene og lenken blir slettet for godt. Foresatte og elever ser det ikke lenger.",
+        "cancel": "Avbryt",
+        "action": "Slett"
+      },
       "form": {
         "block": "Time",
         "title": "Tema",

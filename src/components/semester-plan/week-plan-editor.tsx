@@ -5,6 +5,16 @@ import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ChevronDown, Copy, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { entryLabel, weekHeading, WeekEntryContent } from "@/components/semester-plan/week-entry";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,6 +64,7 @@ export function WeekPlanEditor({
   const locale = useLocale();
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState<Editing | null>(null);
+  const [deleting, setDeleting] = useState<WeekPlanEntry | null>(null);
   const byWeek = entriesByWeek(entries);
   const focus = focusWeek(weeks, today);
   const past = weeks.filter((week) => focus === null || week.weekStart < focus).reverse();
@@ -79,6 +90,7 @@ export function WeekPlanEditor({
   function remove(entry: WeekPlanEntry) {
     startTransition(async () => {
       const result = await deleteWeekPlanEntry(entry.id);
+      setDeleting(null);
       if (result.ok) toast.success(t("deleted"));
       else toast.error(tErrors(result.error));
     });
@@ -138,7 +150,7 @@ export function WeekPlanEditor({
                       size="icon"
                       disabled={pending}
                       aria-label={t("delete", { title: entry.title })}
-                      onClick={() => remove(entry)}
+                      onClick={() => setDeleting(entry)}
                       className="size-11 text-destructive"
                     >
                       <Trash2 aria-hidden="true" className="size-4" />
@@ -222,6 +234,31 @@ export function WeekPlanEditor({
           <ol className="mt-3 grid gap-3">{past.map(renderWeek)}</ol>
         </details>
       ) : null}
+      <AlertDialog
+        open={deleting != null}
+        onOpenChange={(open) => {
+          if (!open && !pending) setDeleting(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("deleteConfirm.title", { title: deleting?.title ?? "" })}</AlertDialogTitle>
+            <AlertDialogDescription>{t("deleteConfirm.description")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="min-h-11">{t("deleteConfirm.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={pending}
+              onClick={() => deleting && remove(deleting)}
+              className="min-h-11"
+            >
+              {pending ? <Loader2 aria-hidden="true" className="size-4 animate-spin" /> : null}
+              {t("deleteConfirm.action")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

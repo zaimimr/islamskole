@@ -844,7 +844,7 @@
         "unmarked": "not recorded"
       },
       "note": {
-        "title": "This week's note",
+        "title": "Lesson note",
         "intro": "Parents see the note on My page. One note per lesson.",
         "homework": "Homework",
         "homeworkPlaceholder": "For example: Practise surah Al-Fatiha, page 4 in the workbook",
@@ -992,6 +992,12 @@
       "copied": "{count, plural, =0 {Nothing new to copy} one {# topic copied} other {# topics copied}}",
       "saved": "{count, plural, one {Saved} other {Saved in # weeks}}",
       "deleted": "Topic deleted",
+      "deleteConfirm": {
+        "title": "Delete “{title}”?",
+        "description": "The topic, learning goals and link are deleted for good. Guardians and students will no longer see it.",
+        "cancel": "Cancel",
+        "action": "Delete"
+      },
       "form": {
         "block": "Lesson",
         "title": "Topic",
