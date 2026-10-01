@@ -253,6 +253,7 @@ export type Database = {
       class_slot_plans: {
         Row: {
           class_id: string
+          co_teacher_guardian_id: string | null
           created_at: string
           end_position: number
           id: string
@@ -264,6 +265,7 @@ export type Database = {
         }
         Insert: {
           class_id: string
+          co_teacher_guardian_id?: string | null
           created_at?: string
           end_position: number
           id?: string
@@ -275,6 +277,7 @@ export type Database = {
         }
         Update: {
           class_id?: string
+          co_teacher_guardian_id?: string | null
           created_at?: string
           end_position?: number
           id?: string
@@ -285,6 +288,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "class_slot_plans_co_teacher_guardian_id_fkey"
+            columns: ["co_teacher_guardian_id"]
+            isOneToOne: false
+            referencedRelation: "guardians"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_slot_plans_co_teacher_guardian_id_fkey"
+            columns: ["co_teacher_guardian_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_gift_report"
+            referencedColumns: ["teacher_guardian_id"]
+          },
           {
             foreignKeyName: "class_slot_plans_class_id_fkey"
             columns: ["class_id"]
@@ -1278,6 +1295,7 @@ export type Database = {
         Row: {
           cancelled: boolean
           class_id: string
+          co_teacher_guardian_id: string | null
           created_at: string
           end_position: number
           id: string
@@ -1294,6 +1312,7 @@ export type Database = {
         Insert: {
           cancelled?: boolean
           class_id: string
+          co_teacher_guardian_id?: string | null
           created_at?: string
           end_position: number
           id?: string
@@ -1310,6 +1329,7 @@ export type Database = {
         Update: {
           cancelled?: boolean
           class_id?: string
+          co_teacher_guardian_id?: string | null
           created_at?: string
           end_position?: number
           id?: string
@@ -1324,6 +1344,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "lessons_co_teacher_guardian_id_fkey"
+            columns: ["co_teacher_guardian_id"]
+            isOneToOne: false
+            referencedRelation: "guardians"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lessons_co_teacher_guardian_id_fkey"
+            columns: ["co_teacher_guardian_id"]
+            isOneToOne: false
+            referencedRelation: "teacher_gift_report"
+            referencedColumns: ["teacher_guardian_id"]
+          },
           {
             foreignKeyName: "lessons_class_id_fkey"
             columns: ["class_id"]
@@ -2965,6 +2999,7 @@ export type Database = {
       admin_update_lesson: {
         Args: {
           p_cancelled: boolean
+          p_co_teacher_guardian_id?: string | null
           p_lesson_id: string
           p_note: string | null
           p_subject: string | null
@@ -3023,6 +3058,7 @@ export type Database = {
       lesson_plan_ranges: {
         Args: { p_class_id: string; p_school_year_id: string }
         Returns: {
+          co_teacher_guardian_id: string
           end_position: number
           plan_id: string
           start_position: number
@@ -3172,6 +3208,9 @@ export type Database = {
           class_id: string
           class_name_en: string
           class_name_no: string
+          co_teacher_first_name: string
+          co_teacher_guardian_id: string
+          co_teacher_last_name: string
           date: string
           end_label: string
           end_position: number
@@ -3243,6 +3282,9 @@ export type Database = {
           class_id: string
           class_name_en: string
           class_name_no: string
+          co_teacher_first_name: string
+          co_teacher_guardian_id: string
+          co_teacher_last_name: string
           date: string
           end_label: string
           end_position: number

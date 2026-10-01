@@ -171,6 +171,9 @@ export type PortalLesson = {
   teacher_guardian_id: string | null;
   teacher_first_name: string | null;
   teacher_last_name: string | null;
+  co_teacher_guardian_id: string | null;
+  co_teacher_first_name: string | null;
+  co_teacher_last_name: string | null;
   is_substitute: boolean;
   cancelled: boolean;
   is_mine: boolean;

@@ -20,7 +20,7 @@ export async function ChildLessons({
   return (
     <ol className="grid gap-2">
       {lessons.map((lesson) => {
-        const view = lessonView(lesson, slots, t("lessons.wholeDay"));
+        const view = lessonView(lesson, slots, t("lessons.wholeDay"), locale);
         const status = statusByLesson?.get(lesson.lesson_id);
         return (
           <li

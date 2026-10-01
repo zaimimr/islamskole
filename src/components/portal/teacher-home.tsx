@@ -96,7 +96,7 @@ export async function TeacherHome({ locale }: { locale: string }) {
                 <LessonList
                   lessons={lessons
                     .filter((lesson) => lesson.class_id === row.class_id)
-                    .map((lesson) => lessonView(lesson, slots, wholeDay))}
+                    .map((lesson) => lessonView(lesson, slots, wholeDay, locale))}
                   labels={{ substitute: t("lessons.substitute"), mine: t("lessons.mine"), cancelled: t("lessons.cancelled") }}
                 />
               </Link>
@@ -109,7 +109,7 @@ export async function TeacherHome({ locale }: { locale: string }) {
           <h3 className="text-xl font-bold">{t("lessons.extraTitle")}</h3>
           <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {extraLessons.map((lesson) => {
-              const view = lessonView(lesson, slots, wholeDay);
+              const view = lessonView(lesson, slots, wholeDay, locale);
               return (
                 <li key={lesson.lesson_id}>
                   <Link

@@ -180,7 +180,7 @@ export default async function TeacherClassPage({
                   classId={classId}
                   dayId={day.id}
                   selectedId={lesson?.lesson_id ?? ""}
-                  lessons={lessons.map((row) => lessonView(row, slots, wholeDay))}
+                  lessons={lessons.map((row) => lessonView(row, slots, wholeDay, locale))}
                 />
               ) : null}
 

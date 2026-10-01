@@ -4,7 +4,7 @@ create extension if not exists pgtap with schema extensions;
 
 set local search_path = public, extensions;
 
-select plan(31);
+select plan(41);
 
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
 
@@ -14,7 +14,8 @@ values
   ('f1000000-0000-0000-0000-0000000000a2', 'zz-f1-islam@zztest.local', '{"role":"member"}'),
   ('f1000000-0000-0000-0000-0000000000a3', 'zz-f1-koran@zztest.local', '{"role":"member"}'),
   ('f1000000-0000-0000-0000-0000000000a4', 'zz-f1-vikar@zztest.local', '{"role":"member"}'),
-  ('f1000000-0000-0000-0000-0000000000a5', 'zz-f1-parent@zztest.local', '{"role":"member"}');
+  ('f1000000-0000-0000-0000-0000000000a5', 'zz-f1-parent@zztest.local', '{"role":"member"}'),
+  ('f1000000-0000-0000-0000-0000000000a6', 'zz-f1-medlaerer@zztest.local', '{"role":"member"}');
 
 update public.school_years set is_active = false where is_active;
 
@@ -47,7 +48,8 @@ values
   ('f1000000-0000-0000-0000-000000000061', 'ZZTEST', 'Islam', 'zz-f1-islam@zztest.local', true),
   ('f1000000-0000-0000-0000-000000000062', 'ZZTEST', 'Koran', 'zz-f1-koran@zztest.local', true),
   ('f1000000-0000-0000-0000-000000000063', 'ZZTEST', 'Vikar', 'zz-f1-vikar@zztest.local', true),
-  ('f1000000-0000-0000-0000-000000000064', 'ZZTEST', 'Forelder', 'zz-f1-parent@zztest.local', false);
+  ('f1000000-0000-0000-0000-000000000064', 'ZZTEST', 'Forelder', 'zz-f1-parent@zztest.local', false),
+  ('f1000000-0000-0000-0000-000000000065', 'ZZTEST', 'Medlaerer', 'zz-f1-medlaerer@zztest.local', true);
 
 insert into public.family_guardians (family_id, guardian_id, is_primary_contact)
 values ('f1000000-0000-0000-0000-0000000000f1', 'f1000000-0000-0000-0000-000000000064', true);
@@ -221,6 +223,74 @@ select throws_ok(
   'the substitute cannot mark a lesson they do not teach'
 );
 
+select set_config('request.jwt.claims', '{"sub":"f1000000-0000-0000-0000-0000000000a1","email":"zz-f1-admin@zztest.local","role":"authenticated"}', true);
+
+select lives_ok(
+  $$ select public.admin_update_lesson((select id from f1_koran), 'Koran', 'f1000000-0000-0000-0000-000000000062', false, null,
+       'f1000000-0000-0000-0000-000000000065') $$,
+  'admin adds a co-teacher to one lesson'
+);
+
+select throws_ok(
+  $$ select public.admin_update_lesson((select id from f1_koran), 'Koran', 'f1000000-0000-0000-0000-000000000062', false, null,
+       'f1000000-0000-0000-0000-000000000062') $$,
+  'P0001',
+  null,
+  'the co-teacher cannot be the same person as the teacher'
+);
+
+select set_config('request.jwt.claims', '{"sub":"f1000000-0000-0000-0000-0000000000a4","email":"zz-f1-vikar@zztest.local","role":"authenticated"}', true);
+
+select is(
+  public.portal_can_write_lesson_attendance('f1000000-0000-0000-0000-000000000051', (select id from f1_koran)),
+  false,
+  'an unrelated teacher still cannot mark the co-taught lesson'
+);
+
+select set_config('request.jwt.claims', '{"sub":"f1000000-0000-0000-0000-0000000000a6","email":"zz-f1-medlaerer@zztest.local","role":"authenticated"}', true);
+
+select is(
+  (select string_agg(teacher_last_name || ' og ' || co_teacher_last_name || ' ' || is_mine::text, ',')
+   from public.portal_my_lessons((now() at time zone 'Europe/Oslo')::date, (now() at time zone 'Europe/Oslo')::date)),
+  'Koran og Medlaerer true',
+  'the co-teacher sees the lesson with both teacher names'
+);
+
+select lives_ok(
+  $$
+    insert into public.attendance (student_id, lesson_id, status)
+    values ('f1000000-0000-0000-0000-000000000051', (select id from f1_koran), 'til_stede')
+  $$,
+  'the co-teacher marks attendance for the lesson'
+);
+
+select lives_ok(
+  $$
+    insert into public.class_notes (lesson_id, class_id, school_day_id, homework)
+    select id, 'f1000000-0000-0000-0000-0000000000c1', 'f1000000-0000-0000-0000-0000000000d2', 'ZZTEST medlaerer lekse'
+    from f1_koran
+  $$,
+  'the co-teacher writes homework for the lesson'
+);
+
+reset role;
+update public.guardians set teacher_suspended_at = now() where id = 'f1000000-0000-0000-0000-000000000065';
+set local role authenticated;
+
+select is(
+  public.portal_can_write_lesson_attendance('f1000000-0000-0000-0000-000000000051', (select id from f1_koran)),
+  false,
+  'a suspended co-teacher cannot mark attendance'
+);
+
+select is(
+  (select count(*) from public.portal_my_lessons((now() at time zone 'Europe/Oslo')::date, (now() at time zone 'Europe/Oslo')::date + 14)),
+  0::bigint,
+  'a suspended co-teacher loses access to the lesson'
+);
+
+select set_config('request.jwt.claims', '{"sub":"f1000000-0000-0000-0000-0000000000a4","email":"zz-f1-vikar@zztest.local","role":"authenticated"}', true);
+
 reset role;
 update public.guardians set teacher_suspended_at = now() where id = 'f1000000-0000-0000-0000-000000000063';
 set local role authenticated;
@@ -330,6 +400,20 @@ select is(
    where class_id = 'f1000000-0000-0000-0000-0000000000c1' and school_day_id = 'f1000000-0000-0000-0000-0000000000d3'),
   '1-1 Islam,2-3 Koran',
   'the reset day matches the weekly plan again'
+);
+
+select is(
+  public.admin_save_class_slot_plans('f1000000-0000-0000-0000-0000000000c2', 'f1000000-0000-0000-0000-000000000001',
+    '[{"start_position":1,"end_position":4,"subject":"Arabisk","teacher_guardian_id":"f1000000-0000-0000-0000-000000000062","co_teacher_guardian_id":"f1000000-0000-0000-0000-000000000061"}]'::jsonb),
+  1,
+  'admin saves a weekly plan slot with a co-teacher'
+);
+
+select is(
+  (select co_teacher_guardian_id from public.lessons
+   where class_id = 'f1000000-0000-0000-0000-0000000000c2' and school_day_id = 'f1000000-0000-0000-0000-0000000000d3'),
+  'f1000000-0000-0000-0000-000000000061'::uuid,
+  'upcoming lessons get the co-teacher from the weekly plan'
 );
 
 reset role;

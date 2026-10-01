@@ -35,6 +35,7 @@ export type DayPlanLesson = {
   end_position: number;
   subject: string | null;
   teacherId: string | null;
+  coTeacherId: string | null;
   teacherName: string | null;
   defaultTeacherName: string | null;
   isSubstitute: boolean;
@@ -81,7 +82,7 @@ export function DayPlanGrid({
     const clash = allLessons.find(
       (other) =>
         other.id !== lesson.id &&
-        other.teacherId === teacherId &&
+        (other.teacherId === teacherId || other.coTeacherId === teacherId) &&
         !other.cancelled &&
         rangesOverlap(other, lesson),
     );
@@ -276,6 +277,7 @@ function LessonCard({
             updateLesson(lesson.id, {
               subject: lesson.subject,
               teacherGuardianId: lesson.teacherId,
+              coTeacherGuardianId: lesson.coTeacherId,
               cancelled: false,
               note: lesson.note,
             }),
@@ -290,6 +292,7 @@ function LessonCard({
             updateLesson(lesson.id, {
               subject: lesson.subject,
               teacherGuardianId: lesson.teacherId,
+              coTeacherGuardianId: lesson.coTeacherId,
               cancelled: true,
               note: lesson.note,
             }),
@@ -389,6 +392,7 @@ function LessonDialog({
   const [pending, startTransition] = useTransition();
   const [subject, setSubject] = useState(lesson.subject ?? "");
   const [teacher, setTeacher] = useState(lesson.teacherId ?? NO_TEACHER);
+  const [coTeacher, setCoTeacher] = useState(lesson.coTeacherId ?? NO_TEACHER);
   const [note, setNote] = useState(lesson.note ?? "");
   const [cancelled, setCancelled] = useState(lesson.cancelled);
 
@@ -398,6 +402,7 @@ function LessonDialog({
       const result = await updateLesson(lesson.id, {
         subject: subject.trim() || null,
         teacherGuardianId: teacher === NO_TEACHER ? null : teacher,
+        coTeacherGuardianId: coTeacher === NO_TEACHER ? null : coTeacher,
         cancelled,
         note: note.trim() || null,
       });
@@ -437,12 +442,31 @@ function LessonDialog({
               aria-labelledby="lesson-teacher-label"
               options={[{ value: NO_TEACHER, label: "Klasselærerne" }, ...teacherOptions]}
               value={teacher}
-              onValueChange={setTeacher}
+              onValueChange={(value) => {
+                setTeacher(value);
+                if (value === coTeacher) setCoTeacher(NO_TEACHER);
+              }}
               triggerClassName="min-h-11 rounded-xl"
             />
             {lesson.defaultTeacherName ? (
               <p className="text-xs text-admin-muted">Fast lærer: {lesson.defaultTeacherName}</p>
             ) : null}
+          </div>
+          <div className="grid gap-1.5">
+            <Label id="lesson-co-teacher-label">Medlærer</Label>
+            <SelectField
+              aria-labelledby="lesson-co-teacher-label"
+              options={[
+                { value: NO_TEACHER, label: "Ingen medlærer" },
+                ...teacherOptions.map((option) => ({
+                  ...option,
+                  disabled: option.disabled || option.value === teacher,
+                })),
+              ]}
+              value={coTeacher}
+              onValueChange={setCoTeacher}
+              triggerClassName="min-h-11 rounded-xl"
+            />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="lesson-note">Merknad</Label>

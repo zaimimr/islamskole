@@ -3,7 +3,7 @@ import Link from "next/link";
 import { CalendarX } from "lucide-react";
 import { adminBasePath } from "@/components/admin/paths";
 import { formatOsloDate, osloToday } from "@/lib/dates";
-import { findDoubleBookings, type TimeSlot } from "@/lib/lessons";
+import { findDoubleBookings, joinTeacherNames, lessonTeacherIds, type TimeSlot } from "@/lib/lessons";
 import { createClient } from "@/lib/supabase/server";
 import { DayPicker } from "./day-picker";
 import { DayPlanGrid, type DayPlanClass, type DayPlanTeacher } from "./day-plan-grid";
@@ -19,6 +19,7 @@ type LessonRow = {
   end_position: number;
   subject: string | null;
   teacher_guardian_id: string | null;
+  co_teacher_guardian_id: string | null;
   is_substitute: boolean;
   is_override: boolean;
   cancelled: boolean;
@@ -120,7 +121,7 @@ export default async function DagsplanPage({ params, searchParams }: PageProps<"
     supabase
       .from("lessons")
       .select(
-        "id, class_id, school_day_id, start_position, end_position, subject, teacher_guardian_id, is_substitute, is_override, cancelled, note, plan:class_slot_plans!lessons_plan_id_fkey(teacher_guardian_id), class:classes!lessons_class_id_fkey(name_no, sort_order)",
+        "id, class_id, school_day_id, start_position, end_position, subject, teacher_guardian_id, co_teacher_guardian_id, is_substitute, is_override, cancelled, note, plan:class_slot_plans!lessons_plan_id_fkey(teacher_guardian_id), class:classes!lessons_class_id_fkey(name_no, sort_order)",
       )
       .eq("school_day_id", day.id)
       .order("start_position", { ascending: true }),
@@ -133,7 +134,7 @@ export default async function DagsplanPage({ params, searchParams }: PageProps<"
   const missingIds = [
     ...new Set(
       lessons
-        .flatMap((row) => [row.teacher_guardian_id, row.plan?.teacher_guardian_id ?? null])
+        .flatMap((row) => [...lessonTeacherIds(row), row.plan?.teacher_guardian_id ?? null])
         .filter((id): id is string => Boolean(id) && !knownIds.has(id as string)),
     ),
   ];
@@ -160,10 +161,12 @@ export default async function DagsplanPage({ params, searchParams }: PageProps<"
       start_position: row.start_position,
       end_position: row.end_position,
       teacher_guardian_id: row.teacher_guardian_id,
+      co_teacher_guardian_id: row.co_teacher_guardian_id,
       cancelled: row.cancelled,
     })),
   );
 
+  const nameOf = (id: string) => names.get(id) ?? "(ukjent lærer)";
   const classMap = new Map<string, DayPlanClass & { sortOrder: number }>();
   for (const row of lessons) {
     const entry = classMap.get(row.class_id) ?? {
@@ -173,7 +176,6 @@ export default async function DagsplanPage({ params, searchParams }: PageProps<"
       lessons: [],
       sortOrder: row.class?.sort_order ?? 0,
     };
-    const defaultTeacher = row.plan?.teacher_guardian_id ?? null;
     entry.lessons.push({
       id: row.id,
       classId: row.class_id,
@@ -181,8 +183,9 @@ export default async function DagsplanPage({ params, searchParams }: PageProps<"
       end_position: row.end_position,
       subject: row.subject,
       teacherId: row.teacher_guardian_id,
-      teacherName: row.teacher_guardian_id ? names.get(row.teacher_guardian_id) ?? "(ukjent lærer)" : null,
-      defaultTeacherName: defaultTeacher ? names.get(defaultTeacher) ?? null : null,
+      coTeacherId: row.co_teacher_guardian_id,
+      teacherName: joinTeacherNames(lessonTeacherIds(row).map(nameOf)),
+      defaultTeacherName: row.plan?.teacher_guardian_id ? names.get(row.plan.teacher_guardian_id) ?? null : null,
       isSubstitute: row.is_substitute,
       isOverride: row.is_override,
       cancelled: row.cancelled,

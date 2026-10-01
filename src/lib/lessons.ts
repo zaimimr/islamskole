@@ -13,6 +13,7 @@ export type SlotRange = {
 export type SlotPlan = SlotRange & {
   subject: string | null;
   teacher_guardian_id: string | null;
+  co_teacher_guardian_id: string | null;
 };
 
 export type PlanCell<T extends SlotRange> =
@@ -133,16 +134,22 @@ export type BookableLesson = SlotRange & {
   id: string;
   school_day_id: string;
   teacher_guardian_id: string | null;
+  co_teacher_guardian_id?: string | null;
   cancelled: boolean;
 };
 
+export function lessonTeacherIds(lesson: Pick<BookableLesson, "teacher_guardian_id" | "co_teacher_guardian_id">): string[] {
+  return [lesson.teacher_guardian_id, lesson.co_teacher_guardian_id ?? null].filter((id): id is string => Boolean(id));
+}
+
 export function findDoubleBookings(lessons: BookableLesson[]): Set<string> {
   const clashes = new Set<string>();
-  const active = lessons.filter((lesson) => lesson.teacher_guardian_id && !lesson.cancelled);
+  const active = lessons.filter((lesson) => lessonTeacherIds(lesson).length && !lesson.cancelled);
   for (const [index, lesson] of active.entries()) {
+    const teachers = lessonTeacherIds(lesson);
     for (const other of active.slice(index + 1)) {
       if (
-        other.teacher_guardian_id === lesson.teacher_guardian_id &&
+        lessonTeacherIds(other).some((id) => teachers.includes(id)) &&
         other.school_day_id === lesson.school_day_id &&
         rangesOverlap(lesson, other)
       ) {
@@ -152,6 +159,12 @@ export function findDoubleBookings(lessons: BookableLesson[]): Set<string> {
     }
   }
   return clashes;
+}
+
+export function joinTeacherNames(names: (string | null | undefined)[], locale = "nb"): string | null {
+  const present = names.filter((name): name is string => Boolean(name));
+  if (!present.length) return null;
+  return new Intl.ListFormat(locale === "en" ? "en" : "nb", { type: "conjunction" }).format(present);
 }
 
 export function collapseDayStatus(statuses: (DayStatus | null | undefined)[]): DayStatus | null {

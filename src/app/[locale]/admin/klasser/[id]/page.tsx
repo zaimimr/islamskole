@@ -281,7 +281,7 @@ async function getClassPage(id: string) {
       .order("position", { ascending: true }),
     supabase
       .from("class_slot_plans")
-      .select("start_position, end_position, subject, teacher_guardian_id")
+      .select("start_position, end_position, subject, teacher_guardian_id, co_teacher_guardian_id")
       .eq("class_id", id)
       .eq("school_year_id", activeYear.id)
       .order("start_position", { ascending: true }),
@@ -293,7 +293,7 @@ async function getClassPage(id: string) {
   const inactivePlanTeacherIds = [
     ...new Set(
       plans
-        .map((plan) => plan.teacher_guardian_id)
+        .flatMap((plan) => [plan.teacher_guardian_id, plan.co_teacher_guardian_id])
         .filter((value): value is string => Boolean(value) && !candidateIds.has(value as string)),
     ),
   ];

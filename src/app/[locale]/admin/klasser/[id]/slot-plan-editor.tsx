@@ -46,14 +46,18 @@ export function SlotPlanEditor({
   const [rows, setRows] = useState<SlotPlan[]>(sortByStart(plans));
   const dirty = JSON.stringify(rows) !== JSON.stringify(sortByStart(plans));
   const problem = validatePlans(rows, slots.length);
-  const teacherOptions = [
-    { value: NO_TEACHER, label: "Ingen fast lærer" },
-    ...candidates.map((teacher) => ({ value: teacher.id, label: teacher.name })),
+  const teachers = [
+    ...candidates.map((teacher) => ({ value: teacher.id, label: teacher.name, disabled: false })),
     ...inactiveTeachers.map((teacher) => ({
       value: teacher.id,
       label: `${teacher.name} (ikke aktiv)`,
       disabled: true,
     })),
+  ];
+  const teacherOptions = [{ value: NO_TEACHER, label: "Ingen fast lærer" }, ...teachers];
+  const coTeacherOptions = (teacherId: string | null) => [
+    { value: NO_TEACHER, label: "Ingen medlærer" },
+    ...teachers.map((option) => ({ ...option, disabled: option.disabled || option.value === teacherId })),
   ];
 
   function update(index: number, change: Partial<SlotPlan>) {
@@ -144,7 +148,7 @@ export function SlotPlanEditor({
                     disabled={pending}
                     onClick={() =>
                       setRows((current) =>
-                        sortByStart([...current, { ...range, subject: null, teacher_guardian_id: null }]),
+                        sortByStart([...current, { ...range, subject: null, teacher_guardian_id: null, co_teacher_guardian_id: null }]),
                       )
                     }
                     className="min-h-11 rounded-xl bg-white px-3 font-bold"
@@ -169,7 +173,7 @@ export function SlotPlanEditor({
                     </span>
                   ) : null}
                 </p>
-                <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+                <div className="grid gap-3 md:grid-cols-3 md:items-end xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
                   <label className="grid gap-1.5 text-sm font-bold">
                     Fag
                     <Input
@@ -188,8 +192,26 @@ export function SlotPlanEditor({
                       aria-labelledby={`plan-teacher-${plan.start_position}`}
                       options={teacherOptions}
                       value={plan.teacher_guardian_id ?? NO_TEACHER}
+                      onValueChange={(value) => {
+                        const teacherId = value === NO_TEACHER ? null : value;
+                        update(index, {
+                          teacher_guardian_id: teacherId,
+                          ...(teacherId && teacherId === plan.co_teacher_guardian_id ? { co_teacher_guardian_id: null } : {}),
+                        });
+                      }}
+                      triggerClassName="min-h-11 rounded-xl border-[#CFC9BD] bg-white shadow-none"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <span id={`plan-co-teacher-${plan.start_position}`} className="text-sm font-bold">
+                      Medlærer
+                    </span>
+                    <SelectField
+                      aria-labelledby={`plan-co-teacher-${plan.start_position}`}
+                      options={coTeacherOptions(plan.teacher_guardian_id)}
+                      value={plan.co_teacher_guardian_id ?? NO_TEACHER}
                       onValueChange={(value) =>
-                        update(index, { teacher_guardian_id: value === NO_TEACHER ? null : value })
+                        update(index, { co_teacher_guardian_id: value === NO_TEACHER ? null : value })
                       }
                       triggerClassName="min-h-11 rounded-xl border-[#CFC9BD] bg-white shadow-none"
                     />

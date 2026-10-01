@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   collapseDayStatus,
   findDoubleBookings,
+  joinTeacherNames,
   lessonTitle,
   mergeWithNext,
   planCells,
@@ -92,6 +93,22 @@ test("double booking finds a teacher in two classes at the same time", () => {
     { id: "g", school_day_id: "x", start_position: 1, end_position: 1, teacher_guardian_id: "t1", cancelled: false },
   ];
   assert.deepEqual([...findDoubleBookings(lessons)].sort(), ["a", "b"]);
+});
+
+test("double booking counts co-teachers", () => {
+  const lessons = [
+    { id: "a", school_day_id: "d", start_position: 1, end_position: 1, teacher_guardian_id: "t1", co_teacher_guardian_id: "t3", cancelled: false },
+    { id: "b", school_day_id: "d", start_position: 1, end_position: 1, teacher_guardian_id: "t2", co_teacher_guardian_id: null, cancelled: false },
+    { id: "c", school_day_id: "d", start_position: 1, end_position: 1, teacher_guardian_id: null, co_teacher_guardian_id: "t3", cancelled: false },
+  ];
+  assert.deepEqual([...findDoubleBookings(lessons)].sort(), ["a", "c"]);
+});
+
+test("teacher names are joined with og", () => {
+  assert.equal(joinTeacherNames(["Sidra Khan", "Nitasha X"]), "Sidra Khan og Nitasha X");
+  assert.equal(joinTeacherNames(["Sidra Khan", null]), "Sidra Khan");
+  assert.equal(joinTeacherNames([null, undefined]), null);
+  assert.equal(joinTeacherNames(["A", "B"], "en"), "A and B");
 });
 
 test("a day counts as absent when any lesson was missed", () => {

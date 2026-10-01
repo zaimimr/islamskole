@@ -27,10 +27,12 @@ const planSchema = z.object({
   end_position: z.number().int().min(1),
   subject: text(120),
   teacher_guardian_id: uuid.nullable(),
+  co_teacher_guardian_id: uuid.nullable(),
 });
 const lessonSchema = z.object({
   subject: text(120),
   teacherGuardianId: uuid.nullable(),
+  coTeacherGuardianId: uuid.nullable(),
   cancelled: z.boolean(),
   note: text(500),
 });
@@ -119,7 +121,13 @@ export async function saveClassSlotPlans(
 
 export async function updateLesson(
   lessonId: string,
-  values: { subject: string | null; teacherGuardianId: string | null; cancelled: boolean; note: string | null },
+  values: {
+    subject: string | null;
+    teacherGuardianId: string | null;
+    coTeacherGuardianId: string | null;
+    cancelled: boolean;
+    note: string | null;
+  },
 ): Promise<ActionResult> {
   const denied = await requireAdmin();
   if (denied) return denied;
@@ -133,6 +141,7 @@ export async function updateLesson(
     p_teacher_guardian_id: parsed.data.teacherGuardianId,
     p_cancelled: parsed.data.cancelled,
     p_note: parsed.data.note,
+    p_co_teacher_guardian_id: parsed.data.coTeacherGuardianId,
   });
   if (error) return failure(error);
 
