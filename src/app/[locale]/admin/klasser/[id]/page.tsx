@@ -184,6 +184,7 @@ async function getClassPage(id: string) {
       balances: [] as BalanceRow[],
       teachers: [] as TeacherRow[],
       candidates: [] as CandidateRow[],
+      inactivePlanTeachers: [] as CandidateRow[],
       schoolDays: [] as SchoolDayRow[],
       attendance: [] as AttendanceRow[],
       notes: [] as NoteRow[],
@@ -286,6 +287,20 @@ async function getClassPage(id: string) {
       .order("start_position", { ascending: true }),
   ]);
 
+  const candidates = (candidateResult.data as CandidateRow[] | null) ?? [];
+  const plans = (planResult.data as SlotPlan[] | null) ?? [];
+  const candidateIds = new Set(candidates.map((row) => row.id));
+  const inactivePlanTeacherIds = [
+    ...new Set(
+      plans
+        .map((plan) => plan.teacher_guardian_id)
+        .filter((value): value is string => Boolean(value) && !candidateIds.has(value as string)),
+    ),
+  ];
+  const inactiveResult = inactivePlanTeacherIds.length
+    ? await supabase.from("guardians").select("id, first_name, last_name").in("id", inactivePlanTeacherIds)
+    : { data: [], error: null };
+
   return {
     classRecord,
     activeYear,
@@ -293,13 +308,14 @@ async function getClassPage(id: string) {
     guardians: (guardianResult.data as GuardianRow[] | null) ?? [],
     balances: (balanceResult.data as BalanceRow[] | null) ?? [],
     teachers: (teacherResult.data as TeacherRow[] | null) ?? [],
-    candidates: (candidateResult.data as CandidateRow[] | null) ?? [],
+    candidates,
+    inactivePlanTeachers: (inactiveResult.data as CandidateRow[] | null) ?? [],
     schoolDays: (dayResult.data as SchoolDayRow[] | null) ?? [],
     attendance: (attendanceResult.data as AttendanceRow[] | null) ?? [],
     notes: (noteResult.data as NoteRow[] | null) ?? [],
     absences: (absenceResult.data as AbsenceRow[] | null) ?? [],
     slots: (slotResult.data as TimeSlot[] | null) ?? [],
-    plans: (planResult.data as SlotPlan[] | null) ?? [],
+    plans,
     error: Boolean(
       classResult.error ||
         yearResult.error ||
@@ -613,6 +629,10 @@ export default async function KlassePage({
               slots={data.slots}
               plans={data.plans}
               candidates={teacherCandidates}
+              inactiveTeachers={data.inactivePlanTeachers.map((row) => ({
+                id: row.id,
+                name: joinName(row.first_name, row.last_name) || "(uten navn)",
+              }))}
               dayPlanHref={`${basePath}/dagsplan`}
             />
           ) : null}

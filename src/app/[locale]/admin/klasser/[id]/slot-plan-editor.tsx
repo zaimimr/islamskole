@@ -30,6 +30,7 @@ export function SlotPlanEditor({
   slots,
   plans,
   candidates,
+  inactiveTeachers,
   dayPlanHref,
 }: {
   classId: string;
@@ -37,6 +38,7 @@ export function SlotPlanEditor({
   slots: TimeSlot[];
   plans: SlotPlan[];
   candidates: { id: string; name: string }[];
+  inactiveTeachers: { id: string; name: string }[];
   dayPlanHref: string;
 }) {
   const router = useRouter();
@@ -47,6 +49,11 @@ export function SlotPlanEditor({
   const teacherOptions = [
     { value: NO_TEACHER, label: "Ingen fast lærer" },
     ...candidates.map((teacher) => ({ value: teacher.id, label: teacher.name })),
+    ...inactiveTeachers.map((teacher) => ({
+      value: teacher.id,
+      label: `${teacher.name} (ikke aktiv)`,
+      disabled: true,
+    })),
   ];
 
   function update(index: number, change: Partial<SlotPlan>) {
