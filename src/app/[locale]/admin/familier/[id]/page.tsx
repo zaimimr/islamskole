@@ -10,6 +10,7 @@ import { familyOptions } from "../family-options";
 import { adminBasePath } from "@/components/admin/paths";
 import { ageInYear, schoolYearStart } from "@/lib/age";
 import { FamilyEconomy } from "@/components/admin/family-economy";
+import type { CustomPlanConfig } from "@/lib/custom-payment-plan";
 import {
   FamilyWorkbench,
   type FamilyActivity,
@@ -192,7 +193,7 @@ export default async function FamilyPage({
       .order("created_at", { ascending: false }),
     supabase
       .from("payment_plans")
-      .select("id, school_year_id, plan_type, monthly_amount, paused_at")
+      .select("id, school_year_id, plan_type, monthly_amount, custom_config, paused_at")
       .eq("family_id", id)
       .eq("status", "aktiv"),
     supabase
@@ -237,8 +238,9 @@ export default async function FamilyPage({
       | {
           id: string;
           school_year_id: string;
-          plan_type: "full" | "semester" | "maanedlig";
+          plan_type: "full" | "semester" | "maanedlig" | "egendefinert";
           monthly_amount: number | null;
+          custom_config: CustomPlanConfig | null;
           paused_at: string | null;
         }[]
       | null) ?? [];
@@ -579,6 +581,7 @@ export default async function FamilyPage({
                   id: activePlan.id,
                   planType: activePlan.plan_type,
                   monthlyAmount: activePlan.monthly_amount,
+                  customConfig: activePlan.custom_config,
                   pausedAt: activePlan.paused_at,
                 }
               : null

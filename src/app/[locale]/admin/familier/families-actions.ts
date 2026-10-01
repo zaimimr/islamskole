@@ -9,8 +9,13 @@ import {
   assignPaymentPlan,
   rebuildPendingInstallments,
   SEMESTER_INSTALLMENT_ORE,
+  type PaymentPlanType,
 } from "@/lib/payment-plans";
 import { sendInstallmentBatch } from "@/lib/installment-billing";
+import {
+  buildCustomConfig,
+  type CustomPlanConfig,
+} from "@/lib/custom-payment-plan";
 import { sendLoginLink } from "@/lib/login-link";
 import { isPlaceholderEmail } from "@/lib/portal/emails";
 
@@ -110,7 +115,7 @@ export async function updateFamilyRelationships(
   return { ok: true };
 }
 
-const planTypes = new Set(["full", "semester", "maanedlig"]);
+const planTypes = new Set(["full", "semester", "maanedlig", "egendefinert"]);
 
 export async function assignPaymentPlanAction(
   formData: FormData,
@@ -135,6 +140,24 @@ export async function assignPaymentPlanAction(
   ) {
     return { ok: false, error: "Velg månedsbeløp" };
   }
+  let customConfig: CustomPlanConfig | null = null;
+  if (planType === "egendefinert") {
+    const built = buildCustomConfig({
+      initial_amount_nok: read(formData, "initial_amount_nok"),
+      initial_mode: read(formData, "initial_mode"),
+      initial_due_date: read(formData, "initial_due_date"),
+      monthly_amount_nok: read(formData, "custom_monthly_amount_nok"),
+      monthly_mode: read(formData, "monthly_mode"),
+      final_amount_nok: read(formData, "final_amount_nok"),
+      final_mode: read(formData, "final_mode"),
+      final_due_date: read(formData, "final_due_date"),
+      start_month: read(formData, "start_month"),
+      end_month: read(formData, "end_month"),
+      due_day: read(formData, "due_day"),
+    });
+    if (!built.ok) return { ok: false, error: built.error };
+    customConfig = built.config;
+  }
 
   const user = await getUser();
   const supabase = await createClient();
@@ -143,9 +166,10 @@ export async function assignPaymentPlanAction(
     const planId = await assignPaymentPlan(supabase, {
       familyId,
       schoolYearId,
-      planType: planType as "full" | "semester" | "maanedlig",
+      planType: planType as PaymentPlanType,
       monthlyAmount:
         planType === "maanedlig" ? Math.round(monthlyAmountNok * 100) : null,
+      customConfig,
       createdBy: user?.email ?? "admin",
       note,
     });
