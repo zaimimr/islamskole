@@ -32,7 +32,7 @@ values
   ('f2000000-0000-0000-0000-0000000000c2', 'zztest-f2-b', 'ZZTEST F2 B', 'ZZTEST F2 B', true);
 
 insert into public.families (id, origin)
-values ('f2000000-0000-0000-0000-0000000000f1', 'test');
+values ('f2000000-0000-0000-0000-0000000000f1', 'test'), ('f2000000-0000-0000-0000-0000000000f2', 'test');
 
 insert into public.guardians (id, first_name, last_name, email, is_teacher)
 values ('f2000000-0000-0000-0000-000000000061', 'ZZTEST', 'Laerer', 'zz-f2-teacher@zztest.local', true);
@@ -43,10 +43,11 @@ values ('f2000000-0000-0000-0000-0000000000f1', 'f2000000-0000-0000-0000-0000000
 insert into public.students (id, family_id, child_first_name, child_last_name)
 values
   ('f2000000-0000-0000-0000-000000000051', 'f2000000-0000-0000-0000-0000000000f1', 'ZZTEST', 'Eget barn'),
-  ('f2000000-0000-0000-0000-000000000052', 'f2000000-0000-0000-0000-0000000000f1', 'ZZTEST', 'Elev');
+  ('f2000000-0000-0000-0000-000000000052', 'f2000000-0000-0000-0000-0000000000f2', 'ZZTEST', 'Elev');
 
-insert into public.student_guardians (student_id, guardian_id, is_primary)
-values ('f2000000-0000-0000-0000-000000000051', 'f2000000-0000-0000-0000-000000000061', true);
+insert into public.student_guardians (student_id, family_id, guardian_id, is_primary)
+values ('f2000000-0000-0000-0000-000000000051', 'f2000000-0000-0000-0000-0000000000f1', 'f2000000-0000-0000-0000-000000000061', true)
+on conflict do nothing;
 
 insert into public.enrollments (student_id, class_id, school_year_id, status)
 values
