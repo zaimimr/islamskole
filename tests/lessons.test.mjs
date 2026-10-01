@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   collapseDayStatus,
   findDoubleBookings,
+  lessonTitle,
   mergeWithNext,
   planCells,
   slotRangeLabel,
@@ -112,4 +113,11 @@ test("statusByDay groups lesson rows per date", () => {
     ["2026-10-04", "sent"],
     ["2026-10-11", "meldt_fravaer"],
   ]);
+});
+
+test("lesson titles read like Time 1 - Islam", () => {
+  assert.equal(lessonTitle({ ...plan(1, 1), subject: "Islam" }, SLOTS, "Hele dagen"), "Time 1 - Islam");
+  assert.equal(lessonTitle({ ...plan(2, 3), subject: "Koran" }, SLOTS, "Hele dagen"), "Time 2 + Time 3 - Koran");
+  assert.equal(lessonTitle(plan(1, 3), SLOTS, "Hele dagen"), "Hele dagen");
+  assert.equal(lessonTitle(plan(2, 2), SLOTS, "Hele dagen"), "Time 2");
 });

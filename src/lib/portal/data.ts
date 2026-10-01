@@ -5,6 +5,7 @@ import { ageInYear, schoolYearStart } from "@/lib/age";
 import { osloToday } from "@/lib/dates";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import type { Database } from "@/lib/supabase/types";
 import type {
   AttendanceStatus,
   PortalAbsenceReport,
@@ -14,6 +15,7 @@ import type {
   PortalClassNote,
   PortalContext,
   PortalGuardianContact,
+  PortalLesson,
   PortalPerson,
   PortalPickupPerson,
   PortalRosterRow,
@@ -22,6 +24,7 @@ import type {
   PortalSelf,
   PortalSelfNote,
   PortalSubstituteOption,
+  PortalTimeSlot,
 } from "@/lib/portal/types";
 
 function referenceYear(label: string | null | undefined): number {
@@ -94,7 +97,7 @@ export const getMySelf = cache(async (): Promise<PortalSelf[]> => {
     school_year_label: row.school_year_label ?? null,
     teachers: asArray<PortalPerson>(row.teachers),
     notes: asArray<PortalSelfNote>(row.notes),
-    attendance: asArray<{ date: string; status: AttendanceStatus }>(row.attendance),
+    attendance: asArray<{ date: string; status: AttendanceStatus; lesson_id: string | null }>(row.attendance),
   }));
 });
 
@@ -193,6 +196,96 @@ const getActiveYear = cache(
   },
 );
 
+type RosterRpcRow = Database["public"]["Functions"]["portal_lesson_roster"]["Returns"][number];
+
+function mapRoster(rows: RosterRpcRow[] | null, year: number): PortalRosterRow[] {
+  return (rows ?? []).map((row) => ({
+    ...row,
+    birth_date: row.birth_date ?? null,
+    age: ageInYear(row.birth_date, year),
+    guardians: asArray<PortalGuardianContact>(row.guardians),
+    attendance_status: (row.attendance_status ?? null) as AttendanceStatus | null,
+    attendance_marked_at: row.attendance_marked_at ?? null,
+    absence_report_id: row.absence_report_id ?? null,
+    absence_reason: row.absence_reason ?? null,
+    allergies: row.allergies ?? null,
+    medical_notes: row.medical_notes ?? null,
+    photo_consent: row.photo_consent ?? null,
+    pickup: asArray<PortalPickupPerson>(row.pickup),
+  }));
+}
+
+export async function getLessonRoster(lessonId: string, yearLabel?: string | null): Promise<PortalRosterRow[]> {
+  const supabase = await createClient();
+  const [{ data, error }, activeYear] = await Promise.all([
+    supabase.rpc("portal_lesson_roster", { p_lesson_id: lessonId }),
+    getActiveYear(),
+  ]);
+  if (error) {
+    if (error.code !== "42501") console.error("portal_lesson_roster failed", error);
+    return [];
+  }
+  return mapRoster(data, referenceYear(yearLabel ?? activeYear?.label));
+}
+
+export const getTimeSlots = cache(async (schoolYearId: string): Promise<PortalTimeSlot[]> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("school_time_slots")
+    .select("position, label, starts_at, ends_at")
+    .eq("school_year_id", schoolYearId)
+    .order("position", { ascending: true });
+  if (error) {
+    console.error("school_time_slots failed", error);
+    return [];
+  }
+  return data ?? [];
+});
+
+export async function getLessons(schoolDayIds: string[]): Promise<PortalLesson[]> {
+  if (!schoolDayIds.length) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("portal_lessons", { p_school_day_ids: schoolDayIds });
+  if (error) {
+    console.error("portal_lessons failed", error);
+    return [];
+  }
+  return (data ?? []) as PortalLesson[];
+}
+
+export const getMyLessons = cache(async (from: string, to: string): Promise<PortalLesson[]> => {
+  const user = await getUser();
+  if (!user) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("portal_my_lessons", { p_from: from, p_to: to });
+  if (error) {
+    console.error("portal_my_lessons failed", error);
+    return [];
+  }
+  return (data ?? []) as PortalLesson[];
+});
+
+export async function getClassForLessonTeacher(
+  classId: string,
+): Promise<{ portalClass: PortalClass; dayIds: Set<string> } | null> {
+  const [year, lessons] = await Promise.all([getActiveYear(), getMyLessons("2000-01-01", "2999-12-31")]);
+  const mine = lessons.filter((lesson) => lesson.class_id === classId && lesson.is_mine);
+  if (!year || !mine.length) return null;
+  return {
+    portalClass: {
+      class_id: classId,
+      name_no: mine[0].class_name_no,
+      name_en: mine[0].class_name_en,
+      school_year_id: year.id,
+      school_year_label: year.label,
+      role: "vikar",
+      student_count: 0,
+      substitute_until: null,
+    },
+    dayIds: new Set(mine.map((lesson) => lesson.school_day_id)),
+  };
+}
+
 export async function getClassRoster(
   classId: string,
   schoolDayId: string,
@@ -213,21 +306,7 @@ export async function getClassRoster(
   const label =
     classes.find((row) => row.class_id === classId)?.school_year_label ??
     activeYear?.label;
-  const year = referenceYear(label);
-  return (data ?? []).map((row) => ({
-    ...row,
-    birth_date: row.birth_date ?? null,
-    age: ageInYear(row.birth_date, year),
-    guardians: asArray<PortalGuardianContact>(row.guardians),
-    attendance_status: (row.attendance_status ?? null) as AttendanceStatus | null,
-    attendance_marked_at: row.attendance_marked_at ?? null,
-    absence_report_id: row.absence_report_id ?? null,
-    absence_reason: row.absence_reason ?? null,
-    allergies: row.allergies ?? null,
-    medical_notes: row.medical_notes ?? null,
-    photo_consent: row.photo_consent ?? null,
-    pickup: asArray<PortalPickupPerson>(row.pickup),
-  }));
+  return mapRoster(data, referenceYear(label));
 }
 
 export async function getSchoolDays(schoolYearId?: string): Promise<PortalSchoolDays> {
@@ -261,7 +340,7 @@ export async function getClassNotes(
   let query = supabase
     .from("class_notes")
     .select(
-      "id, class_id, school_day_id, homework, summary, author_guardian_id, created_at, updated_at, school_days!inner(date)",
+      "id, class_id, school_day_id, lesson_id, homework, summary, author_guardian_id, created_at, updated_at, school_days!inner(date), lessons(start_position, end_position, subject)",
     )
     .eq("class_id", classId);
   if (until) query = query.lte("school_days.date", until);
@@ -273,8 +352,18 @@ export async function getClassNotes(
     return [];
   }
   return (data ?? [])
-    .map(({ school_days, ...note }) => ({ ...note, date: school_days?.date ?? null }))
-    .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+    .map(({ school_days, lessons, ...note }) => ({
+      ...note,
+      date: school_days?.date ?? null,
+      subject: lessons?.subject ?? null,
+      start_position: lessons?.start_position ?? null,
+      end_position: lessons?.end_position ?? null,
+    }))
+    .sort(
+      (a, b) =>
+        (b.date ?? "").localeCompare(a.date ?? "") ||
+        (a.start_position ?? 0) - (b.start_position ?? 0),
+    );
 }
 
 export async function getMyAttendance(schoolYearId?: string): Promise<PortalAttendance[]> {
@@ -283,7 +372,7 @@ export async function getMyAttendance(schoolYearId?: string): Promise<PortalAtte
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("attendance")
-    .select("student_id, school_day_id, status, marked_at, school_days!inner(date, school_year_id)")
+    .select("student_id, school_day_id, lesson_id, status, marked_at, school_days!inner(date, school_year_id)")
     .eq("school_days.school_year_id", yearId);
   if (error) {
     console.error("attendance failed", error);

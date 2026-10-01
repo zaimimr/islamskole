@@ -14,15 +14,13 @@ import { Textarea } from "@/components/ui/textarea";
 type Saved = { homework: string; summary: string; label: string | null };
 
 export function ClassNoteEditor({
-  classId,
-  schoolDayId,
+  lessonId,
   initialHomework,
   initialSummary,
   savedLabel,
   disabled,
 }: {
-  classId: string;
-  schoolDayId: string;
+  lessonId: string;
   initialHomework: string;
   initialSummary: string;
   savedLabel: string | null;
@@ -49,8 +47,8 @@ export function ClassNoteEditor({
     startTransition(async () => {
       const cleared = !homework.trim() && !summary.trim();
       const result = cleared
-        ? await deleteClassNote(classId, schoolDayId)
-        : await saveClassNote(classId, schoolDayId, next);
+        ? await deleteClassNote(lessonId)
+        : await saveClassNote(lessonId, next);
       if (result.ok && cleared) setSaved({ homework: "", summary: "", label: null });
       else if (result.ok) setSaved({ ...next, label: formatSavedAt(new Date().toISOString(), locale) });
       else toast.error(tErrors(result.error));

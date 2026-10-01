@@ -8,16 +8,12 @@ export type TeacherDayNote = {
   updated_at: string;
 };
 
-export async function getClassNoteForDay(
-  classId: string,
-  schoolDayId: string,
-): Promise<TeacherDayNote | null> {
+export async function getLessonNote(lessonId: string): Promise<TeacherDayNote | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("class_notes")
     .select("id, homework, summary, updated_at")
-    .eq("class_id", classId)
-    .eq("school_day_id", schoolDayId)
+    .eq("lesson_id", lessonId)
     .maybeSingle();
   if (error) {
     console.error("class_note failed", error);

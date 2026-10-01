@@ -758,7 +758,7 @@
       },
       "note": {
         "title": "Ukens notat",
-        "intro": "Foreldrene ser notatet på Min side. Ett notat per skoledag.",
+        "intro": "Foreldrene ser notatet på Min side. Ett notat per time.",
         "homework": "Lekser",
         "homeworkPlaceholder": "For eksempel: Øv på sura Al-Fatiha, side 4 i arbeidsboka",
         "summary": "Hva vi gjorde i dag",
@@ -783,6 +783,16 @@
         "end": "Avslutt vikartilgang",
         "badge": "Vikar til og med {date}",
         "notice": "Du er vikar i denne klassen til og med {date}."
+      },
+      "lessons": {
+        "title": "Timer",
+        "none": "Klassen har ingen timer denne dagen.",
+        "cancelledNotice": "Denne timen er avlyst. Oppmøte kan ikke registreres.",
+        "cancelled": "Avlyst",
+        "substitute": "Vikar",
+        "wholeDay": "Hele dagen",
+        "mine": "Din time",
+        "extraTitle": "Dine timer i andre klasser"
       }
     },
     "common": {
@@ -855,6 +865,13 @@
         "cancelled": "Ingen skole",
         "empty": "Ingen kommende skoledager eller aktiviteter.",
         "reported": "Meldt fravær: {names}"
+      },
+      "lessons": {
+        "title": "Timeplan {day}",
+        "wholeDay": "Hele dagen",
+        "teacher": "Lærer: {name}",
+        "substitute": "Vikar",
+        "cancelled": "Avlyst"
       }
     },
     "notFound": {

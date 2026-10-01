@@ -70,7 +70,7 @@ export function NotesYear({
   id: string;
   title: string;
   empty: string;
-  notes: (Pick<PortalClassNote, "id" | "homework" | "summary"> & { date: string | null })[];
+  notes: (Pick<PortalClassNote, "id" | "homework" | "summary"> & { date: string | null; lessonLabel?: string | null })[];
   labels: { homework: string; summary: string };
   locale: string;
 }) {
@@ -88,6 +88,9 @@ export function NotesYear({
             <li key={note.id} data-date={note.date ?? undefined} className="grid gap-3 p-5 sm:p-6">
               <h3 className="font-heading text-lg font-semibold first-letter:uppercase">
                 {formatPortalDay(note.date, locale)}
+                {note.lessonLabel ? (
+                  <span className="font-sans text-base font-normal text-foreground/75"> · {note.lessonLabel}</span>
+                ) : null}
               </h3>
               <ClassNoteBody note={note} labels={labels} />
             </li>

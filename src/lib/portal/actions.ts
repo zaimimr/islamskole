@@ -131,34 +131,46 @@ export async function signOutPortal(): Promise<void> {
   revalidatePath("/", "layout");
 }
 
+async function lessonContext(lessonId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("lessons")
+    .select("id, class_id, school_day_id")
+    .eq("id", lessonId)
+    .maybeSingle();
+  return { supabase, lesson: data };
+}
+
 const markAttendanceSchema = z.object({
   studentId: uuid,
-  schoolDayId: uuid,
+  lessonId: uuid,
   status: z.enum(ATTENDANCE_STATUSES),
 });
 
 export async function markAttendance(
   studentId: string,
-  schoolDayId: string,
+  lessonId: string,
   status: AttendanceStatus,
 ): Promise<PortalActionResult> {
-  const parsed = markAttendanceSchema.safeParse({ studentId, schoolDayId, status });
+  const parsed = markAttendanceSchema.safeParse({ studentId, lessonId, status });
   if (!parsed.success) return { ok: false, error: "invalid" };
   const user = await getUser();
   if (!user) return { ok: false, error: "unauthenticated" };
 
-  const supabase = await createClient();
+  const { supabase, lesson } = await lessonContext(parsed.data.lessonId);
+  if (!lesson) return { ok: false, error: "forbidden" };
   const { data, error } = await supabase
     .from("attendance")
     .upsert(
       {
         student_id: parsed.data.studentId,
-        school_day_id: parsed.data.schoolDayId,
+        lesson_id: lesson.id,
+        school_day_id: lesson.school_day_id,
         status: parsed.data.status,
         marked_by: user.id,
         marked_at: new Date().toISOString(),
       },
-      { onConflict: "student_id,school_day_id" },
+      { onConflict: "student_id,lesson_id" },
     )
     .select("student_id")
     .maybeSingle();
@@ -168,7 +180,7 @@ export async function markAttendance(
     action: "attendance.mark",
     entityType: "attendance",
     entityId: parsed.data.studentId,
-    metadata: { school_day_id: parsed.data.schoolDayId, status: parsed.data.status },
+    metadata: { lesson_id: lesson.id, school_day_id: lesson.school_day_id, status: parsed.data.status },
   });
   refreshPortal();
   return { ok: true };
@@ -176,34 +188,36 @@ export async function markAttendance(
 
 const markManySchema = z.object({
   studentIds: z.array(uuid).min(1).max(200),
-  schoolDayId: uuid,
+  lessonId: uuid,
   status: z.enum(ATTENDANCE_STATUSES),
 });
 
 export async function markAttendanceMany(
   studentIds: string[],
-  schoolDayId: string,
+  lessonId: string,
   status: AttendanceStatus,
 ): Promise<PortalActionResult> {
-  const parsed = markManySchema.safeParse({ studentIds, schoolDayId, status });
+  const parsed = markManySchema.safeParse({ studentIds, lessonId, status });
   if (!parsed.success) return { ok: false, error: "invalid" };
   const user = await getUser();
   if (!user) return { ok: false, error: "unauthenticated" };
 
+  const { supabase, lesson } = await lessonContext(parsed.data.lessonId);
+  if (!lesson) return { ok: false, error: "forbidden" };
   const ids = [...new Set(parsed.data.studentIds)];
   const markedAt = new Date().toISOString();
-  const supabase = await createClient();
   const { data, error } = await supabase
     .from("attendance")
     .upsert(
       ids.map((id) => ({
         student_id: id,
-        school_day_id: parsed.data.schoolDayId,
+        lesson_id: lesson.id,
+        school_day_id: lesson.school_day_id,
         status: parsed.data.status,
         marked_by: user.id,
         marked_at: markedAt,
       })),
-      { onConflict: "student_id,school_day_id" },
+      { onConflict: "student_id,lesson_id" },
     )
     .select("student_id");
   if (error) return { ok: false, error: dbError(error) };
@@ -212,42 +226,42 @@ export async function markAttendanceMany(
   await writeAudit({
     action: "attendance.mark_many",
     entityType: "attendance",
-    entityId: parsed.data.schoolDayId,
-    metadata: { student_ids: ids, status: parsed.data.status },
+    entityId: lesson.school_day_id,
+    metadata: { lesson_id: lesson.id, student_ids: ids, status: parsed.data.status },
   });
   refreshPortal();
   return { ok: true };
 }
 
 const classNoteSchema = z.object({
-  classId: uuid,
-  schoolDayId: uuid,
+  lessonId: uuid,
   homework: optionalText,
   summary: optionalText,
 });
 
 export async function saveClassNote(
-  classId: string,
-  schoolDayId: string,
+  lessonId: string,
   note: { homework?: string | null; summary?: string | null },
 ): Promise<PortalActionResult> {
-  const parsed = classNoteSchema.safeParse({ classId, schoolDayId, ...note });
+  const parsed = classNoteSchema.safeParse({ lessonId, ...note });
   if (!parsed.success) return { ok: false, error: "invalid" };
   const context = await getPortalContext();
   if (!context.user) return { ok: false, error: "unauthenticated" };
 
-  const supabase = await createClient();
+  const { supabase, lesson } = await lessonContext(parsed.data.lessonId);
+  if (!lesson) return { ok: false, error: "forbidden" };
   const { data, error } = await supabase
     .from("class_notes")
     .upsert(
       {
-        class_id: parsed.data.classId,
-        school_day_id: parsed.data.schoolDayId,
+        lesson_id: lesson.id,
+        class_id: lesson.class_id,
+        school_day_id: lesson.school_day_id,
         homework: parsed.data.homework,
         summary: parsed.data.summary,
         author_guardian_id: context.guardianIds[0] ?? null,
       },
-      { onConflict: "class_id,school_day_id" },
+      { onConflict: "lesson_id" },
     )
     .select("id")
     .maybeSingle();
@@ -257,7 +271,7 @@ export async function saveClassNote(
     action: "class_note.save",
     entityType: "class_note",
     entityId: data.id,
-    metadata: { class_id: parsed.data.classId, school_day_id: parsed.data.schoolDayId },
+    metadata: { class_id: lesson.class_id, school_day_id: lesson.school_day_id, lesson_id: lesson.id },
   });
   refreshPortal();
   return { ok: true, id: data.id };

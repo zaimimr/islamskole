@@ -176,3 +176,17 @@ export function statusByDay<T extends { date: string | null; status: DayStatus }
   }
   return result;
 }
+
+export function isWholeDay(range: SlotRange & { subject: string | null }, slotCount: number): boolean {
+  return !range.subject && range.start_position === 1 && range.end_position >= slotCount;
+}
+
+export function lessonTitle(
+  range: SlotRange & { subject: string | null },
+  slots: Pick<TimeSlot, "position" | "label">[],
+  wholeDayLabel: string,
+): string {
+  if (isWholeDay(range, slots.length)) return wholeDayLabel;
+  const label = slotRangeLabel(slots, range);
+  return range.subject ? `${label} - ${range.subject}` : label;
+}

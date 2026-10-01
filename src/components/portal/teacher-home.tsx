@@ -2,7 +2,15 @@ import { getTranslations } from "next-intl/server";
 import { CalendarDays, ChevronRight, Users } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { osloToday } from "@/lib/dates";
-import { getClassRoster, getMyClasses, getSchoolDays, getSubstituteOptions } from "@/lib/portal/data";
+import {
+  getClassRoster,
+  getLessons,
+  getMyClasses,
+  getSchoolDays,
+  getSubstituteOptions,
+  getTimeSlots,
+} from "@/lib/portal/data";
+import { lessonView } from "@/lib/portal/lesson-view";
 import { capitalize, defaultSchoolDay, formatSchoolDay } from "@/lib/portal/teacher-days";
 import { SubstitutePicker } from "@/components/portal/teacher/substitute-picker";
 
@@ -15,10 +23,17 @@ export async function TeacherHome({ locale }: { locale: string }) {
   ]);
   const days = await getSchoolDays(classes[0]?.school_year_id);
   const nextDay = defaultSchoolDay({ ...days, past: [] });
-  const rosters = nextDay
-    ? await Promise.all(classes.map((row) => getClassRoster(row.class_id, nextDay.id)))
-    : classes.map(() => []);
+  const [rosters, lessons, slots] = await Promise.all([
+    nextDay
+      ? Promise.all(classes.map((row) => getClassRoster(row.class_id, nextDay.id)))
+      : Promise.resolve(classes.map(() => [])),
+    nextDay ? getLessons([nextDay.id]) : Promise.resolve([]),
+    days.schoolYearId ? getTimeSlots(days.schoolYearId) : Promise.resolve([]),
+  ]);
   const today = osloToday();
+  const wholeDay = t("lessons.wholeDay");
+  const classIds = new Set(classes.map((row) => row.class_id));
+  const extraLessons = lessons.filter((lesson) => lesson.is_mine && !classIds.has(lesson.class_id));
 
   return (
     <section aria-labelledby="teacher-home-title" className="grid gap-3">
@@ -78,11 +93,44 @@ export async function TeacherHome({ locale }: { locale: string }) {
                     </span>
                   ) : null}
                 </div>
+                <LessonList
+                  lessons={lessons
+                    .filter((lesson) => lesson.class_id === row.class_id)
+                    .map((lesson) => lessonView(lesson, slots, wholeDay))}
+                  labels={{ substitute: t("lessons.substitute"), mine: t("lessons.mine"), cancelled: t("lessons.cancelled") }}
+                />
               </Link>
             </li>
           );
         })}
       </ul>
+      {nextDay && extraLessons.length ? (
+        <div className="grid gap-3">
+          <h3 className="text-xl font-bold">{t("lessons.extraTitle")}</h3>
+          <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {extraLessons.map((lesson) => {
+              const view = lessonView(lesson, slots, wholeDay);
+              return (
+                <li key={lesson.lesson_id}>
+                  <Link
+                    href={`/min-side/klasse/${lesson.class_id}?dag=${lesson.school_day_id}&time=${lesson.lesson_id}`}
+                    className="group grid gap-1 rounded-2xl bg-card p-5 ring-1 ring-foreground/8 outline-none transition-shadow hover:ring-foreground/20 focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
+                    <span className="font-heading text-xl font-semibold">
+                      {locale === "en" ? lesson.class_name_en : lesson.class_name_no}
+                    </span>
+                    <span className="font-semibold">{view.title}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {capitalize(formatSchoolDay(lesson.date, locale))}
+                      {view.times ? ` · ${view.times}` : null}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
       {substituteOptions.length ? (
         <SubstitutePicker
           options={substituteOptions.map((option) => ({
@@ -92,5 +140,29 @@ export async function TeacherHome({ locale }: { locale: string }) {
         />
       ) : null}
     </section>
+  );
+}
+
+function LessonList({
+  lessons,
+  labels,
+}: {
+  lessons: ReturnType<typeof lessonView>[];
+  labels: { substitute: string; mine: string; cancelled: string };
+}) {
+  if (!lessons.length) return null;
+  return (
+    <ul className="grid gap-1 text-sm">
+      {lessons.map((lesson) => (
+        <li key={lesson.id} className="flex flex-wrap items-baseline gap-x-2">
+          <span className={lesson.cancelled ? "font-semibold line-through" : "font-semibold"}>{lesson.title}</span>
+          {lesson.times ? <span className="text-muted-foreground tabular-nums">{lesson.times}</span> : null}
+          {lesson.teacher ? <span className="text-muted-foreground">{lesson.teacher}</span> : null}
+          {lesson.isSubstitute ? <span className="font-semibold text-secondary-foreground">{labels.substitute}</span> : null}
+          {lesson.isMine ? <span className="font-semibold text-brand-green-dark">{labels.mine}</span> : null}
+          {lesson.cancelled ? <span className="font-semibold text-destructive">{labels.cancelled}</span> : null}
+        </li>
+      ))}
+    </ul>
   );
 }
