@@ -141,6 +141,28 @@ function joinName(first: string | null, last: string | null) {
   return [first, last].filter(Boolean).join(" ");
 }
 
+const ATTENDANCE_PAGE_SIZE = 1000;
+
+async function fetchAttendance(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  studentIds: string[],
+  yearId: string,
+) {
+  const rows: AttendanceRow[] = [];
+  for (let from = 0; ; from += ATTENDANCE_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("attendance")
+      .select("student_id, school_day_id, status, marked_by, school_days!inner(school_year_id)")
+      .eq("school_days.school_year_id", yearId)
+      .in("student_id", studentIds)
+      .order("id", { ascending: true })
+      .range(from, from + ATTENDANCE_PAGE_SIZE - 1);
+    if (error) return { data: null, error };
+    rows.push(...((data ?? []) as AttendanceRow[]));
+    if (!data || data.length < ATTENDANCE_PAGE_SIZE) return { data: rows, error: null };
+  }
+}
+
 async function getClassPage(id: string) {
   const supabase = await createClient();
   const [classResult, yearResult] = await Promise.all([
@@ -237,11 +259,7 @@ async function getClassPage(id: string) {
       .lte("date", osloToday())
       .order("date", { ascending: false }),
     studentIds.length
-      ? supabase
-          .from("attendance")
-          .select("student_id, school_day_id, status, marked_by, school_days!inner(school_year_id)")
-          .eq("school_days.school_year_id", activeYear.id)
-          .in("student_id", studentIds)
+      ? fetchAttendance(supabase, studentIds, activeYear.id)
       : Promise.resolve({ data: [], error: null }),
     supabase
       .from("class_notes")
