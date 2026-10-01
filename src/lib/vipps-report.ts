@@ -1,7 +1,12 @@
 import "server-only";
 import { getAccessToken, VippsHttpError, type VippsCredentials } from "@/lib/vipps";
-import { vippsExternalId, type ParsedTransaction } from "@/lib/bank-statement";
+import {
+  vippsFundsItemToTransaction,
+  type ParsedTransaction,
+  type VippsFundsItem,
+} from "@/lib/bank-statement";
 import { parseMsnList } from "@/lib/reconciliation-match";
+import { mapInChunks } from "@/lib/payment-integrity";
 
 export function vippsReportMsns(): string[] {
   return parseMsnList(process.env.VIPPS_REPORT_MSNS);
@@ -23,22 +28,8 @@ export function vippsReportCredentials(msn: string): VippsCredentials | null {
   };
 }
 
-type FundsItem = {
-  pspReference?: string;
-  time?: string;
-  ledgerDate?: string;
-  entryType?: string;
-  reference?: string;
-  currency?: string;
-  amount?: number;
-  recipientHandle?: string;
-  message?: string;
-  name?: string;
-  maskedPhoneNo?: string;
-};
-
 type FundsPage = {
-  items?: FundsItem[];
+  items?: VippsFundsItem[];
   cursor?: string;
   hasMore?: boolean;
   tryLater?: boolean;
@@ -78,37 +69,6 @@ async function findLedgerId(credentials: VippsCredentials, msn: string): Promise
     (item.settlesForRecipientHandles ?? []).some((handle) => handle.replace(/\D/g, "") === msn),
   );
   return (exact ?? items[0])?.ledgerId ?? null;
-}
-
-export function fundsItemToTransaction(item: FundsItem, msn: string): ParsedTransaction | null {
-  const kind =
-    item.entryType === "capture" ? "capture" : item.entryType === "refund" ? "refund" : null;
-  if (!kind || !item.amount || !item.ledgerDate) return null;
-  const amount = kind === "refund" ? -Math.abs(item.amount) : Math.abs(item.amount);
-  const handleMsn = item.recipientHandle?.replace(/\D/g, "");
-  return {
-    source: "vipps",
-    account: handleMsn || msn,
-    externalId: vippsExternalId(
-      kind,
-      item.pspReference ?? null,
-      item.reference ?? null,
-      JSON.stringify(item),
-    ),
-    bookedOn: item.ledgerDate,
-    bookedAt: item.time ?? null,
-    amount,
-    currency: item.currency ?? "NOK",
-    counterpartyName: item.name?.trim() || null,
-    counterpartyPhone: item.maskedPhoneNo?.trim() || null,
-    message: item.message?.trim() || null,
-    reference: item.reference ?? null,
-    pspReference: item.pspReference ?? null,
-    entryType: kind,
-    raw: Object.fromEntries(
-      Object.entries(item).map(([key, value]) => [key, String(value ?? "")]),
-    ),
-  };
 }
 
 function datesBetween(from: string, to: string): string[] {
@@ -153,7 +113,7 @@ export async function fetchVippsReport(
       return { msn, transactions: [], error: `Fant ingen oppgjørskonto for Vippsnummer ${msn}.` };
     }
     const transactions: ParsedTransaction[] = [];
-    for (const date of datesBetween(from, to)) {
+    await mapInChunks(datesBetween(from, to), 5, async (date) => {
       let cursor: string | undefined;
       for (let page = 0; page < 20; page++) {
         const query = new URLSearchParams({ includeGDPRSensitiveData: "true" });
@@ -163,13 +123,13 @@ export async function fetchVippsReport(
           `/report/v2/ledgers/${encodeURIComponent(ledgerId)}/funds/dates/${date}?${query}`,
         );
         for (const item of data.items ?? []) {
-          const transaction = fundsItemToTransaction(item, msn);
+          const transaction = vippsFundsItemToTransaction(item, msn);
           if (transaction) transactions.push(transaction);
         }
         if (!data.hasMore || !data.cursor) break;
         cursor = data.cursor;
       }
-    }
+    });
     return { msn, transactions, error: null };
   } catch (error) {
     return { msn, transactions: [], error: describeError(msn, error) };

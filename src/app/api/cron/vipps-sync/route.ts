@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { syncPaymentByReference } from "@/lib/payments-sync";
 import { isVippsConfigured } from "@/lib/vipps";
 import { mapInChunks } from "@/lib/payment-integrity";
+import { importFromVipps } from "@/lib/reconciliation";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -65,10 +66,24 @@ export async function GET(request: NextRequest) {
     console.log("Cron sync updated payments", changed);
   }
 
+  let reports: { msn: string; inserted: number; error: string | null }[] = [];
+  try {
+    reports = (
+      await importFromVipps(admin, { createdBy: "vipps-cron", lookbackDays: 7 })
+    ).map((result) => ({
+      msn: result.msn,
+      inserted: result.summary?.inserted ?? 0,
+      error: result.error,
+    }));
+  } catch (error) {
+    console.error("Cron Vipps report import failed", { error });
+  }
+
   return NextResponse.json({
     ok: true,
     checked: rows.length,
     changed: changed.length,
     failed,
+    reports,
   });
 }

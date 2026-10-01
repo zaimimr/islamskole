@@ -505,3 +505,48 @@ export function parseVippsRows(rows: string[][], fallbackAccount: string | null)
 
   return { transactions, skipped, errors };
 }
+
+export type VippsFundsItem = {
+  pspReference?: string;
+  time?: string;
+  ledgerDate?: string;
+  entryType?: string;
+  reference?: string;
+  currency?: string;
+  amount?: number;
+  recipientHandle?: string;
+  message?: string;
+  name?: string;
+  maskedPhoneNo?: string;
+};
+
+export function vippsFundsItemToTransaction(item: VippsFundsItem, msn: string): ParsedTransaction | null {
+  const kind =
+    item.entryType === "capture" ? "capture" : item.entryType === "refund" ? "refund" : null;
+  if (!kind || !item.amount || !item.ledgerDate) return null;
+  const amount = kind === "refund" ? -Math.abs(item.amount) : Math.abs(item.amount);
+  const handleMsn = item.recipientHandle?.replace(/\D/g, "");
+  return {
+    source: "vipps",
+    account: handleMsn || msn,
+    externalId: vippsExternalId(
+      kind,
+      item.pspReference ?? null,
+      item.reference ?? null,
+      JSON.stringify(item),
+    ),
+    bookedOn: item.ledgerDate,
+    bookedAt: item.time ?? null,
+    amount,
+    currency: item.currency ?? "NOK",
+    counterpartyName: item.name?.trim() || null,
+    counterpartyPhone: item.maskedPhoneNo?.trim() || null,
+    message: item.message?.trim() || null,
+    reference: item.reference ?? null,
+    pspReference: item.pspReference ?? null,
+    entryType: kind,
+    raw: Object.fromEntries(
+      Object.entries(item).map(([key, value]) => [key, String(value ?? "")]),
+    ),
+  };
+}

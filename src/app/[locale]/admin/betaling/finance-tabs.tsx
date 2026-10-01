@@ -19,6 +19,7 @@ export function FinanceTabs({
     { href: `${root}/avdrag`, label: "Avdrag" },
     { href: `${root}/rabatter`, label: "Rabatter" },
     { href: `${root}/sadaqa`, label: "Sadaqa" },
+    { href: `${root}/avstemming`, label: "Avstemming" },
     { href: `${root}/dobbeltforinger`, label: "Til kontroll", count: reviewCount },
   ];
 

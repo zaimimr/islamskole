@@ -10,6 +10,7 @@ import {
   parseDelimited,
   parseDnbRows,
   parseVippsRows,
+  vippsFundsItemToTransaction,
 } from "../src/lib/bank-statement.ts";
 import { isZip, readXlsxRows } from "../src/lib/xlsx-rows.ts";
 import {
@@ -263,4 +264,39 @@ test("phone comparison and MSN list parsing", () => {
   assert.equal(phonesMatch("xx", "91234567"), false);
   assert.deepEqual(parseMsnList(""), ["60206", "610090", "1111805"]);
   assert.deepEqual(parseMsnList(" 60206; 610090,60206 "), ["60206", "610090"]);
+});
+
+test("Vipps Report API items map to the same ids as portal exports", () => {
+  const capture = vippsFundsItemToTransaction(
+    {
+      pspReference: "3001000003",
+      time: "2026-09-07T08:15:00.000000Z",
+      ledgerDate: "2026-09-07",
+      entryType: "capture",
+      reference: "isk-abc123",
+      currency: "NOK",
+      amount: 200000,
+      recipientHandle: "NO:1111805",
+      name: "Sara Ahmed",
+      maskedPhoneNo: "xxxx 9012",
+    },
+    "1111805",
+  );
+  assert.equal(capture?.externalId, "psp:3001000003:capture");
+  assert.equal(capture?.account, "1111805");
+  assert.equal(capture?.amount, 200000);
+  assert.equal(capture?.reference, "isk-abc123");
+  const portal = parseVippsRows(parseDelimited(decodeText(fixture("vipps-portal-export.csv"))), null);
+  assert.equal(portal.transactions[2].externalId, capture?.externalId);
+
+  const refund = vippsFundsItemToTransaction(
+    { pspReference: "9", ledgerDate: "2026-09-08", entryType: "refund", amount: -5000 },
+    "610090",
+  );
+  assert.equal(refund?.amount, -5000);
+  assert.equal(refund?.externalId, "psp:9:refund");
+  assert.equal(
+    vippsFundsItemToTransaction({ ledgerDate: "2026-09-08", entryType: "payout-scheduled", amount: -100 }, "610090"),
+    null,
+  );
 });
