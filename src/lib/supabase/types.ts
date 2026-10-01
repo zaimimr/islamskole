@@ -2322,57 +2322,6 @@ export type Database = {
         }
         Relationships: []
       }
-      sms_login_codes: {
-        Row: {
-          attempts: number
-          code_hash: string
-          consumed_at: string | null
-          created_at: string
-          expires_at: string
-          id: string
-          phone: string
-          user_id: string | null
-        }
-        Insert: {
-          attempts?: number
-          code_hash: string
-          consumed_at?: string | null
-          created_at?: string
-          expires_at: string
-          id?: string
-          phone: string
-          user_id?: string | null
-        }
-        Update: {
-          attempts?: number
-          code_hash?: string
-          consumed_at?: string | null
-          created_at?: string
-          expires_at?: string
-          id?: string
-          phone?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      sms_login_phones: {
-        Row: {
-          phone: string
-          user_id: string
-          verified_at: string
-        }
-        Insert: {
-          phone: string
-          user_id: string
-          verified_at?: string
-        }
-        Update: {
-          phone?: string
-          user_id?: string
-          verified_at?: string
-        }
-        Relationships: []
-      }
       student_applications: {
         Row: {
           child_address: string | null
@@ -3074,7 +3023,6 @@ export type Database = {
         }
         Returns: number
       }
-      normalize_no_mobile: { Args: { p_phone: string }; Returns: string }
       portal_add_guardian: {
         Args: {
           p_family_id: string
@@ -3436,34 +3384,6 @@ export type Database = {
       set_active_school_year: {
         Args: { p_school_year_id: string }
         Returns: undefined
-      }
-      sms_login_issue: {
-        Args: {
-          p_code_hash: string
-          p_phone: string
-          p_ttl_seconds: number
-          p_user_id?: string
-        }
-        Returns: string
-      }
-      sms_login_link_phone: {
-        Args: {
-          p_code_hash: string
-          p_max_attempts: number
-          p_phone: string
-          p_user_id: string
-        }
-        Returns: string
-      }
-      sms_login_lookup: { Args: { p_phone: string }; Returns: string }
-      sms_login_verify: {
-        Args: {
-          p_code_hash: string
-          p_max_attempts: number
-          p_phone: string
-          p_user_id?: string
-        }
-        Returns: string
       }
       update_family_relationships: {
         Args: {

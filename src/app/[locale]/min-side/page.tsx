@@ -8,11 +8,7 @@ import { PortalTabs } from "@/components/portal/parent/portal-tabs";
 import { buttonVariants } from "@/components/ui/button";
 import { getSiteSettings } from "@/lib/data";
 import { TeacherSuspendedNotice } from "@/components/portal/teacher/suspended-notice";
-import { SmsPhoneSection } from "@/components/portal/sms-phone-section";
 import { getPortalContext, isRegisteredTeacher, isSuspendedTeacher } from "@/lib/portal/data";
-import { smsEnabled } from "@/lib/sms";
-import { formatNorwegianMobile } from "@/lib/sms-login-core";
-import { getLoginPhone } from "@/lib/sms-login-phone";
 
 export default async function PortalHomePage({
   params,
@@ -28,12 +24,7 @@ export default async function PortalHomePage({
   ]);
   if (!context.user) redirect({ href: "/min-side/logg-inn", locale });
 
-  const sms = smsEnabled();
-  const [registered, suspended, loginPhone] = await Promise.all([
-    isRegisteredTeacher(),
-    isSuspendedTeacher(),
-    sms && context.user ? getLoginPhone(context.user.id) : Promise.resolve(null),
-  ]);
+  const [registered, suspended] = await Promise.all([isRegisteredTeacher(), isSuspendedTeacher()]);
   const isTeacher = context.isTeacher || registered;
   const hasRole = context.isGuardian || isTeacher || context.isStudent || suspended;
 
@@ -83,12 +74,6 @@ export default async function PortalHomePage({
             ) : null}
           </div>
         </div>
-      ) : null}
-      {sms ? (
-        <SmsPhoneSection
-          phone={loginPhone}
-          display={loginPhone ? formatNorwegianMobile(loginPhone) : null}
-        />
       ) : null}
     </div>
   );
