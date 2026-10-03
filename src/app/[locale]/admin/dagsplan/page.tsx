@@ -125,7 +125,11 @@ export default async function DagsplanPage({ params, searchParams }: PageProps<"
       )
       .eq("school_day_id", day.id)
       .order("start_position", { ascending: true }),
-    supabase.from("attendance").select("lesson_id").eq("school_day_id", day.id).neq("status", "meldt_fravaer"),
+    supabase
+      .from("attendance")
+      .select("lesson_id")
+      .eq("school_day_id", day.id)
+      .or("status.neq.meldt_fravaer,notice_channel.eq.direkte"),
     supabase.from("class_notes").select("lesson_id").eq("school_day_id", day.id),
   ]);
 

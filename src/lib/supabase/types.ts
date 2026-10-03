@@ -99,6 +99,8 @@ export type Database = {
           lesson_id: string | null
           marked_at: string
           marked_by: string | null
+          note: string | null
+          notice_channel: string | null
           school_day_id: string
           status: string
           student_id: string
@@ -108,6 +110,8 @@ export type Database = {
           lesson_id?: string | null
           marked_at?: string
           marked_by?: string | null
+          note?: string | null
+          notice_channel?: string | null
           school_day_id: string
           status: string
           student_id: string
@@ -117,6 +121,8 @@ export type Database = {
           lesson_id?: string | null
           marked_at?: string
           marked_by?: string | null
+          note?: string | null
+          notice_channel?: string | null
           school_day_id?: string
           status?: string
           student_id?: string
@@ -3138,12 +3144,14 @@ export type Database = {
           absence_report_id: string
           allergies: string
           attendance_marked_at: string
+          attendance_note: string
           attendance_status: string
           birth_date: string
           first_name: string
           guardians: Json
           last_name: string
           medical_notes: string
+          notice_channel: string
           photo_consent: boolean
           pickup: Json
           student_id: string

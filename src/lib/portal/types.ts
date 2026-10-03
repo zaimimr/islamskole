@@ -2,6 +2,7 @@ import type { SessionUser } from "@/lib/auth";
 
 export const ATTENDANCE_STATUSES = ["til_stede", "fravaer", "sent", "meldt_fravaer"] as const;
 export type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number];
+export type NoticeChannel = "app" | "direkte";
 
 export type PortalContext = {
   user: SessionUser | null;
@@ -97,6 +98,8 @@ export type PortalRosterRow = {
   guardians: PortalGuardianContact[];
   attendance_status: AttendanceStatus | null;
   attendance_marked_at: string | null;
+  notice_channel: NoticeChannel | null;
+  attendance_note: string | null;
   absence_report_id: string | null;
   absence_reason: string | null;
   allergies: string | null;

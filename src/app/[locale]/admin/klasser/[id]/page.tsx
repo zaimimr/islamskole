@@ -83,6 +83,8 @@ type AttendanceRow = {
   school_day_id: string;
   status: string;
   marked_by: string | null;
+  notice_channel: string | null;
+  note: string | null;
 };
 
 type NoteRow = {
@@ -137,6 +139,12 @@ function attendanceSummary(rows: AttendanceRow[], heldDays: number) {
   return parts.join(", ");
 }
 
+function directNotice(rows: AttendanceRow[], studentId: string) {
+  const row = rows.find((item) => item.student_id === studentId && item.notice_channel === "direkte");
+  if (!row) return null;
+  return row.note ? `Meldt direkte til lærer: ${row.note}` : "Meldt direkte til lærer";
+}
+
 function joinName(first: string | null, last: string | null) {
   return [first, last].filter(Boolean).join(" ");
 }
@@ -152,7 +160,7 @@ async function fetchAttendance(
   for (let from = 0; ; from += ATTENDANCE_PAGE_SIZE) {
     const { data, error } = await supabase
       .from("attendance")
-      .select("student_id, school_day_id, status, marked_by, school_days!inner(school_year_id)")
+      .select("student_id, school_day_id, status, marked_by, notice_channel, note, school_days!inner(school_year_id)")
       .eq("school_days.school_year_id", yearId)
       .in("student_id", studentIds)
       .order("id", { ascending: true })
@@ -524,7 +532,7 @@ export default async function KlassePage({
         .filter((student) => statusOf.get(student.id) === "meldt_fravaer")
         .map((student) => ({
           name: student.name,
-          reason: reasonByKey.get(`${student.id}:${day.id}`) ?? null,
+          reason: reasonByKey.get(`${student.id}:${day.id}`) ?? directNotice(rows, student.id),
         })),
       late: namesWith("sent"),
       unmarked: roster.filter((student) => !statusOf.has(student.id)).map((student) => student.name),

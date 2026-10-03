@@ -790,7 +790,13 @@
         "noPhoto": "No photo consent",
         "allergies": "Allergy",
         "medical": "Health",
-        "pickup": "Can also pick up"
+        "pickup": "Can also pick up",
+        "noticeApp": "Reported in the app",
+        "noticeDirect": "Told the teacher directly",
+        "noteLabel": "Note about {name}'s absence",
+        "notePlaceholder": "For example: Mum sent a text, ill",
+        "noteSave": "Save note",
+        "noteSaved": "Note saved"
       },
       "status": {
         "til_stede": "Present",
@@ -801,6 +807,7 @@
       "summary": {
         "present": "present",
         "absent": "absent",
+        "reported": "reported absent",
         "late": "late",
         "unmarked": "not recorded"
       },

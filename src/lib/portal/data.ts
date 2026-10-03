@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type {
   AttendanceStatus,
+  NoticeChannel,
   PortalAbsenceReport,
   PortalAttendance,
   PortalChild,
@@ -212,7 +213,9 @@ const getActiveYear = cache(
   },
 );
 
-type RosterRpcRow = Database["public"]["Functions"]["portal_lesson_roster"]["Returns"][number];
+type LessonRosterRpcRow = Database["public"]["Functions"]["portal_lesson_roster"]["Returns"][number];
+type RosterRpcRow = Omit<LessonRosterRpcRow, "notice_channel" | "attendance_note"> &
+  Partial<Pick<LessonRosterRpcRow, "notice_channel" | "attendance_note">>;
 
 function mapRoster(rows: RosterRpcRow[] | null, year: number): PortalRosterRow[] {
   return (rows ?? []).map((row) => ({
@@ -222,6 +225,8 @@ function mapRoster(rows: RosterRpcRow[] | null, year: number): PortalRosterRow[]
     guardians: asArray<PortalGuardianContact>(row.guardians),
     attendance_status: (row.attendance_status ?? null) as AttendanceStatus | null,
     attendance_marked_at: row.attendance_marked_at ?? null,
+    notice_channel: (row.notice_channel ?? null) as NoticeChannel | null,
+    attendance_note: row.attendance_note ?? null,
     absence_report_id: row.absence_report_id ?? null,
     absence_reason: row.absence_reason ?? null,
     allergies: row.allergies ?? null,

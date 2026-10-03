@@ -790,7 +790,13 @@
         "noPhoto": "Ikke fotosamtykke",
         "allergies": "Allergi",
         "medical": "Helse",
-        "pickup": "Kan også hente"
+        "pickup": "Kan også hente",
+        "noticeApp": "Meldt i appen",
+        "noticeDirect": "Meldt direkte til lærer",
+        "noteLabel": "Merknad om fraværet til {name}",
+        "notePlaceholder": "For eksempel: Mor sendte SMS, syk",
+        "noteSave": "Lagre merknad",
+        "noteSaved": "Merknaden er lagret"
       },
       "status": {
         "til_stede": "Til stede",
@@ -801,6 +807,7 @@
       "summary": {
         "present": "til stede",
         "absent": "fravær",
+        "reported": "meldt fravær",
         "late": "sent",
         "unmarked": "ikke registrert"
       },

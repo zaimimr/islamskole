@@ -1,18 +1,30 @@
 "use client";
 
-import { useOptimistic, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { CameraOff, Check, CheckCheck, Clock, HeartPulse, Loader2, MessageSquareText, Phone, X } from "lucide-react";
-import { markAttendance, markAttendanceMany } from "@/lib/portal/actions";
+import {
+  CameraOff,
+  Check,
+  CheckCheck,
+  Clock,
+  HeartPulse,
+  Loader2,
+  MessageCircleMore,
+  MessageSquareText,
+  Phone,
+  Smartphone,
+  X,
+} from "lucide-react";
+import { markAttendance, markAttendanceMany, setAttendanceNote } from "@/lib/portal/actions";
 import type { AttendanceStatus, PortalRosterRow } from "@/lib/portal/types";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-type MarkStatus = Exclude<AttendanceStatus, "meldt_fravaer">;
 type StatusMap = Record<string, AttendanceStatus | null>;
 
-const MARK_OPTIONS: { status: MarkStatus; icon: typeof Check; active: string }[] = [
+const MARK_OPTIONS: { status: AttendanceStatus; icon: typeof Check; active: string }[] = [
   { status: "til_stede", icon: Check, active: "bg-admin-action text-white ring-admin-action" },
   {
     status: "fravaer",
@@ -20,6 +32,7 @@ const MARK_OPTIONS: { status: MarkStatus; icon: typeof Check; active: string }[]
     active: "bg-[color-mix(in_oklch,var(--destructive),black_18%)] text-white ring-transparent",
   },
   { status: "sent", icon: Clock, active: "bg-brand-sun text-foreground ring-[color-mix(in_oklch,var(--brand-sun),black_20%)]" },
+  { status: "meldt_fravaer", icon: MessageSquareText, active: "bg-accent-foreground text-accent ring-transparent" },
 ];
 
 function fullName(row: { first_name: string | null; last_name: string | null }) {
@@ -44,16 +57,15 @@ export function AttendanceRoster({
     ...update,
   }));
 
-  const counts = { til_stede: 0, fravaer: 0, sent: 0, unmarked: 0 };
+  const counts = { til_stede: 0, fravaer: 0, sent: 0, meldt_fravaer: 0, unmarked: 0 };
   for (const row of rows) {
     const status = statuses[row.student_id];
     if (!status) counts.unmarked += 1;
-    else if (status === "meldt_fravaer") counts.fravaer += 1;
     else counts[status] += 1;
   }
   const unmarkedIds = rows.filter((row) => !statuses[row.student_id]).map((row) => row.student_id);
 
-  function mark(studentIds: string[], status: MarkStatus) {
+  function mark(studentIds: string[], status: AttendanceStatus) {
     startTransition(async () => {
       applyStatuses(Object.fromEntries(studentIds.map((id) => [id, status])));
       const result =
@@ -74,6 +86,7 @@ export function AttendanceRoster({
         <ul className="flex flex-1 flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums">
           <SummaryItem dot="bg-admin-action" value={counts.til_stede} label={t("summary.present")} />
           <SummaryItem dot="bg-destructive" value={counts.fravaer} label={t("summary.absent")} />
+          <SummaryItem dot="bg-accent-foreground/60" value={counts.meldt_fravaer} label={t("summary.reported")} />
           <SummaryItem dot="bg-brand-sun" value={counts.sent} label={t("summary.late")} />
           <SummaryItem dot="bg-foreground/25" value={counts.unmarked} label={t("summary.unmarked")} />
         </ul>
@@ -91,7 +104,10 @@ export function AttendanceRoster({
         {rows.map((row) => {
           const name = fullName(row);
           const status = statuses[row.student_id];
-          const reported = row.absence_report_id !== null || status === "meldt_fravaer";
+          const reportedInApp = row.absence_report_id !== null;
+          const toldDirectly =
+            status === "meldt_fravaer" &&
+            (row.attendance_status === "meldt_fravaer" ? row.notice_channel === "direkte" : true);
           return (
             <li key={row.student_id} className="grid gap-3 p-4">
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -125,17 +141,32 @@ export function AttendanceRoster({
                 </p>
               ) : null}
 
-              {reported ? (
+              {reportedInApp ? (
                 <p className="flex items-start gap-2 rounded-xl bg-accent px-3 py-2 text-sm text-accent-foreground">
-                  <MessageSquareText aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                  <Smartphone aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
                   <span>
-                    <span className="font-semibold">{t("status.meldt_fravaer")}</span>
+                    <span className="font-semibold">{t("roster.noticeApp")}</span>
                     {row.absence_reason ? `: ${row.absence_reason}` : null}
                   </span>
                 </p>
               ) : null}
 
-              <div role="group" aria-label={t("roster.statusGroup", { name })} className="grid grid-cols-3 gap-2">
+              {toldDirectly ? (
+                <DirectNotice
+                  key={row.attendance_note ?? ""}
+                  studentId={row.student_id}
+                  lessonId={lessonId}
+                  name={name}
+                  note={row.attendance_note}
+                  editable={markable && row.attendance_status === "meldt_fravaer"}
+                />
+              ) : null}
+
+              <div
+                role="group"
+                aria-label={t("roster.statusGroup", { name })}
+                className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+              >
                 {MARK_OPTIONS.map((option) => {
                   const Icon = option.icon;
                   const selected = status === option.status;
@@ -236,5 +267,63 @@ function SummaryItem({ dot, value, label }: { dot: string; value: number; label:
         <span className="font-bold">{value}</span> {label}
       </span>
     </li>
+  );
+}
+
+function DirectNotice({
+  studentId,
+  lessonId,
+  name,
+  note,
+  editable,
+}: {
+  studentId: string;
+  lessonId: string;
+  name: string;
+  note: string | null;
+  editable: boolean;
+}) {
+  const t = useTranslations("portal.teacher");
+  const tErrors = useTranslations("portal.errors");
+  const [value, setValue] = useState(note ?? "");
+  const [pending, startTransition] = useTransition();
+  const dirty = value.trim() !== (note ?? "");
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!dirty) return;
+    startTransition(async () => {
+      const result = await setAttendanceNote(studentId, lessonId, value);
+      if (result.ok) toast.success(t("roster.noteSaved"));
+      else toast.error(tErrors(result.error));
+    });
+  }
+
+  return (
+    <div className="grid gap-2 rounded-xl bg-accent px-3 py-2 text-sm text-accent-foreground">
+      <p className="flex items-start gap-2">
+        <MessageCircleMore aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+        <span>
+          <span className="font-semibold">{t("roster.noticeDirect")}</span>
+          {!editable && note ? `: ${note}` : null}
+        </span>
+      </p>
+      {editable ? (
+        <form onSubmit={handleSubmit} className="flex flex-wrap gap-2">
+          <Input
+            value={value}
+            maxLength={500}
+            onChange={(event) => setValue(event.target.value)}
+            placeholder={t("roster.notePlaceholder")}
+            aria-label={t("roster.noteLabel", { name })}
+            className="min-w-0 flex-1 basis-48 bg-background text-foreground"
+          />
+          <Button type="submit" variant="secondary" disabled={pending || !dirty}>
+            {pending ? <Loader2 aria-hidden="true" className="animate-spin" /> : null}
+            {t("roster.noteSave")}
+          </Button>
+        </form>
+      ) : null}
+    </div>
   );
 }

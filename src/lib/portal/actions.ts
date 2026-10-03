@@ -233,6 +233,48 @@ export async function markAttendanceMany(
   return { ok: true };
 }
 
+const attendanceNoteSchema = z.object({
+  studentId: uuid,
+  lessonId: uuid,
+  note: z
+    .string()
+    .trim()
+    .max(500)
+    .transform((value) => (value ? value : null)),
+});
+
+export async function setAttendanceNote(
+  studentId: string,
+  lessonId: string,
+  note: string,
+): Promise<PortalActionResult> {
+  const parsed = attendanceNoteSchema.safeParse({ studentId, lessonId, note });
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const user = await getUser();
+  if (!user) return { ok: false, error: "unauthenticated" };
+
+  const { supabase, lesson } = await lessonContext(parsed.data.lessonId);
+  if (!lesson) return { ok: false, error: "forbidden" };
+  const { data, error } = await supabase
+    .from("attendance")
+    .update({ note: parsed.data.note })
+    .eq("student_id", parsed.data.studentId)
+    .eq("lesson_id", lesson.id)
+    .eq("status", "meldt_fravaer")
+    .select("student_id")
+    .maybeSingle();
+  if (error || !data) return { ok: false, error: error ? dbError(error) : "forbidden" };
+
+  await writeAudit({
+    action: "attendance.note",
+    entityType: "attendance",
+    entityId: parsed.data.studentId,
+    metadata: { lesson_id: lesson.id, school_day_id: lesson.school_day_id },
+  });
+  refreshPortal();
+  return { ok: true };
+}
+
 const classNoteSchema = z.object({
   lessonId: uuid,
   homework: optionalText,
