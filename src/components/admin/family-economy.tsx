@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   CalendarClock,
+  ChevronDown,
   HandHeart,
   Loader2,
   Percent,
@@ -180,6 +181,7 @@ export function FamilyEconomy({
   );
   const [customValid, setCustomValid] = useState(false);
   const [adjustmentType, setAdjustmentType] = useState("annet");
+  const [showAllInstallments, setShowAllInstallments] = useState(false);
   const [siblingChild, setSiblingChild] = useState(
     childrenOptions[0]?.id ?? "",
   );
@@ -327,6 +329,9 @@ export function FamilyEconomy({
   const activeInstallments = installments.filter(
     (installment) => installment.status !== "kansellert",
   );
+  const visibleInstallments = showAllInstallments
+    ? activeInstallments
+    : activeInstallments.slice(0, 6);
 
   return (
     <>
@@ -562,12 +567,12 @@ export function FamilyEconomy({
                 Avdrag
               </p>
               <ul className="grid gap-1.5">
-                {activeInstallments.map((installment) => (
+                {visibleInstallments.map((installment) => (
                   <li
                     key={installment.id}
                     className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#FAF9F5] px-3 py-2 text-sm ring-1 ring-[#E8E3D9]"
                   >
-                    <span className="flex flex-wrap items-center gap-2">
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                       <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${installmentStatusClasses[installment.status] ?? "bg-[#F0F0ED] text-[#4E5550]"}`}
                       >
@@ -577,7 +582,7 @@ export function FamilyEconomy({
                       <span className="font-bold">
                         {installment.studentName}
                       </span>
-                      <span className="text-admin-muted">
+                      <span className="basis-full text-admin-muted sm:basis-auto">
                         Frist {formatDueDate(installment.dueDate)}
                       </span>
                     </span>
@@ -591,7 +596,7 @@ export function FamilyEconomy({
                             type="button"
                             variant="ghost"
                             disabled={pending}
-                            className="h-8 rounded-lg px-2 text-xs font-bold"
+                            className="h-10 rounded-lg px-2.5 text-xs font-bold sm:h-8 sm:px-2"
                             onClick={() =>
                               setConfirmation({
                                 title: "Sende avdraget nå?",
@@ -610,7 +615,7 @@ export function FamilyEconomy({
                             type="button"
                             variant="ghost"
                             disabled={pending}
-                            className="h-8 rounded-lg px-2 text-xs font-bold text-[#8B2F2B]"
+                            className="h-10 rounded-lg px-2.5 text-xs font-bold sm:h-8 sm:px-2 text-[#8B2F2B]"
                             onClick={() =>
                               setConfirmation({
                                 title: `Stoppe avdraget på ${formatNok(installment.amount)}?`,
@@ -630,7 +635,7 @@ export function FamilyEconomy({
                           type="button"
                           variant="ghost"
                           disabled={pending}
-                          className="h-8 rounded-lg px-2 text-xs font-bold"
+                          className="h-10 rounded-lg px-2.5 text-xs font-bold sm:h-8 sm:px-2"
                           onClick={() =>
                             run(
                               () => reopenInstallment(installment.id),
@@ -645,6 +650,17 @@ export function FamilyEconomy({
                   </li>
                 ))}
               </ul>
+              {activeInstallments.length > visibleInstallments.length ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="min-h-11 justify-self-start rounded-lg px-2 text-sm font-bold text-[#277A31]"
+                  onClick={() => setShowAllInstallments(true)}
+                >
+                  Vis alle {activeInstallments.length} avdrag
+                  <ChevronDown aria-hidden="true" className="size-4" />
+                </Button>
+              ) : null}
               <p className="text-xs text-admin-muted">
                 Betalingslenker sendes automatisk på e-post cirka 14 dager før
                 frist.
@@ -755,7 +771,7 @@ export function FamilyEconomy({
                     type="button"
                     variant="ghost"
                     disabled={pending}
-                    className="h-8 rounded-lg px-2 text-xs font-bold text-[#8B2F2B]"
+                    className="h-10 rounded-lg px-2.5 text-xs font-bold sm:h-8 sm:px-2 text-[#8B2F2B]"
                     onClick={() =>
                       setConfirmation({
                         title: "Opphev fradraget?",

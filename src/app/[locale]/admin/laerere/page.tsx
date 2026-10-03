@@ -296,7 +296,7 @@ async function TeacherContent({
       {registry.teachers.length > 0 ? (
         <OptimisticRemovalList
           className="divide-y divide-[#ECE8DF]"
-          itemClassName="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-5"
+          itemClassName="relative flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-5"
           rows={visibleTeachers.map((teacher) => {
             const name =
               [teacher.first_name, teacher.last_name]
@@ -309,7 +309,7 @@ async function TeacherContent({
               id: teacher.id,
               content: (
                 <>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 pr-10 sm:pr-0">
                     <p className="flex flex-wrap items-center gap-2 font-bold">
                       {name}
                       {teacher.teacher_suspended_at ? (
@@ -364,7 +364,7 @@ async function TeacherContent({
                           : ""}
                       </p>
                     ) : null}
-                    <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                    <p className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-1 text-sm">
                       <GraduationCap
                         aria-hidden="true"
                         className="size-4 text-admin-muted"
@@ -374,7 +374,7 @@ async function TeacherContent({
                           <Link
                             key={item.id}
                             href={`${basePath}/klasser/${item.id}`}
-                            className="inline-flex min-h-11 items-center rounded font-bold text-[#277A31] underline-offset-2 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-0"
+                            className="inline-flex min-h-11 min-w-9 items-center justify-center rounded px-1 font-bold text-[#277A31] underline-offset-2 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-0"
                           >
                             {item.name}
                           </Link>
@@ -386,7 +386,7 @@ async function TeacherContent({
                       )}
                     </p>
                   </div>
-                  <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
+                  <div className="flex flex-wrap items-center gap-3 sm:justify-end">
                     {gift ? (
                       <span className="text-sm text-admin-muted">
                         Fritatt{" "}
@@ -396,12 +396,14 @@ async function TeacherContent({
                         ({gift.students} barn)
                       </span>
                     ) : null}
-                    <TeacherRowMenu
-                      teacher={teacher}
-                      name={name}
-                      suspended={Boolean(teacher.teacher_suspended_at)}
-                      canSendLink={Boolean(teacher.email) && !isPlaceholderEmail(teacher.email)}
-                    />
+                    <div className="absolute top-3 right-2 sm:static">
+                      <TeacherRowMenu
+                        teacher={teacher}
+                        name={name}
+                        suspended={Boolean(teacher.teacher_suspended_at)}
+                        canSendLink={Boolean(teacher.email) && !isPlaceholderEmail(teacher.email)}
+                      />
+                    </div>
                   </div>
                 </>
               ),
@@ -450,7 +452,7 @@ async function TeacherContent({
                 type="search"
                 defaultValue={q}
                 placeholder="Navn, e-post, telefon eller fag"
-                className="min-h-11 w-full rounded-xl border border-[#CFC9BD] bg-white pr-4 pl-10 text-sm outline-none placeholder:text-admin-muted focus-visible:border-[#2F7938] focus-visible:ring-3 focus-visible:ring-[#2F7938]/20"
+                className="min-h-11 w-full rounded-xl border border-[#CFC9BD] bg-white pr-4 pl-10 text-base sm:text-sm outline-none placeholder:text-admin-muted focus-visible:border-[#2F7938] focus-visible:ring-3 focus-visible:ring-[#2F7938]/20"
               />
             </div>
           </div>

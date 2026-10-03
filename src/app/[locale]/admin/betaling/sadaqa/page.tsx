@@ -348,7 +348,7 @@ export default async function SadaqaPage({
             {support.map((entry) => (
               <li
                 key={entry.key}
-                className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-4 sm:px-5"
+                className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-2 gap-y-2 px-4 py-3 sm:gap-4 sm:px-5"
               >
                 <div className="min-w-0">
                   <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -427,7 +427,7 @@ export default async function SadaqaPage({
               return (
                 <li
                   key={gift.id}
-                  className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-4 sm:px-5"
+                  className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-2 gap-y-2 px-4 py-3 sm:gap-4 sm:px-5"
                 >
                   <div className="min-w-0">
                     <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5">

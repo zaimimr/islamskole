@@ -119,6 +119,7 @@ export function SiteHeader() {
                   return (
                     <SheetClose
                       key={item.href}
+                      nativeButton={false}
                       render={
                         <Link
                           href={item.href}
@@ -139,6 +140,7 @@ export function SiteHeader() {
               </nav>
               <div className="px-4 pb-2">
                 <SheetClose
+                  nativeButton={false}
                   render={
                     <Link
                       href="/pamelding"
@@ -152,6 +154,7 @@ export function SiteHeader() {
               <div className="mt-auto flex items-center justify-between gap-3 border-t border-foreground/8 p-5">
                 <LocaleSwitcher />
                 <SheetClose
+                  nativeButton={false}
                   render={
                     <Link
                       href="/min-side/logg-inn"

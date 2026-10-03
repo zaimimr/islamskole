@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,7 @@ export function FinanceTabs({
   reviewCount: number;
 }) {
   const pathname = usePathname();
+  const navRef = useRef<HTMLElement>(null);
   const root = `${basePath}/betaling`;
   const tabs = [
     { href: root, label: "Oversikt" },
@@ -23,8 +25,15 @@ export function FinanceTabs({
     { href: `${root}/dobbeltforinger`, label: "Til kontroll", count: reviewCount },
   ];
 
+  useEffect(() => {
+    const nav = navRef.current;
+    const active = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!nav || !active) return;
+    nav.scrollLeft = active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2;
+  }, [pathname]);
+
   return (
-    <nav aria-label="Økonomi" className="relative -mx-4 min-w-0 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+    <nav ref={navRef} aria-label="Økonomi" className="relative -mx-4 min-w-0 overflow-x-auto px-4 sm:mx-0 sm:px-0">
       <ul className="flex w-max min-w-full gap-1 border-b border-[#E3DED3]">
         {tabs.map((tab) => {
           const active =

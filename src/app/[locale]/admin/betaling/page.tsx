@@ -659,9 +659,9 @@ function BalanceEquation({ summary }: { summary: BalanceSummary }) {
 
   return (
     <div className="grid gap-2">
-      <dl className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-xl bg-[#FAF9F5] px-4 py-3 ring-1 ring-[#E8E3D9]">
+      <dl className="grid gap-1 rounded-xl bg-[#FAF9F5] px-4 py-3 ring-1 ring-[#E8E3D9] sm:flex sm:flex-wrap sm:items-baseline sm:gap-x-3 sm:gap-y-1">
         <EquationTerm label="Krav etter rabatt" value={formatNok(summary.owedOre)} />
-        <span aria-hidden="true" className="text-lg font-bold text-admin-muted">
+        <span aria-hidden="true" className="hidden text-lg font-bold text-admin-muted sm:inline">
           −
         </span>
         <EquationTerm
@@ -669,7 +669,7 @@ function BalanceEquation({ summary }: { summary: BalanceSummary }) {
           value={formatNok(summary.paidOre)}
           className="text-[#216A2B]"
         />
-        <span aria-hidden="true" className="text-lg font-bold text-admin-muted">
+        <span aria-hidden="true" className="hidden text-lg font-bold text-admin-muted sm:inline">
           =
         </span>
         <EquationTerm
@@ -725,7 +725,7 @@ function EquationTerm({
   className?: string;
 }) {
   return (
-    <div className="flex flex-col">
+    <div className="flex items-baseline justify-between gap-3 sm:flex-col sm:items-start sm:justify-start sm:gap-0">
       <dt className="text-xs font-bold text-admin-muted">{label}</dt>
       <dd className={cn("font-heading text-xl font-bold tabular-nums", className)}>
         {value}
@@ -1030,7 +1030,7 @@ function AccountingExport({
   defaultYearId: string;
 }) {
   const fieldClass =
-    "min-h-11 w-full rounded-xl border border-[#DCD7CC] bg-white px-3 text-sm outline-none focus-visible:border-[#3C8F44] focus-visible:ring-3 focus-visible:ring-ring/30";
+    "min-h-11 w-full rounded-xl border border-[#DCD7CC] bg-white px-3 text-base sm:text-sm outline-none focus-visible:border-[#3C8F44] focus-visible:ring-3 focus-visible:ring-ring/30";
 
   return (
     <section

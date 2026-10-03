@@ -70,7 +70,7 @@ export function InstallmentRowActions({
               type="button"
               variant="ghost"
               disabled={pending}
-              className="h-8 rounded-lg px-2 text-xs font-bold"
+              className="h-10 rounded-lg px-2.5 text-xs font-bold sm:h-8 sm:px-2"
               onClick={() =>
                 setConfirmation({
                   title: "Sende avdraget nå?",
@@ -88,7 +88,7 @@ export function InstallmentRowActions({
               type="button"
               variant="ghost"
               disabled={pending}
-              className="h-8 rounded-lg px-2 text-xs font-bold text-[#8B2F2B]"
+              className="h-10 rounded-lg px-2.5 text-xs font-bold sm:h-8 sm:px-2 text-[#8B2F2B]"
               onClick={() =>
                 setConfirmation({
                   title: `Stoppe avdraget på ${formatNok(amount)}?`,
@@ -107,7 +107,7 @@ export function InstallmentRowActions({
             type="button"
             variant="ghost"
             disabled={pending}
-            className="h-8 rounded-lg px-2 text-xs font-bold"
+            className="h-10 rounded-lg px-2.5 text-xs font-bold sm:h-8 sm:px-2"
             onClick={() =>
               startTransition(async () => {
                 const result = await reopenInstallment(installmentId);

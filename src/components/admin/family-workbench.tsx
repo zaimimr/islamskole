@@ -898,7 +898,7 @@ export function FamilyWorkbench({
             {allAttentionHref ? (
               <Link
                 href={allAttentionHref}
-                className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-bold text-[#277A31] outline-none hover:bg-[#F2F7F2] focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-2 text-sm font-bold whitespace-nowrap text-[#277A31] outline-none hover:bg-[#F2F7F2] focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 Se alle
                 <ArrowRight aria-hidden="true" className="size-4" />

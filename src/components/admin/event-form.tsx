@@ -86,7 +86,7 @@ export function EventForm({
           <div className="grid gap-6 p-5 sm:p-6">
             <fieldset className="grid gap-4">
               <legend className="font-heading text-lg font-bold">Norsk</legend>
-              <p className="-mt-3 text-sm text-admin-muted">
+              <p className="text-sm text-admin-muted">
                 Skriv det foresatte og besøkende trenger å vite først.
               </p>
               <div className="grid gap-2">

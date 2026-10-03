@@ -62,7 +62,7 @@ function Stat({
       </p>
       <p
         className={cn(
-          "mt-1 font-heading text-2xl font-bold tabular-nums",
+          "mt-1 font-heading text-xl font-bold tabular-nums sm:text-2xl",
           tone === "danger" && "text-[#8B2F2B]",
         )}
       >
@@ -194,7 +194,7 @@ export default async function InstallmentsPage({
                 <span className="text-admin-muted">{studentName(row)}</span>
                 <span
                   className={cn(
-                    "text-admin-muted",
+                    "basis-full text-admin-muted sm:basis-auto",
                     overdueRow && "font-bold text-[#8B2F2B]",
                   )}
                 >
@@ -268,7 +268,7 @@ export default async function InstallmentsPage({
         </section>
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             <Stat
               label="Kommende 30 dager"
               value={formatNok(upcomingSum)}

@@ -22,7 +22,7 @@ export function Section({
     <Tag
       id={id}
       aria-labelledby={ariaLabelledby}
-      className={cn("py-16 sm:py-24", className)}
+      className={cn("overflow-x-clip py-16 sm:py-24", className)}
     >
       <div className={cn("section-shell", innerClassName)}>{children}</div>
     </Tag>

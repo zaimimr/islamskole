@@ -694,7 +694,7 @@ export default async function RevisjonPage({
               defaultValue={filters.query}
               placeholder="Navn, e-post, handling eller ID"
               spellCheck={false}
-              className="min-h-11 w-full rounded-xl border border-[#DCD7CC] bg-white pr-3 pl-10 text-sm outline-none transition-colors placeholder:text-[#6A716C] focus-visible:border-[#3C8F44] focus-visible:ring-3 focus-visible:ring-ring/30"
+              className="min-h-11 w-full rounded-xl border border-[#DCD7CC] bg-white pr-3 pl-10 text-base sm:text-sm outline-none transition-colors placeholder:text-[#6A716C] focus-visible:border-[#3C8F44] focus-visible:ring-3 focus-visible:ring-ring/30"
             />
           </div>
         </div>
@@ -731,7 +731,7 @@ export default async function RevisjonPage({
             type="date"
             name="fra"
             defaultValue={filters.from}
-            className="min-h-11 w-full rounded-xl border border-[#DCD7CC] bg-white px-3 text-sm outline-none focus-visible:border-[#3C8F44] focus-visible:ring-3 focus-visible:ring-ring/30"
+            className="min-h-11 w-full rounded-xl border border-[#DCD7CC] bg-white px-3 text-base sm:text-sm outline-none focus-visible:border-[#3C8F44] focus-visible:ring-3 focus-visible:ring-ring/30"
           />
         </div>
         <div className="grid gap-1.5">
@@ -743,7 +743,7 @@ export default async function RevisjonPage({
             type="date"
             name="til"
             defaultValue={filters.to}
-            className="min-h-11 w-full rounded-xl border border-[#DCD7CC] bg-white px-3 text-sm outline-none focus-visible:border-[#3C8F44] focus-visible:ring-3 focus-visible:ring-ring/30"
+            className="min-h-11 w-full rounded-xl border border-[#DCD7CC] bg-white px-3 text-base sm:text-sm outline-none focus-visible:border-[#3C8F44] focus-visible:ring-3 focus-visible:ring-ring/30"
           />
         </div>
         <div className="flex gap-2 md:col-span-2 xl:col-span-1">

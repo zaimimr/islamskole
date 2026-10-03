@@ -88,7 +88,7 @@ export default async function AboutPage({
       </Section>
 
       <Section>
-        <div className="grid gap-10 rounded-[2.6rem] bg-primary/8 p-8 sm:p-12 lg:grid-cols-[1.2fr_1fr] lg:items-center">
+        <div className="grid gap-10 rounded-[2.6rem] bg-primary/8 p-6 sm:p-12 lg:grid-cols-[1.2fr_1fr] lg:items-center">
           <div className="flex flex-col gap-4">
             <h2 className="text-3xl font-bold text-balance-pretty sm:text-4xl">
               {t("communityTitle")}
@@ -97,14 +97,14 @@ export default async function AboutPage({
               {t("communityBody")}
             </p>
           </div>
-          <ul className="grid grid-cols-3 gap-4">
+          <ul className="grid grid-cols-3 gap-3 sm:gap-4">
             {facts.map(({ icon: Icon, value }) => (
               <li
                 key={value}
-                className="flex flex-col items-center gap-2 rounded-3xl bg-card p-5 text-center ring-1 ring-foreground/8"
+                className="flex flex-col items-center gap-2 rounded-3xl bg-card px-2 py-5 text-center ring-1 ring-foreground/8 sm:p-5"
               >
                 <Icon className="size-7 text-brand-green-dark" aria-hidden="true" />
-                <span className="text-2xl font-bold">{value}</span>
+                <span className="text-xl font-bold whitespace-nowrap sm:text-2xl">{value}</span>
               </li>
             ))}
           </ul>

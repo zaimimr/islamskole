@@ -8,6 +8,7 @@ import { PortalSignOutButton } from "@/components/portal/portal-sign-out-button"
 import { PortalNav } from "@/components/portal/portal-nav";
 import { getIsAdmin, getUser } from "@/lib/auth";
 import { getPortalContext } from "@/lib/portal/data";
+import { cn } from "@/lib/utils";
 
 export async function generateMetadata({
   params,
@@ -59,16 +60,22 @@ export default async function PortalLayout({
             </div>
           ) : null}
         </div>
-        {user ? (
-          <p className="mx-auto w-full max-w-6xl truncate px-4 pb-2 text-sm text-muted-foreground sm:hidden">
-            {t("signedInAs")} <span className="font-semibold text-foreground">{user.email}</span>
-          </p>
-        ) : null}
-        {context.isGuardian ? <PortalNav /> : null}
+        {context.isGuardian ? <PortalNav variant="top" /> : null}
       </header>
-      <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
+      {user ? (
+        <p className="mx-auto w-full max-w-6xl truncate px-4 pt-3 text-sm text-muted-foreground sm:hidden">
+          {t("signedInAs")} <span className="font-semibold text-foreground">{user.email}</span>
+        </p>
+      ) : null}
+      <div
+        className={cn(
+          "mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8",
+          context.isGuardian && "pb-28 sm:pb-8",
+        )}
+      >
         {children}
       </div>
+      {context.isGuardian ? <PortalNav variant="bottom" /> : null}
     </div>
   );
 }
