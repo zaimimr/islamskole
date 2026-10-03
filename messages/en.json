@@ -689,7 +689,7 @@
         "thenOpen": "Next school day is {day}",
         "none": "There are no more school days planned this year.",
         "expected": "Attending",
-        "reported": "Absence reported"
+        "reported": "Excused absence"
       },
       "missing": {
         "title": "Health info or photo consent is missing for {names}",
@@ -892,9 +892,9 @@
       },
       "status": {
         "til_stede": "Present",
-        "fravaer": "Absent",
+        "fravaer": "Unexcused absence",
         "sent": "Late",
-        "meldt_fravaer": "Reported absent",
+        "meldt_fravaer": "Excused absence",
         "none": "Not recorded"
       },
       "payment": {
@@ -924,7 +924,7 @@
         "schoolDay": "School day",
         "cancelled": "No school",
         "empty": "No upcoming school days or activities.",
-        "reported": "Absence reported: {names}"
+        "reported": "Excused absence: {names}"
       },
       "lessons": {
         "title": "Timetable {day}",

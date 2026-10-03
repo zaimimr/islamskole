@@ -689,7 +689,7 @@
         "thenOpen": "Neste skoledag er {day}",
         "none": "Det er ingen flere skoledager satt opp i år.",
         "expected": "Kommer",
-        "reported": "Meldt fravær"
+        "reported": "Gyldig fravær"
       },
       "missing": {
         "title": "Mangler helseinfo eller fotosamtykke for {names}",
@@ -891,10 +891,10 @@
         "historyTitle": "Søndag for søndag"
       },
       "status": {
-        "til_stede": "Til stede",
-        "fravaer": "Fravær",
-        "sent": "Kom sent",
-        "meldt_fravaer": "Meldt fravær",
+        "til_stede": "Møtt",
+        "fravaer": "Ugyldig fravær",
+        "sent": "Forsinket",
+        "meldt_fravaer": "Gyldig fravær",
         "none": "Ikke registrert"
       },
       "payment": {
@@ -924,7 +924,7 @@
         "schoolDay": "Skoledag",
         "cancelled": "Ingen skole",
         "empty": "Ingen kommende skoledager eller aktiviteter.",
-        "reported": "Meldt fravær: {names}"
+        "reported": "Gyldig fravær: {names}"
       },
       "lessons": {
         "title": "Timeplan {day}",
