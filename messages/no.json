@@ -776,14 +776,14 @@
         "today": "i dag",
         "cancelled": "avlyst",
         "cancelledNotice": "Denne skoledagen er avlyst. Oppmøte kan ikke registreres.",
-        "futureNotice": "Oppmøte føres på selve dagen. Meldt fravær kan føres nå."
+        "futureNotice": "Oppmøte føres på selve dagen. Gyldig fravær kan føres nå."
       },
       "roster": {
         "title": "Oppmøte",
         "empty": "Det er ingen elever i klassen ennå.",
         "age": "{age} år",
-        "allPresent": "Alle til stede",
-        "restPresent": "Resten til stede ({count})",
+        "allPresent": "Alle møtt",
+        "restPresent": "Resten møtt ({count})",
         "statusGroup": "Oppmøte for {name}",
         "call": "Ring {name}",
         "noPhone": "Ingen telefonnummer registrert",
@@ -793,17 +793,17 @@
         "pickup": "Kan også hente"
       },
       "status": {
-        "til_stede": "Til stede",
-        "fravaer": "Ikke meldt",
-        "sent": "Sent",
-        "meldt_fravaer": "Meldt fravær"
+        "til_stede": "Møtt",
+        "fravaer": "Ugyldig fravær",
+        "sent": "Forsinket",
+        "meldt_fravaer": "Gyldig fravær"
       },
       "summary": {
-        "present": "til stede",
-        "late": "sent",
+        "present": "møtt",
+        "late": "forsinket",
         "unmarked": "ikke registrert",
-        "reported": "meldt fravær",
-        "unreported": "ikke meldt"
+        "reported": "gyldig fravær",
+        "unreported": "ugyldig fravær"
       },
       "note": {
         "title": "Notat for timen",

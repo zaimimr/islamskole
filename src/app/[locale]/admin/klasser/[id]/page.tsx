@@ -134,8 +134,8 @@ function attendanceSummary(rows: AttendanceRow[], heldDays: number) {
   const late = days.filter((status) => status === "sent").length;
   const unreported = days.filter((status) => status === "fravaer").length;
   const parts = [absent ? `${absent} fravær` : "Ingen fravær"];
-  if (unreported) parts.push(`${unreported} ikke meldt`);
-  if (late) parts.push(`${late} sent`);
+  if (unreported) parts.push(`${unreported} ugyldig`);
+  if (late) parts.push(`${late} forsinket`);
   return parts.join(", ");
 }
 

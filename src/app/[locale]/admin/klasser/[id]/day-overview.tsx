@@ -83,7 +83,7 @@ export function ClassDayOverview({
             Oppmøte og notater per skoledag
           </h2>
           <p className="text-sm text-admin-muted">
-            {held.length} av {days.length} skoledager ført · {withNote} med notat · {absences} fravær totalt{unreported ? `, ${unreported} ikke meldt` : ""}
+            {held.length} av {days.length} skoledager ført · {withNote} med notat · {absences} fravær totalt{unreported ? `, ${unreported} ugyldig` : ""}
           </p>
         </div>
       </div>
@@ -102,11 +102,11 @@ export function ClassDayOverview({
                   <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
                     {marked ? (
                       <>
-                        <Chip tone="present">{day.present.length} til stede</Chip>
+                        <Chip tone="present">{day.present.length} møtt</Chip>
                         {viaApp.length ? <Chip tone="reported">{viaApp.length} meldt i appen</Chip> : null}
                         {viaTeacher.length ? <Chip tone="reported">{viaTeacher.length} meldt til lærer</Chip> : null}
-                        {day.absent.length ? <Chip tone="absent">{day.absent.length} ikke meldt</Chip> : null}
-                        {day.late.length ? <Chip tone="late">{day.late.length} sent</Chip> : null}
+                        {day.absent.length ? <Chip tone="absent">{day.absent.length} ugyldig fravær</Chip> : null}
+                        {day.late.length ? <Chip tone="late">{day.late.length} forsinket</Chip> : null}
                         {day.unmarked.length ? <Chip tone="unmarked">{day.unmarked.length} ikke ført</Chip> : null}
                       </>
                     ) : (
@@ -130,15 +130,15 @@ export function ClassDayOverview({
                 <div className="grid gap-5 border-t border-[#ECE8DF] px-4 py-4 sm:px-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(13rem,1fr))] content-start gap-4">
                     <NameGroup
-                      title="Ikke meldt"
+                      title="Ugyldig fravær"
                       tone="absent"
                       names={day.absent.map((name) => <li key={name}>{name}</li>)}
                     />
                     <NameGroup title="Meldt i appen" tone="reported" names={viaApp.map(reportedName)} />
                     <NameGroup title="Meldt til lærer" tone="reported" names={viaTeacher.map(reportedName)} />
-                    <NameGroup title="Sent" tone="late" names={day.late.map((name) => <li key={name}>{name}</li>)} />
+                    <NameGroup title="Forsinket" tone="late" names={day.late.map((name) => <li key={name}>{name}</li>)} />
                     <NameGroup
-                      title="Til stede"
+                      title="Møtt"
                       tone="present"
                       names={day.present.map((name) => <li key={name}>{name}</li>)}
                     />
