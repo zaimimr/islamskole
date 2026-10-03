@@ -98,7 +98,8 @@ export default async function TeacherClassPage({
     .filter((row) => !day || (row.date !== null && row.date < day.date))
     .slice(0, 5);
   const isFuture = day ? day.date > today : false;
-  const markable = day && lesson ? !day.cancelled && !lesson.cancelled && !isFuture : false;
+  const reportable = day && lesson ? !day.cancelled && !lesson.cancelled : false;
+  const markable = reportable && !isFuture;
   const showTabs = lessons.some((row) => lessonTitle(row, slots, wholeDay) !== wholeDay);
   const noteLesson = (row: (typeof previousNotes)[number]) =>
     row.start_position !== null && row.end_position !== null
@@ -196,7 +197,13 @@ export default async function TeacherClassPage({
                   <h2 id="attendance-title" className="text-2xl font-bold">
                     {t("roster.title")}
                   </h2>
-                  <AttendanceRoster key={lesson.lesson_id} rows={roster} lessonId={lesson.lesson_id} markable={markable} />
+                  <AttendanceRoster
+                    key={lesson.lesson_id}
+                    rows={roster}
+                    lessonId={lesson.lesson_id}
+                    markable={markable}
+                    reportable={reportable}
+                  />
                 </section>
               ) : (
                 <p className="rounded-2xl bg-card p-5 text-muted-foreground ring-1 ring-foreground/8">{t("lessons.none")}</p>

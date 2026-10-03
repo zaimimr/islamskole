@@ -776,7 +776,7 @@
         "today": "i dag",
         "cancelled": "avlyst",
         "cancelledNotice": "Denne skoledagen er avlyst. Oppmøte kan ikke registreres.",
-        "futureNotice": "Oppmøte registreres på selve skoledagen. Fravær som foreldrene melder, vises allerede nå."
+        "futureNotice": "Oppmøte føres på selve dagen. Meldt fravær kan føres nå."
       },
       "roster": {
         "title": "Oppmøte",
@@ -794,15 +794,16 @@
       },
       "status": {
         "til_stede": "Til stede",
-        "fravaer": "Fravær",
+        "fravaer": "Ikke meldt",
         "sent": "Sent",
         "meldt_fravaer": "Meldt fravær"
       },
       "summary": {
         "present": "til stede",
-        "absent": "fravær",
         "late": "sent",
-        "unmarked": "ikke registrert"
+        "unmarked": "ikke registrert",
+        "reported": "meldt fravær",
+        "unreported": "ikke meldt"
       },
       "note": {
         "title": "Notat for timen",
@@ -846,6 +847,12 @@
         "wholeDay": "Hele dagen",
         "mine": "Din time",
         "extraTitle": "Dine timer i andre klasser"
+      },
+      "absence": {
+        "app": "Meldt i appen",
+        "teacher": "Meldt til lærer",
+        "reason": "Grunn til fravær for {name}",
+        "reasonPlaceholder": "Grunn"
       }
     },
     "common": {

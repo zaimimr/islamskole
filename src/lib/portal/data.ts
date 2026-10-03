@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type {
+  AbsenceSource,
   AttendanceStatus,
   PortalAbsenceReport,
   PortalAttendance,
@@ -212,7 +213,9 @@ const getActiveYear = cache(
   },
 );
 
-type RosterRpcRow = Database["public"]["Functions"]["portal_lesson_roster"]["Returns"][number];
+type RosterRpcRow = Omit<Database["public"]["Functions"]["portal_lesson_roster"]["Returns"][number], "absence_source"> & {
+  absence_source?: string | null;
+};
 
 function mapRoster(rows: RosterRpcRow[] | null, year: number): PortalRosterRow[] {
   return (rows ?? []).map((row) => ({
@@ -224,6 +227,7 @@ function mapRoster(rows: RosterRpcRow[] | null, year: number): PortalRosterRow[]
     attendance_marked_at: row.attendance_marked_at ?? null,
     absence_report_id: row.absence_report_id ?? null,
     absence_reason: row.absence_reason ?? null,
+    absence_source: (row.absence_source ?? null) as AbsenceSource | null,
     allergies: row.allergies ?? null,
     medical_notes: row.medical_notes ?? null,
     photo_consent: row.photo_consent ?? null,

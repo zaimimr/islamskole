@@ -8,7 +8,7 @@ export type DayOverview = {
   date: string;
   present: string[];
   absent: string[];
-  reported: { name: string; reason: string | null }[];
+  reported: { name: string; reason: string | null; source: "app" | "laerer" }[];
   late: string[];
   unmarked: string[];
   markedBy: string[];
@@ -52,6 +52,15 @@ function NameGroup({
   );
 }
 
+function reportedName(row: DayOverview["reported"][number]) {
+  return (
+    <li key={row.name}>
+      {row.name}
+      {row.reason ? <span className="block text-admin-muted">{row.reason}</span> : null}
+    </li>
+  );
+}
+
 export function ClassDayOverview({
   days,
   studentCount,
@@ -64,6 +73,7 @@ export function ClassDayOverview({
   const held = days.filter((day) => day.unmarked.length < studentCount);
   const withNote = days.filter((day) => day.note).length;
   const absences = days.reduce((sum, day) => sum + day.absent.length + day.reported.length, 0);
+  const unreported = days.reduce((sum, day) => sum + day.absent.length, 0);
 
   return (
     <section className="grid gap-3 print:hidden" aria-labelledby="day-overview-title">
@@ -73,13 +83,15 @@ export function ClassDayOverview({
             Oppmøte og notater per skoledag
           </h2>
           <p className="text-sm text-admin-muted">
-            {held.length} av {days.length} skoledager ført · {withNote} med notat · {absences} fravær totalt
+            {held.length} av {days.length} skoledager ført · {withNote} med notat · {absences} fravær totalt{unreported ? `, ${unreported} ikke meldt` : ""}
           </p>
         </div>
       </div>
       <ul className="grid gap-2">
         {days.map((day) => {
           const marked = day.unmarked.length < studentCount;
+          const viaApp = day.reported.filter((row) => row.source === "app");
+          const viaTeacher = day.reported.filter((row) => row.source === "laerer");
           return (
             <li key={day.id}>
               <details className="group overflow-hidden rounded-2xl bg-white ring-1 ring-[#E3DED3]">
@@ -91,8 +103,9 @@ export function ClassDayOverview({
                     {marked ? (
                       <>
                         <Chip tone="present">{day.present.length} til stede</Chip>
-                        {day.absent.length ? <Chip tone="absent">{day.absent.length} fravær</Chip> : null}
-                        {day.reported.length ? <Chip tone="reported">{day.reported.length} meldt fravær</Chip> : null}
+                        {viaApp.length ? <Chip tone="reported">{viaApp.length} meldt i appen</Chip> : null}
+                        {viaTeacher.length ? <Chip tone="reported">{viaTeacher.length} meldt til lærer</Chip> : null}
+                        {day.absent.length ? <Chip tone="absent">{day.absent.length} ikke meldt</Chip> : null}
                         {day.late.length ? <Chip tone="late">{day.late.length} sent</Chip> : null}
                         {day.unmarked.length ? <Chip tone="unmarked">{day.unmarked.length} ikke ført</Chip> : null}
                       </>
@@ -117,20 +130,12 @@ export function ClassDayOverview({
                 <div className="grid gap-5 border-t border-[#ECE8DF] px-4 py-4 sm:px-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(13rem,1fr))] content-start gap-4">
                     <NameGroup
-                      title="Fravær"
+                      title="Ikke meldt"
                       tone="absent"
                       names={day.absent.map((name) => <li key={name}>{name}</li>)}
                     />
-                    <NameGroup
-                      title="Meldt fravær"
-                      tone="reported"
-                      names={day.reported.map((row) => (
-                        <li key={row.name}>
-                          {row.name}
-                          {row.reason ? <span className="block text-admin-muted">{row.reason}</span> : null}
-                        </li>
-                      ))}
-                    />
+                    <NameGroup title="Meldt i appen" tone="reported" names={viaApp.map(reportedName)} />
+                    <NameGroup title="Meldt til lærer" tone="reported" names={viaTeacher.map(reportedName)} />
                     <NameGroup title="Sent" tone="late" names={day.late.map((name) => <li key={name}>{name}</li>)} />
                     <NameGroup
                       title="Til stede"

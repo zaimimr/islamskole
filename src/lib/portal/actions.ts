@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { after } from "next/server";
 import { z } from "zod";
 import { writeAudit } from "@/lib/audit";
+import { osloToday } from "@/lib/dates";
 import { getUser } from "@/lib/auth";
 import { findAuthUserId, sendLoginLink } from "@/lib/login-link";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -135,10 +136,33 @@ async function lessonContext(lessonId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("lessons")
-    .select("id, class_id, school_day_id")
+    .select("id, class_id, school_day_id, school_days(date)")
     .eq("id", lessonId)
     .maybeSingle();
   return { supabase, lesson: data };
+}
+
+type LessonClient = Awaited<ReturnType<typeof lessonContext>>["supabase"];
+
+async function withdrawTeacherReport(supabase: LessonClient, studentId: string, schoolDayId: string) {
+  const { data, error } = await supabase
+    .from("absence_reports")
+    .update({ withdrawn_at: new Date().toISOString() })
+    .eq("student_id", studentId)
+    .eq("school_day_id", schoolDayId)
+    .eq("source", "laerer")
+    .is("withdrawn_at", null)
+    .select("id");
+  if (error) return { error };
+  for (const row of data ?? []) {
+    await writeAudit({
+      action: "absence.withdraw",
+      entityType: "absence_report",
+      entityId: row.id,
+      metadata: { student_id: studentId, school_day_id: schoolDayId, source: "laerer" },
+    });
+  }
+  return { error: null };
 }
 
 const markAttendanceSchema = z.object({
@@ -159,6 +183,10 @@ export async function markAttendance(
 
   const { supabase, lesson } = await lessonContext(parsed.data.lessonId);
   if (!lesson) return { ok: false, error: "forbidden" };
+  if (parsed.data.status !== "meldt_fravaer") {
+    const withdrawn = await withdrawTeacherReport(supabase, parsed.data.studentId, lesson.school_day_id);
+    if (withdrawn.error) return { ok: false, error: dbError(withdrawn.error) };
+  }
   const { data, error } = await supabase
     .from("attendance")
     .upsert(
@@ -182,6 +210,113 @@ export async function markAttendance(
     entityId: parsed.data.studentId,
     metadata: { lesson_id: lesson.id, school_day_id: lesson.school_day_id, status: parsed.data.status },
   });
+  refreshPortal();
+  return { ok: true };
+}
+
+const teacherAbsenceSchema = z.object({
+  studentId: uuid,
+  lessonId: uuid,
+});
+
+export async function reportAbsenceForStudent(studentId: string, lessonId: string): Promise<PortalActionResult> {
+  const parsed = teacherAbsenceSchema.safeParse({ studentId, lessonId });
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const user = await getUser();
+  if (!user) return { ok: false, error: "unauthenticated" };
+
+  const { supabase, lesson } = await lessonContext(parsed.data.lessonId);
+  if (!lesson) return { ok: false, error: "forbidden" };
+
+  const { data: existing, error: readError } = await supabase
+    .from("absence_reports")
+    .select("id")
+    .eq("student_id", parsed.data.studentId)
+    .eq("school_day_id", lesson.school_day_id)
+    .is("withdrawn_at", null)
+    .maybeSingle();
+  if (readError) return { ok: false, error: dbError(readError) };
+
+  let reportId = existing?.id ?? null;
+  if (!reportId) {
+    const { data, error } = await supabase
+      .from("absence_reports")
+      .insert({
+        student_id: parsed.data.studentId,
+        school_day_id: lesson.school_day_id,
+        source: "laerer",
+        reported_by: user.id,
+      })
+      .select("id")
+      .single();
+    if (error) return { ok: false, error: dbError(error) };
+    reportId = data.id;
+    await writeAudit({
+      action: "absence.report",
+      entityType: "absence_report",
+      entityId: data.id,
+      metadata: { student_id: parsed.data.studentId, school_day_id: lesson.school_day_id, source: "laerer" },
+    });
+  }
+
+  const date = lesson.school_days?.date;
+  if (date && date <= osloToday()) {
+    const { error } = await supabase.from("attendance").upsert(
+      {
+        student_id: parsed.data.studentId,
+        lesson_id: lesson.id,
+        school_day_id: lesson.school_day_id,
+        status: "meldt_fravaer",
+        marked_by: user.id,
+        marked_at: new Date().toISOString(),
+      },
+      { onConflict: "student_id,lesson_id" },
+    );
+    if (error) return { ok: false, error: dbError(error) };
+  }
+
+  refreshPortal();
+  return { ok: true, id: reportId };
+}
+
+export async function withdrawAbsenceForStudent(studentId: string, lessonId: string): Promise<PortalActionResult> {
+  const parsed = teacherAbsenceSchema.safeParse({ studentId, lessonId });
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const user = await getUser();
+  if (!user) return { ok: false, error: "unauthenticated" };
+
+  const { supabase, lesson } = await lessonContext(parsed.data.lessonId);
+  if (!lesson) return { ok: false, error: "forbidden" };
+  const { error } = await withdrawTeacherReport(supabase, parsed.data.studentId, lesson.school_day_id);
+  if (error) return { ok: false, error: dbError(error) };
+
+  refreshPortal();
+  return { ok: true };
+}
+
+const absenceReasonSchema = z.object({
+  reportId: uuid,
+  reason: optionalText,
+});
+
+export async function saveAbsenceReason(reportId: string, reason: string): Promise<PortalActionResult> {
+  const parsed = absenceReasonSchema.safeParse({ reportId, reason });
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const user = await getUser();
+  if (!user) return { ok: false, error: "unauthenticated" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("absence_reports")
+    .update({ reason: parsed.data.reason })
+    .eq("id", parsed.data.reportId)
+    .eq("source", "laerer")
+    .is("withdrawn_at", null)
+    .select("id")
+    .maybeSingle();
+  if (error) return { ok: false, error: dbError(error) };
+  if (!data) return { ok: false, error: "not_found" };
+
   refreshPortal();
   return { ok: true };
 }

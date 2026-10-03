@@ -88,6 +88,8 @@ export type PortalSubstituteOption = {
   student_count: number;
 };
 
+export type AbsenceSource = "app" | "laerer";
+
 export type PortalRosterRow = {
   student_id: string;
   first_name: string | null;
@@ -99,6 +101,7 @@ export type PortalRosterRow = {
   attendance_marked_at: string | null;
   absence_report_id: string | null;
   absence_reason: string | null;
+  absence_source: AbsenceSource | null;
   allergies: string | null;
   medical_notes: string | null;
   photo_consent: boolean | null;

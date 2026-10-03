@@ -776,7 +776,7 @@
         "today": "today",
         "cancelled": "cancelled",
         "cancelledNotice": "This school day is cancelled. Attendance cannot be recorded.",
-        "futureNotice": "Attendance is recorded on the school day itself. Absences reported by parents already show here."
+        "futureNotice": "Attendance is recorded on the day. Reported absence can be recorded now."
       },
       "roster": {
         "title": "Attendance",
@@ -794,15 +794,16 @@
       },
       "status": {
         "til_stede": "Present",
-        "fravaer": "Absent",
+        "fravaer": "Not reported",
         "sent": "Late",
         "meldt_fravaer": "Reported absent"
       },
       "summary": {
         "present": "present",
-        "absent": "absent",
         "late": "late",
-        "unmarked": "not recorded"
+        "unmarked": "not recorded",
+        "reported": "reported absent",
+        "unreported": "not reported"
       },
       "note": {
         "title": "Lesson note",
@@ -846,6 +847,12 @@
         "wholeDay": "Whole day",
         "mine": "Your lesson",
         "extraTitle": "Your lessons in other classes"
+      },
+      "absence": {
+        "app": "Reported in the app",
+        "teacher": "Told the teacher",
+        "reason": "Reason for absence for {name}",
+        "reasonPlaceholder": "Reason"
       }
     },
     "common": {

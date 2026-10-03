@@ -39,8 +39,10 @@ export type Database = {
           created_at: string
           id: string
           reason: string | null
+          reported_by: string | null
           reported_by_guardian_id: string | null
           school_day_id: string
+          source: string
           student_id: string
           withdrawn_at: string | null
         }
@@ -48,8 +50,10 @@ export type Database = {
           created_at?: string
           id?: string
           reason?: string | null
+          reported_by?: string | null
           reported_by_guardian_id?: string | null
           school_day_id: string
+          source?: string
           student_id: string
           withdrawn_at?: string | null
         }
@@ -57,8 +61,10 @@ export type Database = {
           created_at?: string
           id?: string
           reason?: string | null
+          reported_by?: string | null
           reported_by_guardian_id?: string | null
           school_day_id?: string
+          source?: string
           student_id?: string
           withdrawn_at?: string | null
         }
@@ -3058,6 +3064,10 @@ export type Database = {
         Args: { p_school_day_id: string; p_student_id: string }
         Returns: boolean
       }
+      portal_can_report_absence: {
+        Args: { p_school_day_id: string; p_student_id: string }
+        Returns: boolean
+      }
       portal_can_mark_lesson: {
         Args: { p_lesson_id: string; p_student_id: string }
         Returns: boolean
@@ -3136,6 +3146,7 @@ export type Database = {
         Returns: {
           absence_reason: string
           absence_report_id: string
+          absence_source: string
           allergies: string
           attendance_marked_at: string
           attendance_status: string

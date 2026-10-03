@@ -93,7 +93,7 @@ type NoteRow = {
   lessons: { start_position: number; end_position: number; subject: string | null } | null;
 };
 
-type AbsenceRow = { student_id: string; school_day_id: string; reason: string | null };
+type AbsenceRow = { student_id: string; school_day_id: string; reason: string | null; source: string };
 
 type PayChip = { label: string; tone: "ok" | "warn" | "danger" | "neutral" };
 
@@ -132,7 +132,9 @@ function attendanceSummary(rows: AttendanceRow[], heldDays: number) {
     (status) => status === "fravaer" || status === "meldt_fravaer",
   ).length;
   const late = days.filter((status) => status === "sent").length;
+  const unreported = days.filter((status) => status === "fravaer").length;
   const parts = [absent ? `${absent} fravær` : "Ingen fravær"];
+  if (unreported) parts.push(`${unreported} ikke meldt`);
   if (late) parts.push(`${late} sent`);
   return parts.join(", ");
 }
@@ -270,7 +272,7 @@ async function getClassPage(id: string) {
     studentIds.length
       ? supabase
           .from("absence_reports")
-          .select("student_id, school_day_id, reason")
+          .select("student_id, school_day_id, reason, source")
           .in("student_id", studentIds)
           .is("withdrawn_at", null)
       : Promise.resolve({ data: [], error: null }),
@@ -480,9 +482,7 @@ export default async function KlassePage({
       });
     return parts.length ? parts.join("\n") : null;
   };
-  const reasonByKey = new Map(
-    data.absences.map((row) => [`${row.student_id}:${row.school_day_id}`, row.reason]),
-  );
+  const reportByKey = new Map(data.absences.map((row) => [`${row.student_id}:${row.school_day_id}`, row]));
   const markerIds = [
     ...new Set(
       heldAttendance
@@ -522,10 +522,14 @@ export default async function KlassePage({
       absent: namesWith("fravaer"),
       reported: roster
         .filter((student) => statusOf.get(student.id) === "meldt_fravaer")
-        .map((student) => ({
-          name: student.name,
-          reason: reasonByKey.get(`${student.id}:${day.id}`) ?? null,
-        })),
+        .map((student) => {
+          const report = reportByKey.get(`${student.id}:${day.id}`);
+          return {
+            name: student.name,
+            reason: report?.reason ?? null,
+            source: report?.source === "laerer" ? ("laerer" as const) : ("app" as const),
+          };
+        }),
       late: namesWith("sent"),
       unmarked: roster.filter((student) => !statusOf.has(student.id)).map((student) => student.name),
       markedBy: [
