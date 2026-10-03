@@ -41,8 +41,8 @@ test.describe("Min side for parents and students", () => {
     for (const day of allDays) {
       await expect(attendance.locator(`[data-date="${day.date}"]`)).toHaveCount(1);
     }
-    await expect(attendance.locator(`[data-date="${world.days[0].date}"]`)).toContainText("Til stede");
-    await expect(attendance.locator(`[data-date="${world.days[1].date}"]`)).toContainText("Fravær");
+    await expect(attendance.locator(`[data-date="${world.days[0].date}"]`)).toContainText("Møtt");
+    await expect(attendance.locator(`[data-date="${world.days[1].date}"]`)).toContainText("Ugyldig fravær");
     await expect(attendance.locator(`[data-date="${world.days[2].date}"]`)).toContainText("Ikke registrert");
 
     const notes = page.getByRole("region", { name: "Ukenotater" });
@@ -62,7 +62,7 @@ test.describe("Min side for parents and students", () => {
     await expect(page.getByText(world.schoolClass.name).first()).toBeVisible();
     await expect(page.getByText(world.newerNote, { exact: true })).toBeVisible();
     const attendance = page.getByRole("region", { name: "Oppmøte" });
-    await expect(attendance.locator(`[data-date="${world.days[0].date}"]`)).toContainText("Til stede");
+    await expect(attendance.locator(`[data-date="${world.days[0].date}"]`)).toContainText("Møtt");
     await expect(page.locator("main")).not.toContainText(/Gjenstår|Alt er betalt|betaling/i);
   });
 

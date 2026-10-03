@@ -69,7 +69,7 @@ test.describe("substitutes and admin in class portal", () => {
 
     await page.goto(`/min-side/klasse/${other.schoolClass.id}?dag=${dayId}`);
     const group = page.getByRole("group", { name: `Oppmøte for ${other.student.name}` });
-    await group.getByRole("button", { name: "Til stede" }).click();
+    await group.getByRole("button", { name: "Møtt" }).click();
     await expect.poll(() => attendanceOf(other.student.id, dayId)).toBe("til_stede");
 
     const homework = `ZZTEST vikarlekse ${uid()}`;
@@ -96,7 +96,7 @@ test.describe("substitutes and admin in class portal", () => {
 
     await page.goto(`/min-side/klasse/${schoolClass.id}?dag=${dayId}`);
     const group = page.getByRole("group", { name: `Oppmøte for ${student.name}` });
-    await group.getByRole("button", { name: "Sent" }).click();
+    await group.getByRole("button", { name: "Forsinket" }).click();
     await expect.poll(() => attendanceOf(student.id, dayId)).toBe("sent");
     await expect(page.getByRole("link", { name: "Tilbake til klassen i admin" })).toBeVisible();
   });
